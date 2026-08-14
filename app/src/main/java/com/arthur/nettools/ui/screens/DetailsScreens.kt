@@ -1,6 +1,7 @@
 package com.arthur.nettools.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -20,6 +21,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -41,6 +43,7 @@ import com.arthur.nettools.MainViewModel
 import com.arthur.nettools.capture.CaptureRepository
 import com.arthur.nettools.capture.CaptureSession
 import com.arthur.nettools.capture.CaptureState
+import com.arthur.nettools.capture.PacketSummary
 import com.arthur.nettools.intercept.AddonStatus
 import com.arthur.nettools.intercept.DecryptedEvent
 import com.arthur.nettools.intercept.InterceptionState
@@ -49,13 +52,16 @@ import com.arthur.nettools.security.CaStatus
 import java.text.DateFormat
 import java.util.Date
 
+private enum class CaptureDetailMode { SUMMARY, PACKETS, FLOWS }
+
 @Composable
-fun SessionDetailScreen(session: CaptureSession?) {
+fun SessionDetailScreen(session: CaptureSession?, onPacket: (Int) -> Unit) {
     if (session == null) {
         Column(Modifier.padding(24.dp)) { Text("Capture session not found") }
         return
     }
     val a = session.analysis
+    var mode by remember { mutableStateOf(CaptureDetailMode.SUMMARY) }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             ElevatedCard(Modifier.fillMaxWidth()) {
@@ -69,24 +75,122 @@ fun SessionDetailScreen(session: CaptureSession?) {
             }
         }
         if (a != null) {
-            item { Text("Protocols", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
             item {
-                OutlinedCard(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(14.dp)) { a.protocols.forEach { Text("${it.protocol} · ${it.packets} packets") } }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = mode == CaptureDetailMode.SUMMARY, onClick = { mode = CaptureDetailMode.SUMMARY }, label = { Text("Summary") })
+                    FilterChip(selected = mode == CaptureDetailMode.PACKETS, onClick = { mode = CaptureDetailMode.PACKETS }, label = { Text("Packets (${a.packets.size})") })
+                    FilterChip(selected = mode == CaptureDetailMode.FLOWS, onClick = { mode = CaptureDetailMode.FLOWS }, label = { Text("Flows") })
                 }
             }
-            item { Text("Top flows", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
-            items(a.flows.take(100)) { flow ->
-                OutlinedCard(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("${flow.protocol} · ${flow.host ?: flow.destination}", fontWeight = FontWeight.Medium)
-                        Text(flow.hint ?: "${flow.source} → ${flow.destination}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${flow.packets} packets", style = MaterialTheme.typography.labelSmall)
+            when (mode) {
+                CaptureDetailMode.SUMMARY -> {
+                    item { Text("Protocols", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+                    item {
+                        OutlinedCard(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                a.protocols.forEach { Text("${it.protocol} · ${it.packets} packets") }
+                            }
+                        }
+                    }
+                    item {
+                        Text("Packet inspection", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("Open Packets to inspect individual frames with protocol-aware fields, text preview and hex bytes.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                CaptureDetailMode.PACKETS -> {
+                    if (a.packets.isEmpty()) item { Text("Preparing packet index from the PCAP…", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    items(a.packets, key = { it.id }) { packet ->
+                        PacketRow(packet, onClick = { onPacket(packet.id) })
+                    }
+                }
+                CaptureDetailMode.FLOWS -> {
+                    items(a.flows.take(300)) { flow ->
+                        OutlinedCard(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text("${flow.protocol} · ${flow.host ?: flow.destination}", fontWeight = FontWeight.Medium)
+                                Text(flow.hint ?: "${flow.source} → ${flow.destination}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("${flow.packets} packets", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun PacketRow(packet: PacketSummary, onClick: () -> Unit) {
+    OutlinedCard(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("#${packet.id}", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.padding(4.dp))
+                Text(packet.protocol, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.weight(1f))
+                Text("${packet.originalLength} B", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(packet.title, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("${packet.source}  →  ${packet.destination}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            packet.subtitle?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+    }
+}
+
+@Composable
+fun PacketDetailScreen(packet: PacketSummary?) {
+    if (packet == null) {
+        Column(Modifier.padding(24.dp)) { Text("Packet not found. Reopen the capture session to rebuild its packet index.") }
+        return
+    }
+    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            ElevatedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(packet.protocol, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.weight(1f))
+                        Text("${packet.capturedLength}/${packet.originalLength} B", style = MaterialTheme.typography.labelMedium)
+                    }
+                    Text(packet.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                    Text("${packet.source}  →  ${packet.destination}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Timestamp ${packet.timestampMicros} µs", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        item { Text(protocolSectionTitle(packet.protocol), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+        item {
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    packet.fields.forEach { field ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(field.label, modifier = Modifier.weight(.42f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(field.value, modifier = Modifier.weight(.58f), style = MaterialTheme.typography.bodySmall, fontFamily = if (field.value.length > 24) FontFamily.Monospace else FontFamily.Default)
+                        }
+                    }
+                }
+            }
+        }
+        packet.payloadText?.let { text ->
+            item { Text("Text payload", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+            item { OutlinedCard(Modifier.fillMaxWidth()) { Text(text, Modifier.padding(14.dp), fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall) } }
+        }
+        packet.payloadHex?.let { hex ->
+            item { Text("Hex preview · first 256 bytes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+            item { OutlinedCard(Modifier.fillMaxWidth()) { Text(hex, Modifier.padding(14.dp), fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall) } }
+        }
+    }
+}
+
+private fun protocolSectionTitle(protocol: String): String = when {
+    protocol == "DNS" -> "DNS message"
+    protocol == "HTTP" -> "HTTP message"
+    protocol == "TLS" -> "TLS record"
+    protocol.startsWith("QUIC") -> "QUIC packet"
+    protocol == "TCP" -> "TCP segment"
+    protocol == "UDP" -> "UDP datagram"
+    protocol == "ICMP" -> "ICMP message"
+    else -> "Packet fields"
 }
 
 @Composable

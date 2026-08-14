@@ -39,6 +39,7 @@ import com.arthur.nettools.ui.screens.DecryptedEventDetailScreen
 import com.arthur.nettools.ui.screens.DecryptSessionDetailScreen
 import com.arthur.nettools.ui.screens.DiagnosticsScreen
 import com.arthur.nettools.ui.screens.SessionDetailScreen
+import com.arthur.nettools.ui.screens.PacketDetailScreen
 import com.arthur.nettools.ui.screens.SettingsScreen
 import com.arthur.nettools.ui.screens.TrafficScreen
 
@@ -93,6 +94,7 @@ fun NetToolsApp(viewModel: MainViewModel) {
         DiagnosticsRoute -> "Diagnostics"
         AboutRoute -> "About"
         is CaptureSessionRoute -> "Capture Session"
+        is PacketDetailRoute -> "Packet #${current.packetId}"
         is DecryptedEventRoute -> "Decrypted Payload"
         is DecryptSessionRoute -> "Decryption Session"
         else -> "Net Tools"
@@ -147,7 +149,7 @@ fun NetToolsApp(viewModel: MainViewModel) {
                     NavEntry(key) {
                         when (key) {
                             DashboardRoute -> DashboardScreen(capture, intercept, ca, addon, onTraffic = { top(TrafficRoute) }, onDecrypt = { top(DecryptRoute) }, onCertificates = { push(CertificateRoute) })
-                            TrafficRoute -> TrafficScreen(capture, apps, viewModel, onSession = { push(CaptureSessionRoute(it)) })
+                            TrafficRoute -> TrafficScreen(capture, apps, viewModel, onSession = { id -> viewModel.prepareCaptureSession(id); push(CaptureSessionRoute(id)) })
                             DecryptRoute -> DecryptScreen(
                                 intercept, addon, ca, apps, interceptHistory, viewModel,
                                 onCertificate = { push(CertificateRoute) },
@@ -158,7 +160,8 @@ fun NetToolsApp(viewModel: MainViewModel) {
                             CertificateRoute -> CertificateScreen(ca, addon, viewModel)
                             DiagnosticsRoute -> DiagnosticsScreen(capture, intercept, addon, ca, viewModel)
                             AboutRoute -> AboutScreen()
-                            is CaptureSessionRoute -> SessionDetailScreen(capture.sessions.firstOrNull { it.id == key.id })
+                            is CaptureSessionRoute -> SessionDetailScreen(capture.sessions.firstOrNull { it.id == key.id }, onPacket = { packetId -> push(PacketDetailRoute(key.id, packetId)) })
+                            is PacketDetailRoute -> PacketDetailScreen(capture.sessions.firstOrNull { it.id == key.sessionId }?.analysis?.packets?.firstOrNull { it.id == key.packetId })
                             is DecryptedEventRoute -> DecryptedEventDetailScreen(intercept.recentEvents.firstOrNull { it.id == key.id })
                             is DecryptSessionRoute -> DecryptSessionDetailScreen(inspectedIntercept, inspectedEvents)
                             else -> Text("Unknown destination")

@@ -74,6 +74,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun start(target: AppTarget?) = viewModelScope.launch { repo.start(target) }
     fun stop() = viewModelScope.launch { repo.stop() }
+    fun prepareCaptureSession(id: String) = viewModelScope.launch { repo.ensurePacketAnalysis(id) }
     fun refresh() = viewModelScope.launch {
         repo.initialize()
         appsMutable.value = repo.installedApps()

@@ -31,6 +31,45 @@ class PcapParserTest {
             assertEquals(1, analysis.packetCount)
             assertEquals("HTTP", analysis.protocols.first().protocol)
             assertTrue(analysis.flows.first().hint?.startsWith("GET / HTTP/1.1") == true)
+            assertEquals(1, analysis.packets.size)
+            assertEquals("HTTP", analysis.packets.first().protocol)
+            assertEquals("GET / HTTP/1.1", analysis.packets.first().title)
+            assertTrue(analysis.packets.first().fields.any { it.label == "Host" && it.value == "example.com" })
+            assertTrue(analysis.packets.first().payloadHex?.startsWith("0000") == true)
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun `parses dns packet into protocol aware fields`() {
+        val dns = byteArrayOf(
+            0x12, 0x34, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x07, 'e'.code.toByte(), 'x'.code.toByte(), 'a'.code.toByte(), 'm'.code.toByte(), 'p'.code.toByte(), 'l'.code.toByte(), 'e'.code.toByte(),
+            0x03, 'c'.code.toByte(), 'o'.code.toByte(), 'm'.code.toByte(), 0x00, 0x00, 0x01, 0x00, 0x01,
+        )
+        val ip = ByteArray(20 + 8 + dns.size)
+        ip[0] = 0x45
+        val total = ip.size
+        ip[2] = (total ushr 8).toByte(); ip[3] = total.toByte()
+        ip[8] = 64; ip[9] = 17
+        ip[12] = 10; ip[15] = 2
+        ip[16] = 8; ip[17] = 8; ip[18] = 8; ip[19] = 8
+        val udp = 20
+        ip[udp] = 0x9c.toByte(); ip[udp + 1] = 0x40
+        ip[udp + 2] = 0; ip[udp + 3] = 53
+        val udpLength = 8 + dns.size
+        ip[udp + 4] = (udpLength ushr 8).toByte(); ip[udp + 5] = udpLength.toByte()
+        dns.copyInto(ip, 28)
+
+        val file = File.createTempFile("nettools-dns", ".pcap")
+        file.writeBytes(globalHeader() + packetHeader(ip.size) + ip)
+        try {
+            val packet = PcapParser.parse(file).packets.single()
+            assertEquals("DNS", packet.protocol)
+            assertEquals("example.com", packet.title)
+            assertTrue(packet.fields.any { it.label == "Transaction ID" && it.value == "0x1234" })
+            assertTrue(packet.fields.any { it.label == "Message" && it.value == "Query" })
         } finally {
             file.delete()
         }

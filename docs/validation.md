@@ -2,6 +2,23 @@
 
 This ledger separates **verified on-device facts** from implementation that has only passed build/unit tests.
 
+## Packet inspection UX
+
+The current source now implements the full capture drill-down `Session → Summary / Packets / Flows → Packet Detail`. Older saved PCAP sessions are lazily re-indexed the first time they are opened, so packet inspection does not require a new capture.
+
+Packet details differentiate DNS, HTTP/1.x, TLS, QUIC, TCP, UDP and ICMP using protocol-specific field sets, with text and 256-byte hex previews as appropriate. Unsupported traffic retains a generic raw-byte fallback. The interaction and extension rules are documented in `docs/packet-inspection-ux.md`.
+
+Parser regression tests cover HTTP request/header packet indexing and DNS transaction/query fields.
+
+On-device verification was completed on the rooted Mi 9T Pro with the latest debug APK:
+
+- the existing Taobao capture (`20260814-233045`) was opened without recapturing;
+- lazy PCAP re-indexing produced `Packets (2000)` alongside Summary and Flows;
+- the real packet index contains DNS (`#1`), TCP (`#7`), TLS/SNI (`#35`, `gw.alicdn.com`), QUIC Long Header (`#349`) and HTTP (`#736`, a real POST request line);
+- opening DNS packet `#1` rendered the dedicated `DNS message` detail with source/destination ports, Transaction ID, Query/Response message type, Name and Hex preview.
+
+This verifies the end-to-end navigation and differentiated packet-detail renderer against an existing real application capture, not synthetic UI data.
+
 ## Raw capture acceptance
 
 Target device: Mi 9T Pro, Android 11, Magisk root.

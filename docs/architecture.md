@@ -9,6 +9,8 @@ Net Tools is a root-first Android inspection application with two deliberately i
 
 The split is architectural, not cosmetic. A failed MITM session must never make the product blind to network traffic.
 
+The detailed product interaction and protocol-aware packet presentation contract lives in [`packet-inspection-ux.md`](packet-inspection-ux.md).
+
 ## 2. Implemented component map
 
 ```mermaid

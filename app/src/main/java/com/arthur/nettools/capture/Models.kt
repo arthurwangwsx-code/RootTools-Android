@@ -17,11 +17,32 @@ data class FlowSummary(
     val packets: Int = 1,
 )
 
+data class PacketField(
+    val label: String,
+    val value: String,
+)
+
+data class PacketSummary(
+    val id: Int,
+    val timestampMicros: Long,
+    val capturedLength: Int,
+    val originalLength: Int,
+    val protocol: String,
+    val source: String,
+    val destination: String,
+    val title: String,
+    val subtitle: String? = null,
+    val fields: List<PacketField> = emptyList(),
+    val payloadText: String? = null,
+    val payloadHex: String? = null,
+)
+
 data class CaptureAnalysis(
     val packetCount: Int = 0,
     val byteCount: Long = 0,
     val protocols: List<ProtocolCount> = emptyList(),
     val flows: List<FlowSummary> = emptyList(),
+    val packets: List<PacketSummary> = emptyList(),
 )
 
 data class CaptureSession(

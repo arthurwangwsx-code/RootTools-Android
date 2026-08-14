@@ -8,6 +8,7 @@ data object CertificateRoute
 data object DiagnosticsRoute
 data object AboutRoute
 data class CaptureSessionRoute(val id: String)
+data class PacketDetailRoute(val sessionId: String, val packetId: Int)
 data class DecryptedEventRoute(val id: Long)
 data class DecryptSessionRoute(val id: String)
 

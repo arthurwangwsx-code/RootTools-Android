@@ -119,6 +119,17 @@ class CaptureRepository(private val context: Context) {
         stateMutable.value = stateMutable.value.copy(sessions = loadSessions())
     }
 
+    suspend fun ensurePacketAnalysis(id: String) = withContext(Dispatchers.IO) {
+        val current = stateMutable.value
+        val session = current.sessions.firstOrNull { it.id == id } ?: return@withContext
+        if (session.analysis?.packets?.isNotEmpty() == true) return@withContext
+        val pcap = File(session.pcapPath)
+        if (!pcap.exists()) return@withContext
+        val updated = session.copy(analysis = PcapParser.parse(pcap))
+        writeMetadata(updated)
+        stateMutable.value = current.copy(sessions = current.sessions.map { if (it.id == id) updated else it })
+    }
+
     private fun loadSessions(): List<CaptureSession> = capturesDir.listFiles { f -> f.extension == "json" }
         ?.mapNotNull { runCatching { readMetadata(it) }.getOrNull() }
         ?.sortedByDescending { it.startedAt }
@@ -153,6 +164,12 @@ class CaptureRepository(private val context: Context) {
                 put("protocols", JSONArray(a.protocols.map { JSONObject().put("protocol", it.protocol).put("packets", it.packets) }))
                 put("flows", JSONArray(a.flows.map { f -> JSONObject().put("protocol", f.protocol).put("source", f.source)
                     .put("destination", f.destination).put("host", f.host ?: JSONObject.NULL).put("hint", f.hint ?: JSONObject.NULL).put("packets", f.packets) }))
+                put("packets", JSONArray(a.packets.map { p -> JSONObject()
+                    .put("id", p.id).put("timestampMicros", p.timestampMicros).put("capturedLength", p.capturedLength).put("originalLength", p.originalLength)
+                    .put("protocol", p.protocol).put("source", p.source).put("destination", p.destination).put("title", p.title)
+                    .put("subtitle", p.subtitle ?: JSONObject.NULL).put("payloadText", p.payloadText ?: JSONObject.NULL).put("payloadHex", p.payloadHex ?: JSONObject.NULL)
+                    .put("fields", JSONArray(p.fields.map { field -> JSONObject().put("label", field.label).put("value", field.value) }))
+                }))
             })
         }
         File(capturesDir, "${s.id}.json").writeText(json.toString(2))
@@ -163,10 +180,22 @@ class CaptureRepository(private val context: Context) {
         val a = j.optJSONObject("analysis")?.let { aj ->
             val protocols = aj.optJSONArray("protocols") ?: JSONArray()
             val flows = aj.optJSONArray("flows") ?: JSONArray()
+            val packets = aj.optJSONArray("packets") ?: JSONArray()
             CaptureAnalysis(
                 aj.optInt("packetCount"), aj.optLong("byteCount"),
                 (0 until protocols.length()).map { protocols.getJSONObject(it).let { p -> ProtocolCount(p.getString("protocol"), p.getInt("packets")) } },
                 (0 until flows.length()).map { flows.getJSONObject(it).let { f -> FlowSummary(f.getString("protocol"), f.getString("source"), f.getString("destination"), f.optString("host").takeIf { it.isNotBlank() && it != "null" }, f.optString("hint").takeIf { it.isNotBlank() && it != "null" }, f.optInt("packets", 1)) } },
+                (0 until packets.length()).map { packets.getJSONObject(it).let { p ->
+                    val fields = p.optJSONArray("fields") ?: JSONArray()
+                    PacketSummary(
+                        id = p.getInt("id"), timestampMicros = p.optLong("timestampMicros"), capturedLength = p.optInt("capturedLength"), originalLength = p.optInt("originalLength"),
+                        protocol = p.getString("protocol"), source = p.getString("source"), destination = p.getString("destination"), title = p.getString("title"),
+                        subtitle = p.optString("subtitle").takeIf { it.isNotBlank() && it != "null" },
+                        fields = (0 until fields.length()).map { index -> fields.getJSONObject(index).let { field -> PacketField(field.getString("label"), field.getString("value")) } },
+                        payloadText = p.optString("payloadText").takeIf { it.isNotBlank() && it != "null" },
+                        payloadHex = p.optString("payloadHex").takeIf { it.isNotBlank() && it != "null" },
+                    )
+                } },
             )
         }
         return CaptureSession(j.getString("id"), j.getString("appLabel"), j.getString("packageName"), j.getInt("uid"), j.getLong("startedAt"), j.optLong("stoppedAt").takeIf { !j.isNull("stoppedAt") }, j.getString("pcapPath"), a)
