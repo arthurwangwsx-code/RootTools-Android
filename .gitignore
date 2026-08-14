@@ -1,0 +1,25 @@
+/.idea/
+/.gradle/
+/build/
+/**/build/
+/**/.cxx/
+/local.properties
+/gradlew.bat
+
+# External upstream references are research inputs, not part of this repository.
+/references/
+
+# Captures and generated traffic artifacts may contain sensitive data.
+/captures/
+/artifacts/
+*.pcap
+*.pcapng
+*.har
+*.mitm
+
+# Local certificates and keys must never be committed.
+/certs/
+*.pem
+*.key
+*.p12
+*.pfx
