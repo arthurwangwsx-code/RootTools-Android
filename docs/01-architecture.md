@@ -138,11 +138,22 @@ Shizuku / Sui 不替换 `RootShell`，而是作为 Android Framework 操作的�
 Typed Controller
       ↓
 Privilege Router
-  ├── RootShell: sysfs / root file / Magisk / adbd
-  └── Shizuku/Sui: Package / Activity / AppOps / framework Binder
+  ├── Shizuku/Sui UserService: Package / Component / Activity / AppOps
+  └── RootShell fallback: framework state operations only when needed
+
+Root-only Controller
+      ↓
+RootShell: sysfs / root file / Magisk / adbd
 ```
 
-Feature 不直接持有 Shizuku Binder；统一由 `ShizukuBridge` 管理 Binder lifecycle、permission 与 backend UID，再由 `PrivilegeRouter` 按语义 capability 选路。禁止重新引入公开的“任意 shell executor”。详细设计见 `13-shizuku-sui-bridge.md`。
+Feature 不直接持有 Shizuku Binder；统一由 `ShizukuBridge` 管理 Binder lifecycle、permission 与 backend UID，`ShizukuUserServiceClient` 管理 typed UserService 生命周期，再由 `PrivilegeRouter` 按语义 capability 选路。禁止重新引入公开的“任意 shell executor”。
+
+当前路由还有两个关键约束：
+
+1. Shizuku/Sui Ready 时先执行 Binder route，成功时**不 probe `su`**；仅在 Binder route 失败/不可用后才探测 Root fallback，避免无意义 Magisk 授权提示。
+2. UserService AIDL 只包含固定语义方法；package/component/AppOp 等动态参数都通过 `PrivilegeInputValidator`，不接受外部 shell command 文本。
+
+组件写操作额外经过 `ComponentSafetyPolicy`，Package 写操作经过 `PackageMutationPolicy`；这些 Android-free 规则由 JVM unit test 覆盖。详细设计见 `13-shizuku-sui-bridge.md` 与 `14-core-logic-testing-standard.md`。
 
 ---
 

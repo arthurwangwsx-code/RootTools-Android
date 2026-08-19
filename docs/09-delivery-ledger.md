@@ -48,13 +48,23 @@
 - [x] 输出 `13-shizuku-sui-bridge.md`，明确 RootShell 与 Shizuku/Sui 的职责边界
 - [x] 确定不新增 Gradle module，只在现有 `app` 内增加 privilege package
 - [x] 确定优先落地：状态 / 授权 / backend UID / self-test → App Governance typed gateway → Component Manager
-- [ ] Shizuku API / provider dependency
-- [ ] Binder lifecycle + permission request
-- [ ] `ToolCapability.SHIZUKU` + `ToolId.SHIZUKU`
-- [ ] Shizuku / Sui detail page
-- [ ] Package / Activity / AppOps `PrivilegeRouter`
-- [ ] Component Manager
-- [ ] Samsung Shizuku Root 真机验收
+- [x] Shizuku API / provider 13.1.5
+- [x] Binder lifecycle + permission request + UID/backend/Sui detection
+- [x] `ToolCapability.SHIZUKU` / `FRAMEWORK_PRIVILEGE` + `ToolId.SHIZUKU` / `COMPONENTS`
+- [x] Shizuku / Sui detail page + Manager / Wireless Debugging 入口
+- [x] typed UserService AIDL，不公开任意 privileged shell API
+- [x] Package / Activity / AppOps `PrivilegeRouter`
+- [x] Router 只在 Shizuku/Sui route 失败后 probe Root fallback，避免无意义 Magisk toast
+- [x] `PackagePolicyController` 与 Automation 复用统一 Router/Controller
+- [x] Component Manager + BOOT / FGS / exported / disabled filter
+- [x] Package / Component 安全策略 + before/after/backend audit
+- [x] Non-root Framework catalog + Root-only capability 灰显
+- [x] JVM test：routing / UID mode / validator / package mutation / component safety / self-test parser
+- [x] Samsung 已识别 Shizuku Manager 13.5.4，server root UID，Root Tools permission granted，首页 `Shizuku Root · UID 0 · Ready`
+- [ ] Samsung 运行最新版 typed UserService self-test
+- [ ] Samsung 对普通用户 App 执行 1 个 component disable → refresh → enable rollback
+- [ ] 无 Root + Shizuku ADB 真机专项验收
+- [ ] Sui Root 真机验收
 
 ### Next — K ADB Control Center
 

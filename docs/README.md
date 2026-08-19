@@ -57,7 +57,8 @@
 - 常用 Root 操作
 - 自动化入口
 - 设备快照 / 报告
-- Shizuku / Sui 特权桥接（规划中）
+- Shizuku / Sui 特权桥接（已落地：typed UserService / PrivilegeRouter / self-test）
+- 组件管理（Activity / Service / Receiver / Provider，Shizuku first + Root fallback）
 - App Control Center（规划完成，待实施）
 
 ### 行业调研后确认的后续一级领域

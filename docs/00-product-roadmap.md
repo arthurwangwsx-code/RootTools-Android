@@ -283,17 +283,19 @@ Root Tools 本身必须满足：
 
 ### Milestone J — Shizuku / Sui 特权桥接
 
-- [ ] Shizuku API / provider 接入
-- [ ] Binder lifecycle + permission + UID/mode detection
-- [ ] Sui detection
-- [ ] Shizuku / Sui 独立卡片与权限中心状态
-- [ ] Capability self-test
-- [ ] Package / Activity / AppOps typed gateway
-- [ ] `PackagePolicyController` 接入 Privilege Router
-- [ ] Component Manager（Activity / Service / Receiver / Provider）
-- [ ] Shizuku Root Samsung 真机验收
+- [x] Shizuku API / provider 接入
+- [x] Binder lifecycle + permission + UID/mode detection
+- [x] Sui detection
+- [x] Shizuku / Sui 独立卡片与权限中心状态
+- [x] Capability self-test（只读）
+- [x] Package / Activity / AppOps typed gateway
+- [x] `PackagePolicyController` 接入 Privilege Router
+- [x] Component Manager（Activity / Service / Receiver / Provider）
+- [x] Non-root Framework catalog + `FRAMEWORK_PRIVILEGE` 降级路径
+- [x] JVM routing / validator / package / component / self-test protocol 覆盖
+- [ ] Shizuku Root Samsung typed UserService + component write/rollback 最终验收
 - [ ] Sui Root 可选验收
-- [ ] 非 Root + Shizuku ADB 降级模式
+- [ ] 非 Root + Shizuku ADB 真机专项验收
 
 详细方案见 [13-shizuku-sui-bridge.md](./13-shizuku-sui-bridge.md)。
 

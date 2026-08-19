@@ -393,49 +393,77 @@ Shizuku Manager 负责“Shizuku 自己的管理”，Root Tools 负责“消费
 
 ### Phase S1 — Bridge Foundation
 
-- [ ] 引入 Shizuku API / provider；
-- [ ] `ShizukuBridgeState`；
-- [ ] Binder received / dead listener；
-- [ ] permission request；
-- [ ] UID / backend mode detection；
-- [ ] Sui detection；
-- [ ] `ToolCapability.SHIZUKU`；
-- [ ] 权限中心显示状态。
+- [x] 引入 Shizuku API / provider（13.1.5）；
+- [x] `ShizukuBridgeState`；
+- [x] Binder received / dead listener；
+- [x] permission request；
+- [x] UID / backend mode detection；
+- [x] Sui detection；
+- [x] `ToolCapability.SHIZUKU`；
+- [x] 权限中心显示状态。
 
 ### Phase S2 — 独立卡片
 
-- [ ] `ToolId.SHIZUKU`；
-- [ ] 首页动态摘要；
-- [ ] Shizuku / Sui detail page；
-- [ ] settings / manager quick open；
-- [ ] Capability self-test；
-- [ ] diagnostics export。
+- [x] `ToolId.SHIZUKU`；
+- [x] 首页动态摘要；
+- [x] Shizuku / Sui detail page；
+- [x] settings / manager quick open；
+- [x] Capability self-test（只读 UserService probe）；
+- [x] diagnostics export 增加 bridge / probe 状态。
 
 ### Phase S3 — App Governance Migration
 
-- [ ] `PrivilegeRouter`；
-- [ ] Package typed gateway；
-- [ ] Activity typed gateway；
-- [ ] AppOps typed gateway；
-- [ ] 现有 `PackagePolicyController` 接入 router；
-- [ ] Root fallback；
-- [ ] 单元测试覆盖 backend route decision。
+- [x] `PrivilegeRouter`；
+- [x] Package typed gateway；
+- [x] Activity typed gateway（force-stop / top activity diagnostics）；
+- [x] AppOps typed gateway；
+- [x] 现有 `PackagePolicyController` 接入 router；
+- [x] Root fallback（只对可重复的目标状态操作开放）；
+- [x] 单元测试覆盖 backend route decision / package safety / input validation。
 
 ### Phase S4 — Component Manager
 
-- [ ] Activities / Services / Receivers / Providers 列表；
-- [ ] BOOT receiver / foreground service / exported component 筛选；
-- [ ] component enable / disable；
-- [ ] before / after diff；
-- [ ] protected package / protected component 白名单；
+- [x] Activities / Services / Receivers / Providers 列表；
+- [x] BOOT receiver / foreground service / exported / disabled component 筛选；
+- [x] component enable / disable；
+- [x] before / after diff + backend attribution；
+- [x] protected package / protected component / system app 安全门；
 - [ ] Samsung 真机验收。
 
 ### Phase S5 — Non-root Degrade
 
-- [ ] 在 Root 不可用、Shizuku ADB 可用时首页不整体报错；
-- [ ] ToolRegistry 按 Capability 灰显真正不可用功能；
-- [ ] App Governance 使用 shell identity；
-- [ ] Root-only 页面明确解释为什么不可用。
+- [x] 在 Root 不可用、Shizuku ADB 可用时首页不整体报错；
+- [x] ToolRegistry 引入 `FRAMEWORK_PRIVILEGE = Root OR Shizuku`，灰显真正不可用功能；
+- [x] App Governance 增加 PackageManager catalog 降级路径，写操作继续走 Shizuku shell identity；
+- [x] Root-only 卡片在无 Root 时不可进入，并从权限中心解释缺失能力；
+- [ ] 无 Root + Shizuku ADB 真机专项验收。
+
+### 9.1 当前实现拓扑（2026-08-20）
+
+```text
+UI / Automation
+      │
+      ▼
+PackagePolicyController / ComponentPolicyController
+      │
+      ├── pure safety policy + validator   ← JVM unit test
+      │
+      ▼
+PrivilegeRouter
+      │
+      ├── 1. Shizuku/Sui UserService (typed AIDL)
+      │       └── fixed semantic operations only
+      │
+      └── 2. RootShell fallback
+              └── only after Shizuku fails / unavailable
+```
+
+两个实现约束需要长期保持：
+
+1. **Shizuku 成功时不提前 probe `su`**。否则 Framework 操作虽然最终走 Shizuku，仍可能因为“检查 fallback”制造 Magisk 授权提示；当前 `PrivilegeRouter` 只有在 Shizuku 不可用或调用失败后才探测 Root。
+2. **UserService 不提供通用 exec Binder API**。AIDL 只暴露 package / component / AppOps / diagnostics 等语义化方法；动态 package/component/AppOp 参数必须先经过 `PrivilegeInputValidator`。
+
+Component Manager 的本地枚举需要完整 package visibility，因此当前个人/设备管理版本声明 `QUERY_ALL_PACKAGES`。这与“查看并管理所有已安装应用/组件”的核心功能一致；如果未来准备公开上架 Google Play，需要在发布前单独重新评估 Play policy 与分发形态。
 
 ---
 
@@ -451,4 +479,17 @@ Shizuku Manager 负责“Shizuku 自己的管理”，Root Tools 负责“消费
 8. 不新增常驻高频服务，不引入 Binder polling busy-loop；
 9. Samsung SM-S908E 上完成 Shizuku Root 模式真机验证；
 10. 后续若安装 Sui，使用同一 API 链路完成 Sui Root 验证。
+
+### 10.1 自动化测试门槛
+
+Shizuku / Sui 核心逻辑按 `14-core-logic-testing-standard.md` 执行。当前 JVM 测试至少覆盖：
+
+- UID `0 / 2000 / unknown` backend 分类；
+- Shizuku-first + Root fallback route 顺序；
+- Binder 有但未授权时不得进入 Shizuku route；
+- root-only capability 不误路由到 Shizuku/Sui；
+- package / component / AppOp 输入注入拒绝；
+- protected package mutation；
+- component system/protected/cross-package/stale/launcher 安全门；
+- UserService self-test protocol 的 root / ADB / malformed 解析。
 
