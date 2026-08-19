@@ -2,4 +2,5 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <external-files-path name="diagnostics" path="diagnostics/" />
     <files-path name="internal_diagnostics" path="diagnostics/" />
+    <cache-path name="developer_runtime" path="developer-runtime/" />
 </paths>

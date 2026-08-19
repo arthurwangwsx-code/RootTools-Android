@@ -1,0 +1,35 @@
+package com.arthur.roottools.integration.termux
+
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class TermuxManagedTaskRegistryTest {
+    @Test
+    fun `every managed task uses termux prefix or home`() {
+        TermuxManagedTaskId.entries.forEach { id ->
+            val spec = TermuxManagedTaskRegistry.spec(id)
+            assertTrue(spec.executable.startsWith("${'$'}PREFIX/"))
+            assertTrue(spec.workDir.startsWith("/data/data/com.termux/files/"))
+            assertTrue(spec.timeoutMs in 1_000L..60_000L)
+            assertTrue(spec.maxOutputChars in 1_000..64_000)
+        }
+    }
+
+    @Test
+    fun `managed tasks do not expose root or reboot`() {
+        val serialized = TermuxManagedTaskId.entries.joinToString("\n") { id ->
+            val spec = TermuxManagedTaskRegistry.spec(id)
+            buildString {
+                append(spec.executable)
+                append(' ')
+                append(spec.arguments.joinToString(" "))
+            }
+        }.lowercase()
+
+        assertFalse(serialized.contains("su -c"))
+        assertFalse(serialized.contains(" reboot"))
+        assertFalse(serialized.contains("setprop"))
+    }
+}
+

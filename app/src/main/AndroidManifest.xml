@@ -11,6 +11,14 @@
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
+
+    <queries>
+        <package android:name="com.termux" />
+        <intent>
+            <action android:name="com.termux.RUN_COMMAND" />
+        </intent>
+    </queries>
 
     <application
         android:name=".app.RootToolsApp"
@@ -66,6 +74,10 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/adb_widget_info" />
         </receiver>
+
+        <service
+            android:name=".integration.termux.TermuxRunCommandResultService"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
