@@ -91,6 +91,8 @@ fun DeveloperRuntimeRoute(
         onRunWorkflow = viewModel::runWorkflow,
         onExportWorkflow = viewModel::exportWorkflowManifest,
         onExportRuntimeRegistry = viewModel::exportRuntimeRegistry,
+        onHandoffLatestDiagnostic = viewModel::handoffLatestDiagnosticBackup,
+        onCreateBackupArchive = viewModel::createBackupArchive,
     )
 }
 
@@ -120,6 +122,8 @@ private fun DeveloperRuntimeScreen(
     onRunWorkflow: (ManagedWorkflowId, String?) -> Unit,
     onExportWorkflow: (ManagedWorkflowId, String?) -> Unit,
     onExportRuntimeRegistry: () -> Unit,
+    onHandoffLatestDiagnostic: () -> Unit,
+    onCreateBackupArchive: () -> Unit,
 ) {
     val context = LocalContext.current
     var confirmation by remember { mutableStateOf<DeveloperRuntimeConfirmation?>(null) }
@@ -280,6 +284,14 @@ private fun DeveloperRuntimeScreen(
                     )
                 }
 
+                item {
+                    BackupHandoffCard(
+                        state = state,
+                        onHandoff = { confirmation = DeveloperRuntimeConfirmation.BACKUP_HANDOFF },
+                        onArchive = { confirmation = DeveloperRuntimeConfirmation.BACKUP_ARCHIVE },
+                    )
+                }
+
                 state.lastTaskResult?.let { result ->
                     item { TaskResultCard(state) }
                 }
@@ -310,6 +322,10 @@ private fun DeveloperRuntimeScreen(
                 R.string.developer_runtime_mcp_start_loopback_confirm_title to R.string.developer_runtime_mcp_start_loopback_confirm_body
             DeveloperRuntimeConfirmation.START_MCP_TAILSCALE ->
                 R.string.developer_runtime_mcp_start_tailscale_confirm_title to R.string.developer_runtime_mcp_start_tailscale_confirm_body
+            DeveloperRuntimeConfirmation.BACKUP_HANDOFF ->
+                R.string.developer_runtime_backup_confirm_title to R.string.developer_runtime_backup_confirm_body
+            DeveloperRuntimeConfirmation.BACKUP_ARCHIVE ->
+                R.string.developer_runtime_backup_archive_confirm_title to R.string.developer_runtime_backup_archive_confirm_body
         }
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirmation = null },
@@ -325,6 +341,8 @@ private fun DeveloperRuntimeScreen(
                         DeveloperRuntimeConfirmation.DISABLE_SSHD_AUTOSTART -> onDisableSshdAutostart()
                         DeveloperRuntimeConfirmation.START_MCP_LOOPBACK -> onStartMcpLoopback()
                         DeveloperRuntimeConfirmation.START_MCP_TAILSCALE -> onStartMcpTailscale()
+                        DeveloperRuntimeConfirmation.BACKUP_HANDOFF -> onHandoffLatestDiagnostic()
+                        DeveloperRuntimeConfirmation.BACKUP_ARCHIVE -> onCreateBackupArchive()
                     }
                 }) {
                     Text(stringResource(R.string.developer_runtime_confirm))
@@ -1051,6 +1069,69 @@ private fun RuntimeRegistryCard(
 }
 
 @Composable
+private fun BackupHandoffCard(
+    state: DeveloperRuntimeUiState,
+    onHandoff: () -> Unit,
+    onArchive: () -> Unit,
+) {
+    SectionCard(title = stringResource(R.string.developer_runtime_backup_title)) {
+        Text(
+            stringResource(R.string.developer_runtime_backup_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            stringResource(R.string.developer_runtime_backup_future_note),
+            modifier = Modifier.padding(top = 7.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        state.backupHandoff?.let { handoff ->
+            Spacer(Modifier.height(8.dp))
+            handoff.remotePath?.let {
+                RuntimeRow(stringResource(R.string.developer_runtime_backup_remote_path), it)
+            }
+            handoff.sha256?.let {
+                RuntimeRow(stringResource(R.string.developer_runtime_backup_sha), it.take(12) + "…")
+            }
+            RuntimeRow(stringResource(R.string.developer_runtime_backup_chunks), handoff.chunks.toString())
+            Text(
+                handoff.message,
+                modifier = Modifier.padding(top = 5.dp),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (handoff.success) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            )
+        }
+        state.backupArchiveResult?.takeIf { it.success }?.let { archive ->
+            val values = archive.stdout.lineSequence().mapNotNull { line ->
+                val key = line.substringBefore('=', "").trim()
+                val value = line.substringAfter('=', "").trim()
+                if (key.isNotBlank() && value.isNotBlank()) key to value else null
+            }.toMap()
+            values["path"]?.let {
+                RuntimeRow(stringResource(R.string.developer_runtime_backup_remote_path), it)
+            }
+            values["sha256"]?.let {
+                RuntimeRow(stringResource(R.string.developer_runtime_backup_sha), it.take(12) + "…")
+            }
+        }
+        val enabled = state.runtime.bridgeMode == TermuxBridgeMode.OFFICIAL_RUN_COMMAND &&
+            state.runningTask == null && state.workflowRunning == null
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(onClick = onHandoff, enabled = enabled, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.developer_runtime_backup_latest_diagnostic), maxLines = 1)
+            }
+            OutlinedButton(onClick = onArchive, enabled = enabled, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.developer_runtime_backup_archive), maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
 private fun AuditCard(state: DeveloperRuntimeUiState) {
     SectionCard(title = stringResource(R.string.developer_runtime_audit_title)) {
         Text(
@@ -1197,6 +1278,8 @@ private enum class DeveloperRuntimeConfirmation {
     DISABLE_SSHD_AUTOSTART,
     START_MCP_LOOPBACK,
     START_MCP_TAILSCALE,
+    BACKUP_HANDOFF,
+    BACKUP_ARCHIVE,
 }
 
 private fun shareCliFile(context: android.content.Context, file: File) {

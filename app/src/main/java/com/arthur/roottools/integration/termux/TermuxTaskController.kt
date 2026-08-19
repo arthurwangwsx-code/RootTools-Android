@@ -1,8 +1,13 @@
 package com.arthur.roottools.integration.termux
 
 import android.content.Context
+import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.io.File
+import java.io.FileInputStream
+import java.security.MessageDigest
 
 /** Typed policy boundary for every RootTools -> Termux execution. */
 class TermuxTaskController(context: Context) {
@@ -99,6 +104,78 @@ class TermuxTaskController(context: Context) {
         return execute(TermuxManagedTaskId.POST_PROCESS_DIAGNOSTIC, snapshotText)
     }
 
+    suspend fun importBackupArtifact(artifactId: String, file: File): TermuxBackupHandoffResult = withContext(Dispatchers.IO) {
+        val canonicalFile = runCatching { file.canonicalFile }.getOrElse {
+            return@withContext TermuxBackupHandoffResult(false, artifactId, null, null, 0, "Unable to resolve backup artifact")
+        }
+        val validation = TermuxBackupHandoffPolicy.validateMetadata(
+            artifactId = artifactId,
+            fileName = canonicalFile.name,
+            length = canonicalFile.length(),
+        )
+        if (!canonicalFile.isFile || !validation.valid) {
+            return@withContext TermuxBackupHandoffResult(false, artifactId, null, null, 0, validation.message)
+        }
+        val roots = listOfNotNull(
+            appContext.filesDir,
+            appContext.cacheDir,
+            appContext.getExternalFilesDir(null),
+        ).mapNotNull { runCatching { it.canonicalPath }.getOrNull() }
+        if (!TermuxBackupHandoffPolicy.isAppOwnedPath(canonicalFile.canonicalPath, roots)) {
+            return@withContext TermuxBackupHandoffResult(false, artifactId, null, null, 0, "Backup source is outside RootTools-owned storage")
+        }
+
+        val digest = MessageDigest.getInstance("SHA-256")
+        var offset = 0L
+        var chunks = 0
+        FileInputStream(canonicalFile).use { input ->
+            val buffer = ByteArray(TermuxBackupHandoffPolicy.CHUNK_BYTES)
+            while (true) {
+                val read = input.read(buffer)
+                if (read <= 0) break
+                digest.update(buffer, 0, read)
+                val encoded = Base64.encodeToString(buffer.copyOf(read), Base64.NO_WRAP)
+                val payload = JSONObject()
+                    .put("artifactId", artifactId)
+                    .put("offset", offset)
+                    .put("data", encoded)
+                    .toString()
+                val result = execute(TermuxManagedTaskId.BACKUP_IMPORT_CHUNK, payload)
+                if (!result.success) {
+                    return@withContext TermuxBackupHandoffResult(
+                        false,
+                        artifactId,
+                        null,
+                        null,
+                        chunks,
+                        result.transportError ?: result.internalErrorMessage.ifBlank { result.stderr.ifBlank { "Backup chunk import failed" } },
+                    )
+                }
+                offset += read
+                chunks++
+            }
+        }
+        val sha256 = digest.digest().joinToString("") { "%02x".format(it) }
+        val finalizePayload = JSONObject()
+            .put("artifactId", artifactId)
+            .put("sha256", sha256)
+            .put("fileName", canonicalFile.name)
+            .toString()
+        val finalize = execute(TermuxManagedTaskId.BACKUP_FINALIZE_IMPORT, finalizePayload)
+        val values = if (finalize.success) parseJsonObject(finalize.stdout) else emptyMap()
+        TermuxBackupHandoffResult(
+            success = finalize.success,
+            artifactId = artifactId,
+            remotePath = values["path"],
+            sha256 = sha256,
+            chunks = chunks,
+            message = if (finalize.success) "Backup artifact transferred and verified" else finalize.transportError
+                ?: finalize.internalErrorMessage.ifBlank { finalize.stderr.ifBlank { "Backup finalize failed" } },
+        )
+    }
+
+    suspend fun createBackupArchive(): TermuxTaskResult = execute(TermuxManagedTaskId.BACKUP_CREATE_ARCHIVE)
+
     fun readAudit(limit: Int = 30): List<TermuxTaskAuditRecord> = audit.read(limit)
 
     private suspend fun execute(
@@ -147,6 +224,11 @@ class TermuxTaskController(context: Context) {
                 if (key.matches(Regex("[a-zA-Z0-9_.-]{1,64}")) && value.length <= 512) key to value else null
             }
             .toMap()
+
+        internal fun parseJsonObject(raw: String): Map<String, String> = runCatching {
+            val json = JSONObject(raw.trim())
+            json.keys().asSequence().associateWith { key -> json.opt(key)?.toString().orEmpty() }
+        }.getOrDefault(emptyMap())
     }
 }
 
@@ -165,5 +247,14 @@ data class TermuxMcpRelayVerification(
     val installedSha256: String?,
     val expectedSha256: String?,
     val matchesGeneratedArtifact: Boolean,
+)
+
+data class TermuxBackupHandoffResult(
+    val success: Boolean,
+    val artifactId: String,
+    val remotePath: String?,
+    val sha256: String?,
+    val chunks: Int,
+    val message: String,
 )
 

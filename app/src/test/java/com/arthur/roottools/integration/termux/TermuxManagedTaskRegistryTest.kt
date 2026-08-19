@@ -43,6 +43,8 @@ class TermuxManagedTaskRegistryTest {
                 TermuxManagedTaskId.INSTALL_ROOTTOOLS_CLI,
                 TermuxManagedTaskId.INSTALL_MCP_RELAY,
                 TermuxManagedTaskId.POST_PROCESS_DIAGNOSTIC,
+                TermuxManagedTaskId.BACKUP_IMPORT_CHUNK,
+                TermuxManagedTaskId.BACKUP_FINALIZE_IMPORT,
             ),
             stdinTasks,
         )

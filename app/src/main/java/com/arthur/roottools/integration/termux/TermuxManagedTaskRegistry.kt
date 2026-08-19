@@ -24,6 +24,9 @@ enum class TermuxManagedTaskId {
     MCP_RELAY_START_TAILSCALE,
     MCP_RELAY_STOP,
     POST_PROCESS_DIAGNOSTIC,
+    BACKUP_IMPORT_CHUNK,
+    BACKUP_FINALIZE_IMPORT,
+    BACKUP_CREATE_ARCHIVE,
 }
 
 enum class TermuxTaskMutation {
@@ -253,6 +256,50 @@ object TermuxManagedTaskRegistry {
             description = "Normalize metadata from a RootTools-owned diagnostic snapshot using fixed Python code.",
             mutation = TermuxTaskMutation.READ_ONLY,
             acceptsRootToolsStdin = true,
+        )
+
+        TermuxManagedTaskId.BACKUP_IMPORT_CHUNK -> TermuxCommandSpec(
+            id = id,
+            executable = "${'$'}PREFIX/bin/python",
+            arguments = listOf(
+                "-c",
+                "import base64,json,os,re,sys; req=json.load(sys.stdin); aid=req.get('artifactId',''); off=req.get('offset'); data=req.get('data',''); ok=isinstance(aid,str) and re.fullmatch(r'[a-z0-9._-]{1,64}',aid) and isinstance(off,int) and off>=0 and isinstance(data,str); ok or (_ for _ in ()).throw(ValueError('invalid backup chunk')); raw=base64.b64decode(data,validate=True); len(raw)<=49152 or (_ for _ in ()).throw(ValueError('backup chunk too large')); root=os.path.expanduser('~/roottools/backups/incoming'); os.makedirs(root,mode=0o700,exist_ok=True); path=os.path.join(root,aid+'.part'); current=os.path.getsize(path) if os.path.exists(path) else 0; current==off or (_ for _ in ()).throw(ValueError('backup offset mismatch')); f=open(path,'ab'); f.write(raw); f.close(); os.chmod(path,0o600); print(json.dumps({'artifactId':aid,'size':off+len(raw)},separators=(',',':'),sort_keys=True))",
+            ),
+            timeoutMs = 12_000L,
+            maxOutputChars = 4_000,
+            label = "Import RootTools backup chunk",
+            description = "Append one validated RootTools-owned backup chunk to the fixed Termux backup staging directory.",
+            mutation = TermuxTaskMutation.WRITE_ROOTTOOLS_FILES,
+            acceptsRootToolsStdin = true,
+        )
+
+        TermuxManagedTaskId.BACKUP_FINALIZE_IMPORT -> TermuxCommandSpec(
+            id = id,
+            executable = "${'$'}PREFIX/bin/python",
+            arguments = listOf(
+                "-c",
+                "import hashlib,json,os,re,sys; req=json.load(sys.stdin); aid=req.get('artifactId',''); expected=req.get('sha256',''); name=req.get('fileName',''); ok=isinstance(aid,str) and re.fullmatch(r'[a-z0-9._-]{1,64}',aid) and isinstance(expected,str) and re.fullmatch(r'[0-9a-f]{64}',expected) and isinstance(name,str) and re.fullmatch(r'[A-Za-z0-9._-]{1,96}',name); ok or (_ for _ in ()).throw(ValueError('invalid backup finalize')); root=os.path.expanduser('~/roottools/backups/incoming'); src=os.path.join(root,aid+'.part'); os.path.isfile(src) or (_ for _ in ()).throw(ValueError('backup staging file missing')); actual=hashlib.sha256(open(src,'rb').read()).hexdigest(); actual==expected or (_ for _ in ()).throw(ValueError('backup checksum mismatch')); dst=os.path.join(root,aid+'-'+name); os.replace(src,dst); os.chmod(dst,0o600); print(json.dumps({'artifactId':aid,'path':dst,'sha256':actual,'bytes':os.path.getsize(dst)},separators=(',',':'),sort_keys=True))",
+            ),
+            timeoutMs = 20_000L,
+            maxOutputChars = 8_000,
+            label = "Finalize RootTools backup artifact",
+            description = "Verify SHA-256 and atomically finalize a RootTools-owned backup artifact in Termux.",
+            mutation = TermuxTaskMutation.WRITE_ROOTTOOLS_FILES,
+            acceptsRootToolsStdin = true,
+        )
+
+        TermuxManagedTaskId.BACKUP_CREATE_ARCHIVE -> TermuxCommandSpec(
+            id = id,
+            executable = "${'$'}PREFIX/bin/sh",
+            arguments = listOf(
+                "-c",
+                "set -eu; root=\"${'$'}HOME/roottools/backups\"; incoming=\"${'$'}root/incoming\"; mkdir -p \"${'$'}incoming\"; stamp=${'$'}(date -u +%Y%m%dT%H%M%SZ); out=\"${'$'}root/roottools-backup-${'$'}stamp.tar.gz\"; tar -czf \"${'$'}out\" -C \"${'$'}incoming\" .; chmod 600 \"${'$'}out\"; sha=${'$'}(sha256sum \"${'$'}out\" | awk '{print ${'$'}1}'); printf 'path=%s\\nsha256=%s\\nbytes=%s\\n' \"${'$'}out\" \"${'$'}sha\" \"${'$'}(stat -c %s \"${'$'}out\")\"",
+            ),
+            timeoutMs = 120_000L,
+            maxOutputChars = 8_000,
+            label = "Create RootTools backup archive",
+            description = "Create a gzip tar archive from only the RootTools Termux backup staging directory.",
+            mutation = TermuxTaskMutation.WRITE_ROOTTOOLS_FILES,
         )
     }
 

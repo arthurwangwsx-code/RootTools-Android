@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.arthur.roottools.automation.AutomationClientRecord
 import com.arthur.roottools.automation.AutomationClientStore
+import com.arthur.roottools.data.DiagnosticReportStore
 import com.arthur.roottools.data.TermuxRuntimeRepository
 import com.arthur.roottools.integration.termux.DeveloperRuntimeRegistryExporter
 import com.arthur.roottools.integration.termux.TermuxCliVerification
@@ -18,6 +19,7 @@ import com.arthur.roottools.integration.termux.TermuxRuntimeProbeParser
 import com.arthur.roottools.integration.termux.TermuxSshdConfigParser
 import com.arthur.roottools.integration.termux.TermuxSshdConfigSnapshot
 import com.arthur.roottools.integration.termux.TermuxTaskAuditRecord
+import com.arthur.roottools.integration.termux.TermuxBackupHandoffResult
 import com.arthur.roottools.integration.termux.TermuxTaskController
 import com.arthur.roottools.integration.termux.TermuxTaskMutation
 import com.arthur.roottools.integration.termux.TermuxManagedTaskRegistry
@@ -63,12 +65,15 @@ data class DeveloperRuntimeUiState(
     val workflowAudit: List<ManagedWorkflowAuditRecord> = emptyList(),
     val workflowManifestPath: String? = null,
     val runtimeRegistryPath: String? = null,
+    val backupHandoff: TermuxBackupHandoffResult? = null,
+    val backupArchiveResult: TermuxTaskResult? = null,
     val message: String? = null,
     val error: String? = null,
 )
 
 class DeveloperRuntimeViewModel(application: Application) : AndroidViewModel(application) {
     private val runtimeRepository = TermuxRuntimeRepository(application)
+    private val reportStore = DiagnosticReportStore(application)
     private val clientStore = AutomationClientStore(application)
     private val cliProvisioner = TermuxCliProvisioner(application)
     private val mcpProvisioner = TermuxMcpRelayProvisioner(application)
@@ -383,6 +388,46 @@ class DeveloperRuntimeViewModel(application: Application) : AndroidViewModel(app
         }
     }
 
+    fun handoffLatestDiagnosticBackup() {
+        if (!bridgeReady()) return
+        if (_state.value.runningTask != null || _state.value.workflowRunning != null) {
+            _state.update { it.copy(error = "Another Developer Runtime operation is already running") }
+            return
+        }
+        viewModelScope.launch {
+            val file = withContext(Dispatchers.IO) { reportStore.latest() }
+            if (file == null) {
+                _state.update { it.copy(error = "No RootTools diagnostic artifact is available to back up") }
+                return@launch
+            }
+            _state.update {
+                it.copy(
+                    runningTask = TermuxManagedTaskId.BACKUP_IMPORT_CHUNK,
+                    backupHandoff = null,
+                    error = null,
+                    message = null,
+                )
+            }
+            val artifactId = "diagnostic-${System.currentTimeMillis()}"
+            val result = withContext(Dispatchers.IO) { taskController.importBackupArtifact(artifactId, file) }
+            _state.update { current ->
+                current.copy(
+                    runningTask = null,
+                    backupHandoff = result,
+                    audit = taskController.readAudit(),
+                    error = if (result.success) null else result.message,
+                    message = if (result.success) result.message else null,
+                )
+            }
+        }
+    }
+
+    fun createBackupArchive() {
+        runTask(TermuxManagedTaskId.BACKUP_CREATE_ARCHIVE) {
+            taskController.createBackupArchive()
+        }
+    }
+
     private fun runTask(
         taskId: TermuxManagedTaskId,
         action: suspend () -> TermuxTaskResult,
@@ -440,6 +485,11 @@ class DeveloperRuntimeViewModel(application: Application) : AndroidViewModel(app
                     runtime = updatedRuntime,
                     runningTask = null,
                     lastTaskResult = result,
+                    backupArchiveResult = if (taskId == TermuxManagedTaskId.BACKUP_CREATE_ARCHIVE) {
+                        result
+                    } else {
+                        current.backupArchiveResult
+                    },
                     sshdConfig = sshConfig,
                     mcpRelayStatus = relayStatus,
                     audit = taskController.readAudit(),
