@@ -21,6 +21,7 @@ internal enum class ToolboxRoute {
     COMPONENTS,
     PERMISSION_OPS,
     INTEGRITY,
+    DEVELOPER_RUNTIME,
 }
 
 internal data class ToolboxCard(
@@ -49,4 +50,5 @@ internal fun routeFor(id: ToolId): ToolboxRoute = when (id) {
     ToolId.COMPONENTS -> ToolboxRoute.COMPONENTS
     ToolId.PERMISSION_OPS -> ToolboxRoute.PERMISSION_OPS
     ToolId.INTEGRITY -> ToolboxRoute.INTEGRITY
+    ToolId.DEVELOPER_RUNTIME -> ToolboxRoute.DEVELOPER_RUNTIME
 }

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tool_developer_runtime_title">开发者运行时</string>
+    <string name="developer_runtime_title">开发者运行时</string>
+    <string name="developer_runtime_subtitle">Termux 执行平面 · RootTools 特权控制平面</string>
+    <string name="developer_runtime_refresh">刷新</string>
+    <string name="developer_runtime_overview">运行时概览</string>
+    <string name="developer_runtime_installed">Termux 已安装</string>
+    <string name="developer_runtime_version">版本</string>
+    <string name="developer_runtime_distribution">来源</string>
+    <string name="developer_runtime_bridge">桥接模式</string>
+    <string name="developer_runtime_run_command_service">RUN_COMMAND 服务</string>
+    <string name="developer_runtime_run_command_permission">RUN_COMMAND 权限</string>
+    <string name="developer_runtime_yes">是</string>
+    <string name="developer_runtime_no">否</string>
+    <string name="developer_runtime_granted">已授权</string>
+    <string name="developer_runtime_not_granted">未授权</string>
+    <string name="developer_runtime_not_installed">未安装 Termux。RootTools 不会再造第二套终端运行时。</string>
+    <string name="developer_runtime_play_notice">当前实测的 Google Play Termux 没有暴露官方 RUN_COMMAND 服务。Termux → RootTools CLI 仍可使用；RootTools → Termux 仅在运行时能力存在时启用官方桥接。</string>
+    <string name="developer_runtime_cli_title">Termux → RootTools CLI</string>
+    <string name="developer_runtime_cli_description">生成一个只允许调用 RootTools 注册动作的受限 CLI 文件。文件包含本机凭据，只应分享给 Termux。</string>
+    <string name="developer_runtime_cli_generate">生成 / 轮换 CLI</string>
+    <string name="developer_runtime_cli_share">分享 CLI 文件</string>
+    <string name="developer_runtime_cli_revoke">撤销 CLI</string>
+    <string name="developer_runtime_cli_active">已启用客户端</string>
+    <string name="developer_runtime_cli_inactive">尚未配置</string>
+    <string name="developer_runtime_cli_share_warning">敏感凭据文件 · 仅分享给 Termux</string>
+    <string name="developer_runtime_cli_install_hint">在 Termux 保存文件后执行：mkdir -p ~/bin &amp;&amp; install -m 700 /path/to/roottools ~/bin/roottools</string>
+    <string name="developer_runtime_official_title">RootTools → Termux 受控任务</string>
+    <string name="developer_runtime_official_description">只允许执行白名单任务。RootTools 不转发任意可执行文件或任意 Shell 命令。</string>
+    <string name="developer_runtime_request_permission">授权 RUN_COMMAND 权限</string>
+    <string name="developer_runtime_allow_external_apps">还需要由用户在 Termux 中显式开启 allow-external-apps=true。</string>
+    <string name="developer_runtime_task_info">Termux 信息</string>
+    <string name="developer_runtime_task_probe">探测运行时</string>
+    <string name="developer_runtime_task_packages">软件包清单</string>
+    <string name="developer_runtime_task_running">执行中…</string>
+    <string name="developer_runtime_last_result">最近一次受控任务</string>
+    <string name="developer_runtime_exit_code">退出码 %1$d</string>
+    <string name="developer_runtime_output_truncated">Termux 已截断原始命令输出。</string>
+    <string name="developer_runtime_tools_title">开发工具</string>
+    <string name="developer_runtime_tool_git">Git</string>
+    <string name="developer_runtime_tool_python">Python</string>
+    <string name="developer_runtime_tool_node">Node.js</string>
+    <string name="developer_runtime_tool_sshd">OpenSSH 服务端</string>
+    <string name="developer_runtime_tool_installed">已安装</string>
+    <string name="developer_runtime_tool_missing">未安装</string>
+    <string name="developer_runtime_tool_unknown">未探测</string>
+    <string name="developer_runtime_share_chooser">将 RootTools CLI 分享到 Termux</string>
+    <string name="developer_runtime_file_missing">请先生成 CLI 文件。</string>
+    <string name="developer_runtime_unknown">未知</string>
+    <string name="developer_runtime_unavailable">不可用</string>
+    <string name="developer_runtime_reverse_bridge">Termux → RootTools</string>
+    <string name="developer_runtime_official_bridge">官方 RUN_COMMAND</string>
+    <string name="developer_runtime_permission_required">需要授权</string>
+    <string name="developer_runtime_local_ssh">本机 SSH 回退</string>
+</resources>
+

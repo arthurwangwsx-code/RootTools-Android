@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tool_developer_runtime_title">Developer Runtime</string>
+    <string name="developer_runtime_title">Developer Runtime</string>
+    <string name="developer_runtime_subtitle">Termux execution plane · RootTools privileged control plane</string>
+    <string name="developer_runtime_refresh">Refresh</string>
+    <string name="developer_runtime_overview">Runtime overview</string>
+    <string name="developer_runtime_installed">Termux installed</string>
+    <string name="developer_runtime_version">Version</string>
+    <string name="developer_runtime_distribution">Distribution</string>
+    <string name="developer_runtime_bridge">Bridge</string>
+    <string name="developer_runtime_run_command_service">RUN_COMMAND service</string>
+    <string name="developer_runtime_run_command_permission">RUN_COMMAND permission</string>
+    <string name="developer_runtime_yes">Yes</string>
+    <string name="developer_runtime_no">No</string>
+    <string name="developer_runtime_granted">Granted</string>
+    <string name="developer_runtime_not_granted">Not granted</string>
+    <string name="developer_runtime_not_installed">Termux is not installed. RootTools will not install or emulate a second terminal runtime.</string>
+    <string name="developer_runtime_play_notice">This Google Play Termux build does not expose the official RUN_COMMAND service on the tested device. Termux → RootTools CLI remains available; RootTools → Termux uses the official backend only when the capability exists.</string>
+    <string name="developer_runtime_cli_title">Termux → RootTools CLI</string>
+    <string name="developer_runtime_cli_description">Generate a scoped CLI file that can call only registered RootTools actions. The file contains a local credential, so share it only to Termux.</string>
+    <string name="developer_runtime_cli_generate">Generate / rotate CLI</string>
+    <string name="developer_runtime_cli_share">Share CLI file</string>
+    <string name="developer_runtime_cli_revoke">Revoke CLI</string>
+    <string name="developer_runtime_cli_active">Active client</string>
+    <string name="developer_runtime_cli_inactive">Not provisioned</string>
+    <string name="developer_runtime_cli_share_warning">Sensitive credential file · share only to Termux</string>
+    <string name="developer_runtime_cli_install_hint">After saving the file in Termux: mkdir -p ~/bin &amp;&amp; install -m 700 /path/to/roottools ~/bin/roottools</string>
+    <string name="developer_runtime_official_title">RootTools → Termux managed tasks</string>
+    <string name="developer_runtime_official_description">Only allowlisted tasks can run. RootTools never forwards an arbitrary executable or shell command.</string>
+    <string name="developer_runtime_request_permission">Grant RUN_COMMAND permission</string>
+    <string name="developer_runtime_allow_external_apps">Termux must also have allow-external-apps=true enabled by the user.</string>
+    <string name="developer_runtime_task_info">Termux info</string>
+    <string name="developer_runtime_task_probe">Probe runtimes</string>
+    <string name="developer_runtime_task_packages">Package inventory</string>
+    <string name="developer_runtime_task_running">Running…</string>
+    <string name="developer_runtime_last_result">Last managed task</string>
+    <string name="developer_runtime_exit_code">Exit code %1$d</string>
+    <string name="developer_runtime_output_truncated">Termux truncated the original command output.</string>
+    <string name="developer_runtime_tools_title">Developer tools</string>
+    <string name="developer_runtime_tool_git">Git</string>
+    <string name="developer_runtime_tool_python">Python</string>
+    <string name="developer_runtime_tool_node">Node.js</string>
+    <string name="developer_runtime_tool_sshd">OpenSSH server</string>
+    <string name="developer_runtime_tool_installed">Installed</string>
+    <string name="developer_runtime_tool_missing">Not installed</string>
+    <string name="developer_runtime_tool_unknown">Not probed</string>
+    <string name="developer_runtime_share_chooser">Share RootTools CLI to Termux</string>
+    <string name="developer_runtime_file_missing">Generate the CLI file first.</string>
+    <string name="developer_runtime_unknown">Unknown</string>
+    <string name="developer_runtime_unavailable">Unavailable</string>
+    <string name="developer_runtime_reverse_bridge">Termux → RootTools</string>
+    <string name="developer_runtime_official_bridge">Official RUN_COMMAND</string>
+    <string name="developer_runtime_permission_required">Permission required</string>
+    <string name="developer_runtime_local_ssh">Local SSH fallback</string>
+</resources>
+
