@@ -1,0 +1,52 @@
+package com.arthur.roottools.root
+
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class PersistentRootSessionTest {
+    @Test
+    fun reusesOneShellAcrossCommands() = runBlocking {
+        val session = PersistentRootSession(listOf("sh"))
+
+        val first = session.execute("printf first", timeoutSeconds = 2)
+        val second = session.execute("printf second", timeoutSeconds = 2)
+
+        assertTrue(first.success)
+        assertEquals("first", first.output.trim())
+        assertTrue(second.success)
+        assertEquals("second", second.output.trim())
+        assertEquals(1, session.processLaunchCount)
+    }
+
+    @Test
+    fun preservesExitCodeWithoutKillingSharedShell() = runBlocking {
+        val session = PersistentRootSession(listOf("sh"))
+
+        val failed = session.execute("printf nope; false", timeoutSeconds = 2)
+        val recovered = session.execute("printf ok", timeoutSeconds = 2)
+
+        assertFalse(failed.success)
+        assertEquals(1, failed.exitCode)
+        assertEquals("nope", failed.output.trim())
+        assertTrue(recovered.success)
+        assertEquals("ok", recovered.output.trim())
+        assertEquals(1, session.processLaunchCount)
+    }
+
+    @Test
+    fun timeoutInvalidatesSessionAndNextCommandRecreatesIt() = runBlocking {
+        val session = PersistentRootSession(listOf("sh"))
+
+        val timedOut = session.execute("sleep 2", timeoutSeconds = 1)
+        val recovered = session.execute("printf recovered", timeoutSeconds = 2)
+
+        assertTrue(timedOut.timedOut)
+        assertFalse(timedOut.success)
+        assertTrue(recovered.success)
+        assertEquals("recovered", recovered.output.trim())
+        assertEquals(2, session.processLaunchCount)
+    }
+}
