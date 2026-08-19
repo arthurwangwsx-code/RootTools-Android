@@ -53,6 +53,12 @@ object TermuxMcpRelayScriptBuilder {
 
             TOOLS = [
                 {
+                    "name": "get_device_identity",
+                    "title": "Get RootTools device identity",
+                    "description": "Read the stable RootTools developer device ID and MCP relay version without invoking Android shell.",
+                    "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+                },
+                {
                     "name": "get_device_status",
                     "title": "Get RootTools device status",
                     "description": "Read RootTools root, performance, ADB and Tailscale status.",
@@ -153,11 +159,31 @@ object TermuxMcpRelayScriptBuilder {
                     raise RpcFailure(-32602, "MCP 2026-07-28 request _meta is required")
                 if meta.get("io.modelcontextprotocol/protocolVersion") != PROTOCOL_VERSION:
                     raise RpcFailure(-32602, "Unsupported MCP protocol version")
-                if not isinstance(meta.get("io.modelcontextprotocol/clientInfo"), dict):
-                    raise RpcFailure(-32602, "MCP clientInfo is required")
+                client_info = meta.get("io.modelcontextprotocol/clientInfo")
+                if client_info is not None and not isinstance(client_info, dict):
+                    raise RpcFailure(-32602, "MCP clientInfo must be an object when provided")
                 if not isinstance(meta.get("io.modelcontextprotocol/clientCapabilities"), dict):
                     raise RpcFailure(-32602, "MCP clientCapabilities is required")
                 return method, params
+
+            def progress_token(params):
+                meta = params.get("_meta", {}) if isinstance(params, dict) else {}
+                token = meta.get("progressToken") if isinstance(meta, dict) else None
+                if isinstance(token, bool):
+                    return None
+                return token if isinstance(token, (str, int, float)) else None
+
+            def progress_notification(token, progress, total, message):
+                return {
+                    "jsonrpc": "2.0",
+                    "method": "notifications/progress",
+                    "params": {
+                        "progressToken": token,
+                        "progress": progress,
+                        "total": total,
+                        "message": message,
+                    },
+                }
 
             def parse_roottools_result(output):
                 match = re.search(r'data="((?:\\\\.|[^"\\\\])*)"', output)
@@ -204,7 +230,18 @@ object TermuxMcpRelayScriptBuilder {
                 if not isinstance(arguments, dict):
                     raise RpcFailure(-32602, "Tool arguments must be an object")
 
-                if name == "get_device_status":
+                if name == "get_device_identity":
+                    validate_empty_arguments(arguments)
+                    result = {
+                        "success": True,
+                        "message": "RootTools device identity ready",
+                        "payload": {
+                            "deviceId": DEVICE_ID,
+                            "relayVersion": SERVER_VERSION,
+                            "protocolVersion": PROTOCOL_VERSION,
+                        },
+                    }
+                elif name == "get_device_status":
                     validate_empty_arguments(arguments)
                     result = call_roottools("GET_STATUS")
                 elif name == "set_performance_mode":
@@ -238,7 +275,7 @@ object TermuxMcpRelayScriptBuilder {
                     "_meta": server_meta(),
                 }
 
-            def handle_rpc(message):
+            def handle_rpc(message, notify=None):
                 request_id = message.get("id") if isinstance(message, dict) else None
                 try:
                     check_rate_limit()
@@ -266,7 +303,12 @@ object TermuxMcpRelayScriptBuilder {
                         name = params.get("name")
                         if not isinstance(name, str):
                             raise RpcFailure(-32602, "Tool name is required")
+                        token = progress_token(params)
+                        if token is not None and notify is not None:
+                            notify(progress_notification(token, 0, 1, "RootTools tool started"))
                         result = call_tool(name, params.get("arguments", {}))
+                        if token is not None and notify is not None:
+                            notify(progress_notification(token, 1, 1, "RootTools tool completed"))
                     else:
                         raise RpcFailure(-32601, "Method not found")
                     return json_response(request_id, result)
@@ -293,6 +335,11 @@ object TermuxMcpRelayScriptBuilder {
                     if handler.headers.get("Mcp-Name") != name:
                         raise RpcFailure(-32020, "HeaderMismatch: Mcp-Name")
 
+            def validate_http_accept(handler):
+                accept = handler.headers.get("Accept", "").lower()
+                if "application/json" not in accept or "text/event-stream" not in accept:
+                    raise RpcFailure(-32600, "Accept must include application/json and text/event-stream")
+
             def bearer_authorized(value):
                 prefix = "Bearer "
                 if not isinstance(value, str) or not value.startswith(prefix):
@@ -314,6 +361,20 @@ object TermuxMcpRelayScriptBuilder {
                     self.end_headers()
                     self.wfile.write(encoded)
 
+                def begin_sse(self):
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/event-stream")
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("X-Accel-Buffering", "no")
+                    self.send_header("Connection", "close")
+                    self.end_headers()
+                    self.close_connection = True
+
+                def send_sse_event(self, payload):
+                    encoded = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+                    self.wfile.write(b"data: " + encoded + b"\n\n")
+                    self.wfile.flush()
+
                 def do_GET(self):
                     self.send_error(405)
 
@@ -330,6 +391,11 @@ object TermuxMcpRelayScriptBuilder {
                     content_type = self.headers.get("Content-Type", "")
                     if not content_type.lower().startswith("application/json"):
                         self.send_error(415)
+                        return
+                    try:
+                        validate_http_accept(self)
+                    except RpcFailure as error:
+                        self.send_json(400, json_error(None, error.code, error.message))
                         return
                     try:
                         length = int(self.headers.get("Content-Length", "0"))
@@ -350,7 +416,13 @@ object TermuxMcpRelayScriptBuilder {
                         request_id = message.get("id") if isinstance(message, dict) else None
                         self.send_json(400, json_error(request_id, error.code, error.message))
                         return
-                    self.send_json(200, handle_rpc(message))
+                    params = message.get("params", {}) if isinstance(message, dict) else {}
+                    if message.get("method") == "tools/call" and progress_token(params) is not None:
+                        self.begin_sse()
+                        response = handle_rpc(message, notify=self.send_sse_event)
+                        self.send_sse_event(response)
+                    else:
+                        self.send_json(200, handle_rpc(message))
 
             def resolve_bind(mode):
                 if mode == "loopback":
@@ -375,13 +447,17 @@ object TermuxMcpRelayScriptBuilder {
                 server.serve_forever()
 
             def run_stdio():
+                def notify(payload):
+                    sys.stdout.write(json.dumps(payload, separators=(",", ":")) + "\n")
+                    sys.stdout.flush()
+
                 for raw in sys.stdin:
                     raw = raw.strip()
                     if not raw:
                         continue
                     try:
                         message = json.loads(raw)
-                        response = handle_rpc(message)
+                        response = handle_rpc(message, notify=notify)
                     except Exception:
                         response = json_error(None, -32700, "Parse error")
                     sys.stdout.write(json.dumps(response, separators=(",", ":")) + "\n")

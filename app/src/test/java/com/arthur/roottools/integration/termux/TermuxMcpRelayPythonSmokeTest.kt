@@ -47,12 +47,13 @@ class TermuxMcpRelayPythonSmokeTest {
                 .start()
             process.outputStream.bufferedWriter().use { writer ->
                 writer.appendLine(request("discover-1", "server/discover", ""))
-                writer.appendLine(request("list-1", "tools/list", ""))
+                writer.appendLine(request("list-1", "tools/list", "", includeClientInfo = false))
             }
             val output = process.inputStream.bufferedReader().readText()
             assertEquals(0, process.waitFor())
             assertTrue(output.contains("\"supportedVersions\":[\"2026-07-28\"]"))
             assertTrue(output.contains("\"name\":\"get_device_status\""))
+            assertTrue(output.contains("\"name\":\"get_device_identity\""))
             assertTrue(output.contains("\"name\":\"freeze_app\""))
             assertTrue(output.contains("\"resultType\":\"complete\""))
         } finally {
@@ -91,8 +92,59 @@ class TermuxMcpRelayPythonSmokeTest {
         }
     }
 
-    private fun request(id: String, method: String, extraParams: String): String =
-        """{"jsonrpc":"2.0","id":"$id","method":"$method","params":{${extraParams}"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"test","version":"1"},"io.modelcontextprotocol/clientCapabilities":{}}}}"""
+    @Test
+    fun `http tools call with progress token returns request scoped sse`() {
+        val python = findPython() ?: run {
+            assumeTrue("python3 is unavailable on this host", false)
+            return
+        }
+        val file = writeTempScript()
+        val process = ProcessBuilder(python, file.absolutePath, "--transport", "http", "--bind", "loopback")
+            .redirectErrorStream(true)
+            .start()
+        try {
+            assumeTrue("Port ${TermuxMcpRelayScriptBuilder.HTTP_PORT} is unavailable", waitForRelay())
+            val body = request(
+                id = "identity-progress",
+                method = "tools/call",
+                extraParams = "\"name\":\"get_device_identity\",\"arguments\":{},",
+                progressToken = "progress-1",
+            )
+            val response = post(
+                body = body,
+                bearer = "b".repeat(64),
+                methodHeader = "tools/call",
+                nameHeader = "get_device_identity",
+            )
+            assertEquals(200, response.first)
+            assertTrue(response.second.contains("\"method\":\"notifications/progress\""))
+            assertTrue(response.second.contains("\"progressToken\":\"progress-1\""))
+            assertTrue(response.second.contains("\"progress\":0"))
+            assertTrue(response.second.contains("\"progress\":1"))
+            assertTrue(response.second.contains("123e4567-e89b-42d3-a456-426614174000"))
+            assertTrue(response.second.trim().endsWith("}"))
+        } finally {
+            process.destroyForcibly()
+            process.waitFor()
+            file.delete()
+        }
+    }
+
+    private fun request(
+        id: String,
+        method: String,
+        extraParams: String,
+        includeClientInfo: Boolean = true,
+        progressToken: String? = null,
+    ): String {
+        val clientInfo = if (includeClientInfo) {
+            "\"io.modelcontextprotocol/clientInfo\":{\"name\":\"test\",\"version\":\"1\"},"
+        } else {
+            ""
+        }
+        val progress = progressToken?.let { "\"progressToken\":\"$it\"," }.orEmpty()
+        return """{"jsonrpc":"2.0","id":"$id","method":"$method","params":{${extraParams}"_meta":{${progress}"io.modelcontextprotocol/protocolVersion":"2026-07-28",${clientInfo}"io.modelcontextprotocol/clientCapabilities":{}}}}"""
+    }
 
     private fun writeTempScript(): File = kotlin.io.path.createTempFile("roottools-mcp-", ".py")
         .toFile()
@@ -125,7 +177,12 @@ class TermuxMcpRelayPythonSmokeTest {
         return false
     }
 
-    private fun post(body: String, bearer: String?, methodHeader: String): Pair<Int, String> {
+    private fun post(
+        body: String,
+        bearer: String?,
+        methodHeader: String,
+        nameHeader: String? = null,
+    ): Pair<Int, String> {
         val connection = URL("http://127.0.0.1:${TermuxMcpRelayScriptBuilder.HTTP_PORT}/mcp")
             .openConnection() as HttpURLConnection
         connection.requestMethod = "POST"
@@ -136,6 +193,7 @@ class TermuxMcpRelayPythonSmokeTest {
         connection.setRequestProperty("Accept", "application/json, text/event-stream")
         connection.setRequestProperty("MCP-Protocol-Version", "2026-07-28")
         connection.setRequestProperty("Mcp-Method", methodHeader)
+        nameHeader?.let { connection.setRequestProperty("Mcp-Name", it) }
         bearer?.let { connection.setRequestProperty("Authorization", "Bearer $it") }
         connection.outputStream.use { it.write(body.toByteArray()) }
         val status = connection.responseCode
