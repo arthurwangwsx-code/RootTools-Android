@@ -8,11 +8,20 @@ import kotlinx.coroutines.withTimeout
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
-class OfficialTermuxRunCommandBackend(context: Context) {
+internal class OfficialTermuxRunCommandBackend(context: Context) {
     private val appContext = context.applicationContext
 
-    suspend fun execute(taskId: TermuxManagedTaskId): TermuxTaskResult {
+    suspend fun execute(taskId: TermuxManagedTaskId, rootToolsStdin: String? = null): TermuxTaskResult {
         val spec = TermuxManagedTaskRegistry.spec(taskId)
+        if (rootToolsStdin != null && !spec.acceptsRootToolsStdin) {
+            return rejectedInputResult(taskId, "Task does not accept RootTools-owned stdin")
+        }
+        if (rootToolsStdin == null && spec.acceptsRootToolsStdin) {
+            return rejectedInputResult(taskId, "Task requires RootTools-owned stdin")
+        }
+        if (rootToolsStdin != null && rootToolsStdin.length > MAX_STDIN_CHARS) {
+            return rejectedInputResult(taskId, "RootTools-owned stdin exceeds size limit")
+        }
         val executionId = UUID.randomUUID().toString()
         val deferred = TermuxExecutionRegistry.register(executionId, taskId)
 
@@ -38,6 +47,7 @@ class OfficialTermuxRunCommandBackend(context: Context) {
                 action = TermuxRunCommandContract.ACTION_RUN_COMMAND
                 putExtra(TermuxRunCommandContract.EXTRA_COMMAND_PATH, spec.executable)
                 putExtra(TermuxRunCommandContract.EXTRA_ARGUMENTS, spec.arguments.toTypedArray())
+                rootToolsStdin?.let { putExtra(TermuxRunCommandContract.EXTRA_STDIN, it) }
                 putExtra(TermuxRunCommandContract.EXTRA_WORKDIR, spec.workDir)
                 putExtra(TermuxRunCommandContract.EXTRA_BACKGROUND, true)
                 putExtra(TermuxRunCommandContract.EXTRA_COMMAND_LABEL, spec.label)
@@ -81,8 +91,23 @@ class OfficialTermuxRunCommandBackend(context: Context) {
         }
     }
 
+    private fun rejectedInputResult(taskId: TermuxManagedTaskId, message: String) = TermuxTaskResult(
+        executionId = "rejected",
+        taskId = taskId,
+        success = false,
+        stdout = "",
+        stderr = "",
+        exitCode = -1,
+        internalError = -1,
+        internalErrorMessage = "",
+        stdoutOriginalLength = 0,
+        stderrOriginalLength = 0,
+        transportError = message,
+    )
+
     companion object {
         private val nextRequestCode = AtomicInteger(20_000)
+        private const val MAX_STDIN_CHARS = 96_000
     }
 }
 

@@ -34,6 +34,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -65,7 +68,14 @@ fun DeveloperRuntimeRoute(
         onRefresh = viewModel::refresh,
         onProvisionCli = viewModel::provisionCli,
         onRevokeCli = viewModel::revokeCli,
-        onRunTask = viewModel::runManagedTask,
+        onRunReadOnlyTask = viewModel::runReadOnlyTask,
+        onInstallCli = viewModel::installCliInTermux,
+        onVerifyCli = viewModel::verifyCliInTermux,
+        onInstallPreset = viewModel::installDeveloperPreset,
+        onStartSshd = viewModel::startSshd,
+        onStopSshd = viewModel::stopSshd,
+        onEnableSshdAutostart = viewModel::enableSshdAutostart,
+        onDisableSshdAutostart = viewModel::disableSshdAutostart,
     )
 }
 
@@ -76,9 +86,17 @@ private fun DeveloperRuntimeScreen(
     onRefresh: () -> Unit,
     onProvisionCli: () -> Unit,
     onRevokeCli: () -> Unit,
-    onRunTask: (TermuxManagedTaskId) -> Unit,
+    onRunReadOnlyTask: (TermuxManagedTaskId) -> Unit,
+    onInstallCli: () -> Unit,
+    onVerifyCli: () -> Unit,
+    onInstallPreset: () -> Unit,
+    onStartSshd: () -> Unit,
+    onStopSshd: () -> Unit,
+    onEnableSshdAutostart: () -> Unit,
+    onDisableSshdAutostart: () -> Unit,
 ) {
     val context = LocalContext.current
+    var confirmation by remember { mutableStateOf<DeveloperRuntimeConfirmation?>(null) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
@@ -144,6 +162,8 @@ private fun DeveloperRuntimeScreen(
                         state = state,
                         onProvisionCli = onProvisionCli,
                         onRevokeCli = onRevokeCli,
+                        onInstallCli = onInstallCli,
+                        onVerifyCli = onVerifyCli,
                         onShareCli = {
                             val path = state.cliArtifactPath
                             if (path != null) {
@@ -159,15 +179,36 @@ private fun DeveloperRuntimeScreen(
                         onRequestPermission = {
                             permissionLauncher.launch(TermuxRunCommandContract.PERMISSION_RUN_COMMAND)
                         },
-                        onRunTask = onRunTask,
+                        onRunTask = onRunReadOnlyTask,
                     )
                 }
 
                 item { DeveloperToolsCard(state) }
 
+                item {
+                    DeveloperPresetCard(
+                        state = state,
+                        onInstall = { confirmation = DeveloperRuntimeConfirmation.INSTALL_PRESET },
+                    )
+                }
+
+                item {
+                    SshdServiceCard(
+                        state = state,
+                        onReadConfig = { onRunReadOnlyTask(TermuxManagedTaskId.SSHD_CONFIG) },
+                        onStatus = { onRunReadOnlyTask(TermuxManagedTaskId.SSHD_STATUS) },
+                        onStart = { confirmation = DeveloperRuntimeConfirmation.START_SSHD },
+                        onStop = onStopSshd,
+                        onEnableAutostart = { confirmation = DeveloperRuntimeConfirmation.ENABLE_SSHD_AUTOSTART },
+                        onDisableAutostart = { confirmation = DeveloperRuntimeConfirmation.DISABLE_SSHD_AUTOSTART },
+                    )
+                }
+
                 state.lastTaskResult?.let { result ->
                     item { TaskResultCard(state) }
                 }
+
+                item { AuditCard(state) }
             }
 
             state.message?.let { message ->
@@ -178,6 +219,41 @@ private fun DeveloperRuntimeScreen(
             }
             item { Spacer(Modifier.height(18.dp)) }
         }
+    }
+
+    confirmation?.let { pending ->
+        val (title, body) = when (pending) {
+            DeveloperRuntimeConfirmation.INSTALL_PRESET ->
+                R.string.developer_runtime_bootstrap_confirm_title to R.string.developer_runtime_bootstrap_confirm_body
+            DeveloperRuntimeConfirmation.START_SSHD ->
+                R.string.developer_runtime_sshd_start_confirm_title to R.string.developer_runtime_sshd_start_confirm_body
+            DeveloperRuntimeConfirmation.ENABLE_SSHD_AUTOSTART,
+            DeveloperRuntimeConfirmation.DISABLE_SSHD_AUTOSTART ->
+                R.string.developer_runtime_sshd_persistence_confirm_title to R.string.developer_runtime_sshd_persistence_confirm_body
+        }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmation = null },
+            title = { Text(stringResource(title)) },
+            text = { Text(stringResource(body)) },
+            confirmButton = {
+                Button(onClick = {
+                    confirmation = null
+                    when (pending) {
+                        DeveloperRuntimeConfirmation.INSTALL_PRESET -> onInstallPreset()
+                        DeveloperRuntimeConfirmation.START_SSHD -> onStartSshd()
+                        DeveloperRuntimeConfirmation.ENABLE_SSHD_AUTOSTART -> onEnableSshdAutostart()
+                        DeveloperRuntimeConfirmation.DISABLE_SSHD_AUTOSTART -> onDisableSshdAutostart()
+                    }
+                }) {
+                    Text(stringResource(R.string.developer_runtime_confirm))
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { confirmation = null }) {
+                    Text(stringResource(R.string.developer_runtime_cancel))
+                }
+            },
+        )
     }
 }
 
@@ -217,6 +293,8 @@ private fun CliBridgeCard(
     state: DeveloperRuntimeUiState,
     onProvisionCli: () -> Unit,
     onRevokeCli: () -> Unit,
+    onInstallCli: () -> Unit,
+    onVerifyCli: () -> Unit,
     onShareCli: () -> Unit,
 ) {
     SectionCard(title = stringResource(R.string.developer_runtime_cli_title)) {
@@ -231,6 +309,12 @@ private fun CliBridgeCard(
             state.termuxClient?.displayName ?: stringResource(R.string.developer_runtime_cli_inactive),
         )
         if (state.cliArtifactPath != null) {
+            state.cliArtifactVersion?.let {
+                Text(
+                    stringResource(R.string.developer_runtime_cli_version, it),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
             Text(
                 stringResource(R.string.developer_runtime_cli_share_warning),
                 style = MaterialTheme.typography.labelMedium,
@@ -242,6 +326,24 @@ private fun CliBridgeCard(
                 style = MaterialTheme.typography.bodySmall,
                 fontFamily = FontFamily.Monospace,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        state.cliVerification?.let { verification ->
+            Text(
+                stringResource(
+                    if (verification.matchesGeneratedArtifact) {
+                        R.string.developer_runtime_cli_checksum_match
+                    } else {
+                        R.string.developer_runtime_cli_checksum_mismatch
+                    }
+                ),
+                modifier = Modifier.padding(top = 8.dp),
+                color = if (verification.matchesGeneratedArtifact) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.error
+                },
+                style = MaterialTheme.typography.labelMedium,
             )
         }
         Spacer(Modifier.height(12.dp))
@@ -256,10 +358,20 @@ private fun CliBridgeCard(
             }
         }
         if (state.termuxClient != null) {
-            OutlinedButton(
-                onClick = onRevokeCli,
-                modifier = Modifier.padding(top = 8.dp),
-            ) {
+            if (state.runtime.bridgeMode == TermuxBridgeMode.OFFICIAL_RUN_COMMAND && state.cliArtifactPath != null) {
+                Row(
+                    modifier = Modifier.padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(onClick = onInstallCli, enabled = state.runningTask == null) {
+                        Text(stringResource(R.string.developer_runtime_cli_install))
+                    }
+                    OutlinedButton(onClick = onVerifyCli, enabled = state.runningTask == null) {
+                        Text(stringResource(R.string.developer_runtime_cli_verify))
+                    }
+                }
+            }
+            OutlinedButton(onClick = onRevokeCli, modifier = Modifier.padding(top = 8.dp)) {
                 Text(stringResource(R.string.developer_runtime_cli_revoke))
             }
         }
@@ -358,6 +470,146 @@ private fun DeveloperToolsCard(state: DeveloperRuntimeUiState) {
         ToolStateRow(stringResource(R.string.developer_runtime_tool_python), state.runtime.python)
         ToolStateRow(stringResource(R.string.developer_runtime_tool_node), state.runtime.node)
         ToolStateRow(stringResource(R.string.developer_runtime_tool_sshd), state.runtime.sshd)
+    }
+}
+
+@Composable
+private fun DeveloperPresetCard(
+    state: DeveloperRuntimeUiState,
+    onInstall: () -> Unit,
+) {
+    SectionCard(title = stringResource(R.string.developer_runtime_bootstrap_title)) {
+        Text(
+            stringResource(R.string.developer_runtime_bootstrap_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Button(
+            onClick = onInstall,
+            enabled = state.runtime.bridgeMode == TermuxBridgeMode.OFFICIAL_RUN_COMMAND && state.runningTask == null,
+            modifier = Modifier.padding(top = 10.dp),
+        ) {
+            Text(stringResource(R.string.developer_runtime_bootstrap_install))
+        }
+    }
+}
+
+@Composable
+private fun SshdServiceCard(
+    state: DeveloperRuntimeUiState,
+    onReadConfig: () -> Unit,
+    onStatus: () -> Unit,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    onEnableAutostart: () -> Unit,
+    onDisableAutostart: () -> Unit,
+) {
+    SectionCard(title = stringResource(R.string.developer_runtime_sshd_title)) {
+        Text(
+            stringResource(R.string.developer_runtime_sshd_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            stringResource(R.string.developer_runtime_services_restart_hint),
+            modifier = Modifier.padding(top = 6.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        state.sshdConfig?.let { config ->
+            Spacer(Modifier.height(8.dp))
+            RuntimeRow(
+                stringResource(R.string.developer_runtime_sshd_port),
+                config.port?.toString() ?: stringResource(R.string.developer_runtime_unknown),
+            )
+            RuntimeRow(
+                stringResource(R.string.developer_runtime_sshd_listen),
+                config.listenAddresses.joinToString().ifBlank { stringResource(R.string.developer_runtime_unknown) },
+            )
+            RuntimeRow(
+                stringResource(R.string.developer_runtime_sshd_password_auth),
+                config.passwordAuthentication?.let { yesNo(it) } ?: stringResource(R.string.developer_runtime_unknown),
+            )
+            RuntimeRow(
+                stringResource(R.string.developer_runtime_sshd_pubkey_auth),
+                config.publicKeyAuthentication?.let { yesNo(it) } ?: stringResource(R.string.developer_runtime_unknown),
+            )
+            if (config.wildcardListenerConfigured) {
+                Text(
+                    stringResource(R.string.developer_runtime_sshd_wildcard_warning),
+                    modifier = Modifier.padding(top = 6.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+        val enabled = state.runtime.bridgeMode == TermuxBridgeMode.OFFICIAL_RUN_COMMAND && state.runningTask == null
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedButton(onClick = onReadConfig, enabled = enabled, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.developer_runtime_sshd_read_config), maxLines = 1)
+            }
+            OutlinedButton(onClick = onStatus, enabled = enabled, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.developer_runtime_sshd_status), maxLines = 1)
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(onClick = onStart, enabled = enabled, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.developer_runtime_sshd_start))
+            }
+            OutlinedButton(onClick = onStop, enabled = enabled, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.developer_runtime_sshd_stop))
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedButton(onClick = onEnableAutostart, enabled = enabled, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.developer_runtime_sshd_enable_autostart), maxLines = 1)
+            }
+            OutlinedButton(onClick = onDisableAutostart, enabled = enabled, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.developer_runtime_sshd_disable_autostart), maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AuditCard(state: DeveloperRuntimeUiState) {
+    SectionCard(title = stringResource(R.string.developer_runtime_audit_title)) {
+        Text(
+            stringResource(R.string.developer_runtime_audit_description),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (state.audit.isEmpty()) {
+            Text(
+                stringResource(R.string.developer_runtime_audit_empty),
+                modifier = Modifier.padding(top = 8.dp),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        } else {
+            state.audit.take(8).forEach { record ->
+                Text(
+                    stringResource(
+                        R.string.developer_runtime_audit_row,
+                        record.taskId.name,
+                        if (record.success) "OK" else "FAIL",
+                        record.exitCode,
+                        record.durationMs,
+                    ),
+                    modifier = Modifier.padding(top = 7.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
     }
 }
 
@@ -461,6 +713,18 @@ private fun bridgeLabel(mode: TermuxBridgeMode): String = when (mode) {
     TermuxBridgeMode.REVERSE_INTENT_ONLY -> stringResource(R.string.developer_runtime_reverse_bridge)
     TermuxBridgeMode.LOCAL_SSH -> stringResource(R.string.developer_runtime_local_ssh)
     TermuxBridgeMode.UNAVAILABLE -> stringResource(R.string.developer_runtime_unavailable)
+}
+
+@Composable
+private fun yesNo(value: Boolean): String = stringResource(
+    if (value) R.string.developer_runtime_yes else R.string.developer_runtime_no,
+)
+
+private enum class DeveloperRuntimeConfirmation {
+    INSTALL_PRESET,
+    START_SSHD,
+    ENABLE_SSHD_AUTOSTART,
+    DISABLE_SSHD_AUTOSTART,
 }
 
 private fun shareCliFile(context: android.content.Context, file: File) {

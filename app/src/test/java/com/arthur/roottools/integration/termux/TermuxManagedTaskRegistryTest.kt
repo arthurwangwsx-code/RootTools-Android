@@ -1,5 +1,6 @@
 package com.arthur.roottools.integration.termux
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -11,7 +12,7 @@ class TermuxManagedTaskRegistryTest {
             val spec = TermuxManagedTaskRegistry.spec(id)
             assertTrue(spec.executable.startsWith("${'$'}PREFIX/"))
             assertTrue(spec.workDir.startsWith("/data/data/com.termux/files/"))
-            assertTrue(spec.timeoutMs in 1_000L..60_000L)
+            assertTrue(spec.timeoutMs in 1_000L..10 * 60_000L)
             assertTrue(spec.maxOutputChars in 1_000..64_000)
         }
     }
@@ -30,6 +31,14 @@ class TermuxManagedTaskRegistryTest {
         assertFalse(serialized.contains("su -c"))
         assertFalse(serialized.contains(" reboot"))
         assertFalse(serialized.contains("setprop"))
+    }
+
+    @Test
+    fun `only cli install accepts roottools owned stdin`() {
+        val stdinTasks = TermuxManagedTaskId.entries.filter {
+            TermuxManagedTaskRegistry.spec(it).acceptsRootToolsStdin
+        }
+        assertEquals(listOf(TermuxManagedTaskId.INSTALL_ROOTTOOLS_CLI), stdinTasks)
     }
 }
 

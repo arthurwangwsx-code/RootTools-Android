@@ -108,7 +108,7 @@ object TermuxCliScriptBuilder {
                 esac
                 ;;
               version)
-                printf '%s\n' 'roottools-cli/1'
+                printf '%s\n' 'roottools-cli/$VERSION'
                 ;;
               help|-h|--help)
                 usage
@@ -121,6 +121,7 @@ object TermuxCliScriptBuilder {
         """.trimIndent() + "\n"
     }
 
+    const val VERSION = 1
     private val TOKEN_REGEX = Regex("^[A-Za-z0-9_-]{48,128}$")
 }
 
