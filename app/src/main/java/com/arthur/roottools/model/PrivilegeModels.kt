@@ -7,6 +7,14 @@ enum class PrivilegeBackendType(val displayName: String) {
     SUI_ROOT("Sui Root"),
 }
 
+enum class PrivilegeRouteBackend(val displayName: String) {
+    NONE("None"),
+    ROOT_SHELL("RootShell"),
+    SHIZUKU_ADB("Shizuku ADB"),
+    SHIZUKU_ROOT("Shizuku Root"),
+    SUI_ROOT("Sui Root"),
+}
+
 enum class PrivilegeCapability {
     ROOT_LINUX,
     ROOT_FS,

@@ -20,6 +20,9 @@
 | [11-battery-thermal.md](./11-battery-thermal.md) | 电池、充电、保护与温控状态 |
 | [12-final-validation.md](./12-final-validation.md) | 最终 Samsung 真机验收清单 |
 | [13-shizuku-sui-bridge.md](./13-shizuku-sui-bridge.md) | Shizuku / Sui 特权桥接、Backend 路由与组件治理规划 |
+| [14-core-logic-testing-standard.md](./14-core-logic-testing-standard.md) | 核心逻辑分层、Backend 路由、输入安全与单元测试规范 |
+| [14-app-control-center.md](./14-app-control-center.md) | App Control Center：应用清单、详情、组件、AppOps、权限、批量策略、Debloat、APK 导出 |
+| [15-industry-root-capability-map.md](./15-industry-root-capability-map.md) | Root 工具行业能力地图、竞品/开源能力调研、RootTools 缺口与后续优先级 |
 
 ## 工程原则
 
@@ -55,5 +58,13 @@
 - 自动化入口
 - 设备快照 / 报告
 - Shizuku / Sui 特权桥接（规划中）
+- App Control Center（规划完成，待实施）
+
+### 行业调研后确认的后续一级领域
+
+- Backup & Recovery
+- Firewall & App Network
+- Multi-root Runtime（Magisk / KernelSU / APatch）
+- Charge Controller
 
 所有新增卡片必须先在 `00-product-roadmap.md` 登记，再创建对应详情页和文档章节。
