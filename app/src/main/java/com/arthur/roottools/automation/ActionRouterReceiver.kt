@@ -13,6 +13,9 @@ import com.arthur.roottools.feature.integrity.model.IntegrityReportFormat
 import com.arthur.roottools.feature.integrity.model.IntegrityScanMode
 import com.arthur.roottools.model.PerformanceMode
 import com.arthur.roottools.service.CpuPolicyService
+import com.arthur.roottools.workflow.ManagedWorkflowController
+import com.arthur.roottools.workflow.ManagedWorkflowId
+import com.arthur.roottools.workflow.ManagedWorkflowRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,10 +28,11 @@ class ActionRouterReceiver : BroadcastReceiver() {
         if (intent.action != ACTION) return
         val component = intent.component ?: return
         if (component.packageName != context.packageName || component.className != javaClass.name) return
+        val requestId = safeRequestId(intent.getStringExtra(EXTRA_REQUEST_ID))
 
         val command = AutomationCommand.parse(intent.getStringExtra(EXTRA_COMMAND)) ?: run {
             completeImmediate(
-                requestId = safeRequestId(intent.getStringExtra(EXTRA_REQUEST_ID)),
+                requestId = requestId,
                 command = "UNKNOWN",
                 success = false,
                 message = "Unsupported automation command",
@@ -52,7 +56,7 @@ class ActionRouterReceiver : BroadcastReceiver() {
         }
         if (!legacyAuthorized && scopedClient == null) {
             completeImmediate(
-                requestId = safeRequestId(intent.getStringExtra(EXTRA_REQUEST_ID)),
+                requestId = requestId,
                 command = command.wireName,
                 success = false,
                 message = "Automation credential or scope denied",
@@ -64,7 +68,6 @@ class ActionRouterReceiver : BroadcastReceiver() {
             return
         }
 
-        val requestId = safeRequestId(intent.getStringExtra(EXTRA_REQUEST_ID))
         val ordered = isOrderedBroadcast
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
@@ -196,6 +199,47 @@ class ActionRouterReceiver : BroadcastReceiver() {
                     payload = JSONObject().put("reportFileName", report.name),
                 )
             }
+            AutomationCommand.RUN_WORKFLOW -> {
+                val workflowId = runCatching {
+                    ManagedWorkflowId.valueOf(intent.getStringExtra(EXTRA_WORKFLOW)?.trim()?.uppercase().orEmpty())
+                }.getOrNull() ?: return AutomationActionResult(
+                    requestId,
+                    command.wireName,
+                    false,
+                    "Unknown managed workflow",
+                )
+                val execution = ManagedWorkflowController(context).run(
+                    ManagedWorkflowRequest(
+                        workflowId = workflowId,
+                        packageName = intent.getStringExtra(EXTRA_PACKAGE),
+                    )
+                )
+                val steps = org.json.JSONArray().apply {
+                    execution.steps.forEach { step ->
+                        put(
+                            JSONObject()
+                                .put("type", step.type.name)
+                                .put("success", step.success)
+                                .put("message", step.message)
+                                .apply {
+                                    step.artifactName?.let { put("artifactName", it) }
+                                    step.structuredOutput?.let { put("structuredOutput", it.take(12_000)) }
+                                }
+                        )
+                    }
+                }
+                AutomationActionResult(
+                    requestId = requestId,
+                    command = command.wireName,
+                    success = execution.success,
+                    message = if (execution.success) "Managed workflow completed" else "Managed workflow stopped on failure",
+                    payload = JSONObject()
+                        .put("workflowId", execution.workflowId.name)
+                        .put("startedAtEpochMs", execution.startedAtEpochMs)
+                        .put("finishedAtEpochMs", execution.finishedAtEpochMs)
+                        .put("steps", steps),
+                )
+            }
         }
     }
 
@@ -222,6 +266,7 @@ class ActionRouterReceiver : BroadcastReceiver() {
         const val EXTRA_MODE = "mode"
         const val EXTRA_ENABLED = "enabled"
         const val EXTRA_PACKAGE = "package"
+        const val EXTRA_WORKFLOW = "workflow"
         const val EXTRA_REQUEST_ID = "request_id"
         private val REQUEST_ID_REGEX = Regex("^[A-Za-z0-9._:-]{1,80}$")
     }

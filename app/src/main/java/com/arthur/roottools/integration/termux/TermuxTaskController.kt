@@ -92,6 +92,13 @@ class TermuxTaskController(context: Context) {
         )
     }
 
+    suspend fun postProcessDiagnostic(snapshotText: String): TermuxTaskResult {
+        if (snapshotText.isBlank()) {
+            return localFailure(TermuxManagedTaskId.POST_PROCESS_DIAGNOSTIC, "Diagnostic snapshot is empty")
+        }
+        return execute(TermuxManagedTaskId.POST_PROCESS_DIAGNOSTIC, snapshotText)
+    }
+
     fun readAudit(limit: Int = 30): List<TermuxTaskAuditRecord> = audit.read(limit)
 
     private suspend fun execute(

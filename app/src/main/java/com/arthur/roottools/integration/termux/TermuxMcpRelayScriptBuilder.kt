@@ -8,7 +8,7 @@ package com.arthur.roottools.integration.termux
  * MCP 2026-07-28 stateless core over stdio or request-scoped HTTP POST.
  */
 object TermuxMcpRelayScriptBuilder {
-    const val VERSION = 1
+    const val VERSION = 2
     const val MCP_PROTOCOL_VERSION = "2026-07-28"
     const val HTTP_PORT = 8765
 
@@ -106,6 +106,23 @@ object TermuxMcpRelayScriptBuilder {
                         "type": "object",
                         "properties": {"package": {"type": "string", "pattern": "^[A-Za-z0-9._]+${'$'}"}},
                         "required": ["package"],
+                        "additionalProperties": False,
+                    },
+                },
+                {
+                    "name": "run_workflow",
+                    "title": "Run a RootTools managed workflow",
+                    "description": "Run one fixed RootTools cross-feature workflow. No arbitrary workflow steps or shell commands are accepted.",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "workflow": {
+                                "type": "string",
+                                "enum": ["test_device_ready", "app_test_ready", "diagnostic_pipeline", "developer_runtime_health"],
+                            },
+                            "package": {"type": "string", "pattern": "^[A-Za-z0-9._]+${'$'}"},
+                        },
+                        "required": ["workflow"],
                         "additionalProperties": False,
                     },
                 },
@@ -262,6 +279,23 @@ object TermuxMcpRelayScriptBuilder {
                         raise RpcFailure(-32602, "Invalid Android package name")
                     command = "FREEZE" if name == "freeze_app" else "UNFREEZE"
                     result = call_roottools(command, ["--es", "package", package_name])
+                elif name == "run_workflow":
+                    allowed_keys = {"workflow", "package"}
+                    if not set(arguments.keys()).issubset(allowed_keys) or "workflow" not in arguments:
+                        raise RpcFailure(-32602, "workflow is required")
+                    workflow = arguments.get("workflow")
+                    if workflow not in {"test_device_ready", "app_test_ready", "diagnostic_pipeline", "developer_runtime_health"}:
+                        raise RpcFailure(-32602, "Unknown managed workflow")
+                    package_name = arguments.get("package")
+                    if workflow == "app_test_ready":
+                        if not isinstance(package_name, str) or not PACKAGE_RE.fullmatch(package_name):
+                            raise RpcFailure(-32602, "app_test_ready requires a valid package")
+                    elif package_name is not None:
+                        raise RpcFailure(-32602, "This workflow does not accept a package")
+                    extras = ["--es", "workflow", workflow]
+                    if package_name is not None:
+                        extras.extend(["--es", "package", package_name])
+                    result = call_roottools("RUN_WORKFLOW", extras)
                 else:
                     raise RpcFailure(-32602, "Unknown RootTools tool")
 

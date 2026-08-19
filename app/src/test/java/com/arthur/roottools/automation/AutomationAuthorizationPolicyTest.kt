@@ -77,6 +77,7 @@ class AutomationAuthorizationPolicyTest {
         assertTrue(AutomationScope.SET_PERFORMANCE in defaults)
         assertTrue(AutomationScope.APP_POLICY in defaults)
         assertTrue(AutomationScope.INTEGRITY_SCAN in defaults)
+        assertTrue(AutomationScope.RUN_WORKFLOW in defaults)
     }
 }
 

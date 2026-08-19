@@ -39,7 +39,11 @@ class TermuxManagedTaskRegistryTest {
             TermuxManagedTaskRegistry.spec(it).acceptsRootToolsStdin
         }
         assertEquals(
-            listOf(TermuxManagedTaskId.INSTALL_ROOTTOOLS_CLI, TermuxManagedTaskId.INSTALL_MCP_RELAY),
+            listOf(
+                TermuxManagedTaskId.INSTALL_ROOTTOOLS_CLI,
+                TermuxManagedTaskId.INSTALL_MCP_RELAY,
+                TermuxManagedTaskId.POST_PROCESS_DIAGNOSTIC,
+            ),
             stdinTasks,
         )
     }

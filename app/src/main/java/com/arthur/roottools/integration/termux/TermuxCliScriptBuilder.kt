@@ -28,6 +28,10 @@ object TermuxCliScriptBuilder {
               roottools diagnose
               roottools app freeze <package>
               roottools app enable <package>
+              roottools workflow run test_device_ready
+              roottools workflow run app_test_ready <package>
+              roottools workflow run diagnostic_pipeline
+              roottools workflow run developer_runtime_health
               roottools version
             ROOTTOOLS_USAGE
             }
@@ -107,6 +111,21 @@ object TermuxCliScriptBuilder {
                   *) usage >&2; exit 2 ;;
                 esac
                 ;;
+              workflow)
+                [ "${'$'}{2:-}" = 'run' ] || { usage >&2; exit 2; }
+                workflow_id="${'$'}{3:-}"
+                case "${'$'}workflow_id" in
+                  test_device_ready|diagnostic_pipeline|developer_runtime_health)
+                    call_roottools --es command RUN_WORKFLOW --es workflow "${'$'}workflow_id"
+                    ;;
+                  app_test_ready)
+                    package_name="${'$'}{4:-}"
+                    [ -n "${'$'}package_name" ] || { usage >&2; exit 2; }
+                    call_roottools --es command RUN_WORKFLOW --es workflow "${'$'}workflow_id" --es package "${'$'}package_name"
+                    ;;
+                  *) usage >&2; exit 2 ;;
+                esac
+                ;;
               version)
                 printf '%s\n' 'roottools-cli/$VERSION'
                 ;;
@@ -121,7 +140,7 @@ object TermuxCliScriptBuilder {
         """.trimIndent() + "\n"
     }
 
-    const val VERSION = 1
+    const val VERSION = 2
     private val TOKEN_REGEX = Regex("^[A-Za-z0-9_-]{48,128}$")
 }
 

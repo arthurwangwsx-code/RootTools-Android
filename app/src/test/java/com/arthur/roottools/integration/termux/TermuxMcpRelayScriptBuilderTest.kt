@@ -19,6 +19,7 @@ class TermuxMcpRelayScriptBuilderTest {
         assertTrue(script.contains("run_diagnostic"))
         assertTrue(script.contains("freeze_app"))
         assertTrue(script.contains("enable_app"))
+        assertTrue(script.contains("run_workflow"))
         assertFalse(script.contains("execute_shell"))
         assertFalse(script.contains("shell=True"))
         assertFalse(script.contains("su -c"))

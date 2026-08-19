@@ -23,6 +23,7 @@ enum class TermuxManagedTaskId {
     MCP_RELAY_START_LOOPBACK,
     MCP_RELAY_START_TAILSCALE,
     MCP_RELAY_STOP,
+    POST_PROCESS_DIAGNOSTIC,
 }
 
 enum class TermuxTaskMutation {
@@ -237,6 +238,21 @@ object TermuxManagedTaskRegistry {
             label = "Stop RootTools MCP relay",
             description = "Stop only the process whose pid file still resolves to roottools_mcp.py.",
             mutation = TermuxTaskMutation.SERVICE_STATE,
+        )
+
+        TermuxManagedTaskId.POST_PROCESS_DIAGNOSTIC -> TermuxCommandSpec(
+            id = id,
+            executable = "${'$'}PREFIX/bin/python",
+            arguments = listOf(
+                "-c",
+                "import hashlib,json,sys; data=sys.stdin.read(); lines=data.splitlines(); sections=[line.strip('_') for line in lines if line.startswith('__') and line.endswith('__') and len(line)>4]; out={'schemaVersion':1,'sha256':hashlib.sha256(data.encode()).hexdigest(),'bytes':len(data.encode()),'lines':len(lines),'sections':sections[:64]}; print(json.dumps(out,separators=(',',':'),sort_keys=True))",
+            ),
+            timeoutMs = 12_000L,
+            maxOutputChars = 8_000,
+            label = "Post-process RootTools diagnostic",
+            description = "Normalize metadata from a RootTools-owned diagnostic snapshot using fixed Python code.",
+            mutation = TermuxTaskMutation.READ_ONLY,
+            acceptsRootToolsStdin = true,
         )
     }
 

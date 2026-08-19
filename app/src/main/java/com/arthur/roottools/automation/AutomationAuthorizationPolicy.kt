@@ -8,6 +8,7 @@ enum class AutomationScope {
     SET_NATIVE_ADB,
     APP_POLICY,
     INTEGRITY_SCAN,
+    RUN_WORKFLOW,
 }
 
 enum class AutomationCommand(
@@ -24,6 +25,7 @@ enum class AutomationCommand(
     INTEGRITY_FAST_SCAN("INTEGRITY_FAST_SCAN", AutomationScope.INTEGRITY_SCAN),
     INTEGRITY_DEEP_SCAN("INTEGRITY_DEEP_SCAN", AutomationScope.INTEGRITY_SCAN),
     INTEGRITY_EXPORT_LAST_REPORT("INTEGRITY_EXPORT_LAST_REPORT", AutomationScope.INTEGRITY_SCAN),
+    RUN_WORKFLOW("RUN_WORKFLOW", AutomationScope.RUN_WORKFLOW),
     ;
 
     companion object {
@@ -54,6 +56,7 @@ object AutomationAuthorizationPolicy {
         AutomationScope.SET_NATIVE_ADB,
         AutomationScope.APP_POLICY,
         AutomationScope.INTEGRITY_SCAN,
+        AutomationScope.RUN_WORKFLOW,
     )
 
     val termuxMcpScopes: Set<AutomationScope> = setOf(
@@ -62,6 +65,7 @@ object AutomationAuthorizationPolicy {
         AutomationScope.SET_PERFORMANCE,
         AutomationScope.SET_ADB_ENABLE,
         AutomationScope.APP_POLICY,
+        AutomationScope.RUN_WORKFLOW,
     )
 }
 

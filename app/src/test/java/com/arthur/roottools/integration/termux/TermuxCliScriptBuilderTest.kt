@@ -19,6 +19,7 @@ class TermuxCliScriptBuilderTest {
         assertTrue(script.contains("--es command RUN_DIAGNOSTIC"))
         assertTrue(script.contains("--es command FREEZE"))
         assertTrue(script.contains("--es command UNFREEZE"))
+        assertTrue(script.contains("--es command RUN_WORKFLOW"))
         assertFalse(script.contains("--es command SHELL"))
         assertFalse(script.contains("--es command REBOOT"))
         assertFalse(script.contains("su -c"))
