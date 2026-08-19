@@ -35,11 +35,17 @@ data class StartupBucketSummary(
     val processStarts: Int,
 )
 
+enum class StartupDataSource(val displayName: String) {
+    ROOT_TRACE("Root boot trace"),
+    FRAMEWORK_CATALOG("Framework catalog"),
+}
+
 data class StartupAnalysis(
     val bootUptimeSeconds: Long = 0,
     val apps: List<StartupAppRecord> = emptyList(),
     val buckets: List<StartupBucketSummary> = emptyList(),
     val appiumTestMode: Boolean = false,
+    val dataSource: StartupDataSource = StartupDataSource.ROOT_TRACE,
     val analyzedAtMs: Long = System.currentTimeMillis(),
 ) {
     val startedApps: Int get() = apps.count { it.startCount > 0 }

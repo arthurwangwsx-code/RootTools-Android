@@ -11,6 +11,9 @@ import com.arthur.roottools.data.RootActionAuditStore
 import com.arthur.roottools.model.PerformanceMode
 import com.arthur.roottools.policy.PackagePolicyController
 import com.arthur.roottools.policy.PolicyStore
+import com.arthur.roottools.privilege.PrivilegeRouter
+import com.arthur.roottools.privilege.ShizukuBridge
+import com.arthur.roottools.privilege.ShizukuUserServiceClient
 import com.arthur.roottools.root.RootShell
 import com.arthur.roottools.service.CpuPolicyService
 import kotlinx.coroutines.CoroutineScope
@@ -46,14 +49,35 @@ class ActionRouterReceiver : BroadcastReceiver() {
                     DeviceRepository(shell, audit, "Automation").setAdbTcpEnabled(true)
                 }
             }
-            "FREEZE" -> intent.getStringExtra(EXTRA_PACKAGE)?.let { PackagePolicyController(shell, audit, "Automation").freeze(it) }
-            "UNFREEZE" -> intent.getStringExtra(EXTRA_PACKAGE)?.let { PackagePolicyController(shell, audit, "Automation").enable(it) }
+            "FREEZE" -> intent.getStringExtra(EXTRA_PACKAGE)?.let { packageName ->
+                withPackageController(context, shell, audit) { freeze(packageName) }
+            }
+            "UNFREEZE" -> intent.getStringExtra(EXTRA_PACKAGE)?.let { packageName ->
+                withPackageController(context, shell, audit) { enable(packageName) }
+            }
             "RUN_DIAGNOSTIC" -> {
                 val health = DeviceHealthCollector(shell).collect(includeProcesses = true)
                 val repository = DiagnosticsRepository(shell)
                 val diagnostic = repository.collect()
                 DiagnosticReportStore(context).write(repository.buildSnapshotText(health, diagnostic))
             }
+        }
+    }
+
+    private suspend fun withPackageController(
+        context: Context,
+        shell: RootShell,
+        audit: RootActionAuditStore,
+        block: suspend PackagePolicyController.() -> Unit,
+    ) {
+        val bridge = ShizukuBridge(context)
+        val client = ShizukuUserServiceClient(context)
+        try {
+            val router = PrivilegeRouter(bridge, client, shell)
+            block(PackagePolicyController(router, audit, "Automation"))
+        } finally {
+            client.close()
+            bridge.close()
         }
     }
 

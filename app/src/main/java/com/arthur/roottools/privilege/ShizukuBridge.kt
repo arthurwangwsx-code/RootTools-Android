@@ -82,12 +82,7 @@ class ShizukuBridge(context: Context) {
             val permission = Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
             val rationale = runCatching { Shizuku.shouldShowRequestPermissionRationale() }.getOrDefault(false)
             val uid = runCatching { Shizuku.getUid() }.getOrNull()
-            val backend = when {
-                suiAvailable && uid == 0 -> PrivilegeBackendType.SUI_ROOT
-                uid == 0 -> PrivilegeBackendType.SHIZUKU_ROOT
-                uid == 2000 -> PrivilegeBackendType.SHIZUKU_ADB
-                else -> PrivilegeBackendType.NONE
-            }
+            val backend = PrivilegeRoutingPolicy.classifyShizukuBackend(uid, suiAvailable)
             ShizukuBridgeState(
                 binderAlive = true,
                 permissionGranted = permission,

@@ -30,6 +30,7 @@ enum class ToolId {
     STORAGE,
     BATTERY,
     SHIZUKU,
+    COMPONENTS,
 }
 
 enum class ToolCategory {
@@ -46,6 +47,7 @@ enum class ToolCapability {
     VECTOR,
     NETWORK,
     SHIZUKU,
+    FRAMEWORK_PRIVILEGE,
 }
 
 data class ToolDefinition(
@@ -65,7 +67,7 @@ object ToolRegistry {
         ToolDefinition(ToolId.ROOT_ADB, ToolCategory.DAILY, "Root ADB", Icons.Rounded.WifiTethering, Color(0xFFB9C8FF), setOf(ToolCapability.ROOT, ToolCapability.NETWORK)),
         ToolDefinition(ToolId.PERMISSIONS, ToolCategory.DAILY, "权限中心", Icons.Rounded.VerifiedUser, Color(0xFFFFC56F)),
         ToolDefinition(ToolId.STARTUP, ToolCategory.GOVERNANCE, "启动治理", Icons.Rounded.Tune, Color(0xFF9BD4FF), setOf(ToolCapability.ROOT)),
-        ToolDefinition(ToolId.APPS, ToolCategory.GOVERNANCE, "应用冻结", Icons.Rounded.Security, Color(0xFFB7B7FF), setOf(ToolCapability.ROOT)),
+        ToolDefinition(ToolId.APPS, ToolCategory.GOVERNANCE, "应用治理", Icons.Rounded.Security, Color(0xFFB7B7FF), setOf(ToolCapability.FRAMEWORK_PRIVILEGE)),
         ToolDefinition(ToolId.DIAGNOSTICS, ToolCategory.DIAGNOSTICS, "进程诊断", Icons.Rounded.Terminal, Color(0xFFFFB58E), setOf(ToolCapability.ROOT)),
         ToolDefinition(ToolId.MODULES, ToolCategory.SYSTEM, "Root 模块", Icons.Rounded.Memory, Color(0xFFD5E49C), setOf(ToolCapability.ROOT, ToolCapability.MAGISK, ToolCapability.VECTOR)),
         ToolDefinition(ToolId.ACTIONS, ToolCategory.SYSTEM, "常用操作", Icons.Rounded.Bolt, Color(0xFFFFD28A), setOf(ToolCapability.ROOT)),
@@ -73,5 +75,6 @@ object ToolRegistry {
         ToolDefinition(ToolId.STORAGE, ToolCategory.DIAGNOSTICS, "存储与 IO", Icons.Rounded.Memory, Color(0xFFB7D7A8), setOf(ToolCapability.ROOT)),
         ToolDefinition(ToolId.BATTERY, ToolCategory.DAILY, "电池与温控", Icons.Rounded.Thermostat, Color(0xFFFFC98B), setOf(ToolCapability.ROOT)),
         ToolDefinition(ToolId.SHIZUKU, ToolCategory.SYSTEM, "Shizuku / Sui", Icons.Rounded.Share, Color(0xFF8FD8FF), setOf(ToolCapability.SHIZUKU)),
+        ToolDefinition(ToolId.COMPONENTS, ToolCategory.GOVERNANCE, "组件管理", Icons.Rounded.Tune, Color(0xFFB5D5FF), setOf(ToolCapability.FRAMEWORK_PRIVILEGE)),
     )
 }

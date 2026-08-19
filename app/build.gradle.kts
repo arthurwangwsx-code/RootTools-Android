@@ -11,13 +11,14 @@ android {
         applicationId = "com.arthur.roottools"
         minSdk = 30
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 4
+        versionName = "0.3.1"
     }
 
     buildFeatures {
         compose = true
         buildConfig = true
+        aidl = true
     }
 
     buildTypes {

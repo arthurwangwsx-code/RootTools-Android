@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -84,6 +85,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.content.FileProvider
 import com.arthur.roottools.model.CpuCluster
 import com.arthur.roottools.model.AppPolicyCategory
+import com.arthur.roottools.model.AppComponentRecord
+import com.arthur.roottools.model.ComponentKind
 import com.arthur.roottools.model.DeviceHealthSnapshot
 import com.arthur.roottools.model.DeviceSnapshot
 import com.arthur.roottools.model.HealthHistoryPoint
@@ -94,11 +97,13 @@ import com.arthur.roottools.model.PerformanceMode
 import com.arthur.roottools.model.ProcessHealth
 import com.arthur.roottools.model.RootShellRecord
 import com.arthur.roottools.model.StartupAppRecord
+import com.arthur.roottools.model.StartupDataSource
 import com.arthur.roottools.model.StorageSnapshot
 import com.arthur.roottools.model.StorageStatus
 import com.arthur.roottools.model.SystemActionId
 import com.arthur.roottools.model.ThermalStage
 import com.arthur.roottools.model.VectorModuleInfo
+import com.arthur.roottools.policy.ComponentSafetyPolicy
 import java.io.File
 import kotlin.math.roundToInt
 
@@ -117,6 +122,15 @@ private enum class ToolboxRoute {
     STORAGE,
     BATTERY,
     SHIZUKU,
+    COMPONENTS,
+}
+
+private enum class ComponentViewFilter(val displayName: String) {
+    ALL("全部"),
+    BOOT("BOOT"),
+    EXPORTED("Exported"),
+    FGS("FGS"),
+    DISABLED("已停用"),
 }
 
 private data class ToolboxCard(
@@ -137,16 +151,22 @@ fun DashboardRoute(viewModel: DashboardViewModel) {
         viewModel.setDashboardSampling(route == ToolboxRoute.DASHBOARD || route == ToolboxRoute.BATTERY)
         if (route == ToolboxRoute.PERFORMANCE) viewModel.loadPerformanceExplain()
         if (route == ToolboxRoute.PERMISSIONS) viewModel.loadModules()
-        if (route == ToolboxRoute.STARTUP || route == ToolboxRoute.APPS) viewModel.loadStartup()
+        if (route == ToolboxRoute.STARTUP) viewModel.loadStartup()
+        if (route == ToolboxRoute.APPS) viewModel.loadApps()
         if (route == ToolboxRoute.DIAGNOSTICS) viewModel.loadDiagnostics()
         if (route == ToolboxRoute.MODULES) viewModel.loadModules()
         if (route == ToolboxRoute.ACTIONS) viewModel.loadAudit()
         if (route == ToolboxRoute.NETWORK) viewModel.loadNetwork()
         if (route == ToolboxRoute.STORAGE) viewModel.loadStorage()
+        if (route == ToolboxRoute.COMPONENTS) viewModel.loadComponentCatalog()
     }
 
     BackHandler(enabled = route != ToolboxRoute.HOME) {
-        route = ToolboxRoute.HOME
+        if (route == ToolboxRoute.COMPONENTS && state.componentSnapshot != null) {
+            viewModel.closeComponents()
+        } else {
+            route = ToolboxRoute.HOME
+        }
     }
 
     when (route) {
@@ -189,7 +209,7 @@ fun DashboardRoute(viewModel: DashboardViewModel) {
         ToolboxRoute.APPS -> AppsGovernanceScreen(
             state = state,
             onBack = { route = ToolboxRoute.HOME },
-            onRefresh = viewModel::loadStartup,
+            onRefresh = viewModel::loadApps,
             onFreeze = viewModel::freezePackage,
             onEnable = viewModel::enablePackage,
             onForceStop = viewModel::forceStopPackage,
@@ -241,6 +261,15 @@ fun DashboardRoute(viewModel: DashboardViewModel) {
             onBack = { route = ToolboxRoute.HOME },
             onRefresh = viewModel::refreshShizuku,
             onRequestPermission = viewModel::requestShizukuPermission,
+            onSelfTest = viewModel::runShizukuSelfTest,
+        )
+        ToolboxRoute.COMPONENTS -> ComponentManagerScreen(
+            state = state,
+            onBack = { route = ToolboxRoute.HOME },
+            onRefreshCatalog = viewModel::loadComponentCatalog,
+            onSelectPackage = viewModel::loadComponents,
+            onClosePackage = viewModel::closeComponents,
+            onSetEnabled = viewModel::setComponentEnabled,
         )
     }
 }
@@ -296,7 +325,7 @@ private fun ToolboxHomeScreen(
 private fun buildToolboxCard(definition: ToolDefinition, state: DashboardUiState): ToolboxCard {
     val snapshot = state.snapshot
     val health = state.health
-    val requiresRoot = ToolCapability.ROOT in definition.requiredCapabilities && !snapshot.rootAvailable
+    val missingCapabilities = definition.requiredCapabilities.filterNot { capabilityAvailable(it, state) }
     val status = when (definition.id) {
         ToolId.DASHBOARD -> (
             if (health.rootAvailable) "CPU %.0f%% · Mem %.1f GB".format(health.cpuUsagePercent, health.memory.availableKb / 1_048_576f)
@@ -317,8 +346,8 @@ private fun buildToolboxCard(definition: ToolDefinition, state: DashboardUiState
         ) to if (state.startup.apps.isNotEmpty()) state.startup.startedApps.toString() else "SCAN"
         ToolId.APPS -> (
             if (state.startup.apps.isNotEmpty()) "${state.startup.frozenApps} frozen · ${state.startup.runningApps} running"
-            else "Freeze · Standby · AppOps"
-        ) to if (state.startup.apps.isNotEmpty()) "LIVE" else "MANAGE"
+            else "Freeze · Standby · AppOps · Shizuku"
+        ) to if (state.startup.dataSource == StartupDataSource.FRAMEWORK_CATALOG) "SHIZUKU" else if (state.startup.apps.isNotEmpty()) "LIVE" else "MANAGE"
         ToolId.DIAGNOSTICS -> (
             if (state.diagnostics.topProcesses.isNotEmpty()) "Root shell ${state.diagnostics.abnormalRootShells} abnormal · ${state.diagnostics.services.size} services"
             else "Top CPU · Root Shell · WakeLock"
@@ -354,15 +383,26 @@ private fun buildToolboxCard(definition: ToolDefinition, state: DashboardUiState
             state.shizuku.managerInstalled || state.shizuku.suiAvailable -> "服务未连接 · 打开 Shizuku / Sui" to "OFF"
             else -> "未检测到 Shizuku / Sui" to "OFF"
         }
+        ToolId.COMPONENTS -> (
+            state.componentSnapshot?.let { "${it.label} · ${it.components.size} components · ${it.disabledCount} disabled" }
+                ?: if (state.componentCatalog.isNotEmpty()) "${state.componentCatalog.size} user apps · Activity / Service / Receiver / Provider"
+                else "BOOT · Exported · FGS · enable/disable"
+        ) to if (state.shizuku.ready) state.shizuku.backend.displayName.replace("Shizuku ", "") else "TOOLS"
     }
-    val subtitle = if (requiresRoot) "需要 Root · ${status.first}" else status.first
-    val badge = if (requiresRoot) "ROOT?" else status.second
+    val subtitle = if (missingCapabilities.isNotEmpty()) {
+        "需要 ${missingCapabilities.joinToString(" / ") { capabilityLabel(it) }} · ${status.first}"
+    } else status.first
+    val badge = if (missingCapabilities.isNotEmpty()) "SETUP" else status.second
     return ToolboxCard(
         title = definition.title,
         subtitle = subtitle,
         icon = definition.icon,
         accent = definition.accent,
-        route = routeFor(definition.id),
+        route = if (
+            missingCapabilities.isEmpty() ||
+            definition.id == ToolId.SHIZUKU ||
+            definition.id == ToolId.PERMISSIONS
+        ) routeFor(definition.id) else null,
         badge = badge,
     )
 }
@@ -381,6 +421,7 @@ private fun routeFor(id: ToolId): ToolboxRoute = when (id) {
     ToolId.STORAGE -> ToolboxRoute.STORAGE
     ToolId.BATTERY -> ToolboxRoute.BATTERY
     ToolId.SHIZUKU -> ToolboxRoute.SHIZUKU
+    ToolId.COMPONENTS -> ToolboxRoute.COMPONENTS
 }
 
 @Composable
@@ -1180,10 +1221,15 @@ private fun AppsGovernanceScreen(
     onAppiumMode: (Boolean) -> Unit,
 ) {
     var pendingFreeze by remember { mutableStateOf<StartupAppRecord?>(null) }
-    val candidates = state.startup.apps
-        .filter { it.category != AppPolicyCategory.NORMAL || it.disabled || it.running || it.bootReceiverCount > 0 }
-        .sortedWith(compareBy<StartupAppRecord> { categoryOrder(it.category) }.thenByDescending { it.startupRiskScore })
-        .take(40)
+    val frameworkCatalog = state.startup.dataSource == StartupDataSource.FRAMEWORK_CATALOG
+    val candidates = if (frameworkCatalog) {
+        state.startup.apps.sortedBy { it.label.lowercase() }.take(80)
+    } else {
+        state.startup.apps
+            .filter { it.category != AppPolicyCategory.NORMAL || it.disabled || it.running || it.bootReceiverCount > 0 }
+            .sortedWith(compareBy<StartupAppRecord> { categoryOrder(it.category) }.thenByDescending { it.startupRiskScore })
+            .take(40)
+    }
 
     pendingFreeze?.let { app ->
         AlertDialog(
@@ -1217,9 +1263,25 @@ private fun AppsGovernanceScreen(
                     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Appium 测试模式", fontWeight = FontWeight.Bold)
-                            Text("Notification Listener + Doze whitelist 按需启用", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                if (frameworkCatalog) "Framework catalog 模式不推断当前 Appium 状态" else "Notification Listener + Doze whitelist 按需启用",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
-                        Switch(checked = state.startup.appiumTestMode, onCheckedChange = onAppiumMode, enabled = !state.actionInProgress)
+                        Switch(checked = state.startup.appiumTestMode, onCheckedChange = onAppiumMode, enabled = !state.actionInProgress && !frameworkCatalog)
+                    }
+                }
+            }
+            if (frameworkCatalog) {
+                item {
+                    Surface(color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f), shape = RoundedCornerShape(16.dp)) {
+                        Text(
+                            "当前没有 Root boot trace，因此使用本地 PackageManager + Shizuku/Sui 的降级模式。Freeze / Enable / Force stop / Standby / AppOps 仍通过 typed privilege backend 执行；运行中状态不做猜测。",
+                            Modifier.padding(13.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
                     }
                 }
             }
@@ -1245,6 +1307,7 @@ private fun AppsGovernanceScreen(
                         onRestricted = { onBucket(app.packageName, 45) },
                         onAllowBackground = { onBackground(app.packageName, true) },
                         onIgnoreBackground = { onBackground(app.packageName, false) },
+                        runtimeKnown = !frameworkCatalog,
                     )
                 }
             }
@@ -1264,6 +1327,7 @@ private fun AppPolicyCard(
     onRestricted: () -> Unit,
     onAllowBackground: () -> Unit,
     onIgnoreBackground: () -> Unit,
+    runtimeKnown: Boolean,
 ) {
     Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -1275,7 +1339,7 @@ private fun AppPolicyCard(
                 PolicyBadge(app.category)
             }
             Text(
-                "${if (app.running) "Running" else "Stopped"} · ${if (app.disabled) "Frozen" else "Enabled"} · Bucket ${app.standbyBucket ?: "—"} · Boot ${app.bootReceiverCount}",
+                "${if (runtimeKnown) if (app.running) "Running" else "Stopped" else "Runtime —"} · ${if (app.disabled) "Frozen" else "Enabled"} · Bucket ${app.standbyBucket ?: "—"} · Boot ${app.bootReceiverCount}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -2230,7 +2294,7 @@ private fun PermissionScreen(
                                 if (definition.requiredCapabilities.isEmpty()) {
                                     "无需额外能力"
                                 } else {
-                                    definition.requiredCapabilities.joinToString(" · ") { it.name }
+                                    definition.requiredCapabilities.joinToString(" · ") { capabilityLabel(it) }
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2241,7 +2305,7 @@ private fun PermissionScreen(
                             shape = RoundedCornerShape(50),
                         ) {
                             Text(
-                                if (missing.isEmpty()) "READY" else "缺 ${missing.joinToString { it.name }}",
+                                if (missing.isEmpty()) "READY" else "缺 ${missing.joinToString { capabilityLabel(it) }}",
                                 Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = if (missing.isEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
@@ -2262,6 +2326,230 @@ private fun capabilityAvailable(capability: ToolCapability, state: DashboardUiSt
     ToolCapability.VECTOR -> state.modules.vectorActive
     ToolCapability.NETWORK -> true // Network diagnostics can open offline and explain missing links.
     ToolCapability.SHIZUKU -> state.shizuku.ready
+    ToolCapability.FRAMEWORK_PRIVILEGE -> state.shizuku.ready || state.snapshot.rootAvailable
+}
+
+private fun capabilityLabel(capability: ToolCapability): String = when (capability) {
+    ToolCapability.ROOT -> "Root"
+    ToolCapability.NOTIFICATION -> "通知"
+    ToolCapability.MAGISK -> "Magisk"
+    ToolCapability.VECTOR -> "Vector"
+    ToolCapability.NETWORK -> "网络"
+    ToolCapability.SHIZUKU -> "Shizuku / Sui"
+    ToolCapability.FRAMEWORK_PRIVILEGE -> "Root / Shizuku"
+}
+
+@Composable
+private fun ComponentManagerScreen(
+    state: DashboardUiState,
+    onBack: () -> Unit,
+    onRefreshCatalog: () -> Unit,
+    onSelectPackage: (String) -> Unit,
+    onClosePackage: () -> Unit,
+    onSetEnabled: (AppComponentRecord, Boolean) -> Unit,
+) {
+    val snapshot = state.componentSnapshot
+    if (snapshot != null) {
+        ComponentPackageScreen(
+            state = state,
+            onBack = onClosePackage,
+            onRefresh = { onSelectPackage(snapshot.packageName) },
+            onSetEnabled = onSetEnabled,
+        )
+        return
+    }
+
+    var query by rememberSaveable { mutableStateOf("") }
+    val apps = remember(state.componentCatalog, query) {
+        val needle = query.trim().lowercase()
+        if (needle.isBlank()) state.componentCatalog else state.componentCatalog.filter {
+            it.label.lowercase().contains(needle) || it.packageName.lowercase().contains(needle)
+        }
+    }
+    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(18.dp, 14.dp, 18.dp, 36.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                DetailHeader(
+                    "组件管理",
+                    "Activity · Service · Receiver · Provider",
+                    onBack,
+                    state.componentCatalogLoading,
+                    onRefreshCatalog,
+                )
+            }
+            item {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(20.dp),
+                ) {
+                    Text(
+                        "读取使用本地 PackageManager；修改统一经过 PrivilegeRouter。Shizuku / Sui Ready 时优先 Binder，RootShell 仅作为安全 fallback。系统 App 第一版保持只读。",
+                        Modifier.padding(15.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            item {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("搜索应用 / package") },
+                )
+            }
+            item { SectionLabel("用户应用", "${apps.size} / ${state.componentCatalog.size} · 按需加载组件，不后台轮询") }
+            if (state.componentCatalogLoading && state.componentCatalog.isEmpty()) {
+                item { Box(Modifier.fillMaxWidth().padding(28.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+            } else {
+                itemsIndexed(apps, key = { _, app -> app.packageName }) { _, app ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth().clickable { onSelectPackage(app.packageName) },
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                    ) {
+                        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(app.label, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(app.packageName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(if (app.enabled) "ENABLED" else "DISABLED", style = MaterialTheme.typography.labelSmall, color = if (app.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                            Spacer(Modifier.width(8.dp))
+                            Icon(Icons.Rounded.ChevronRight, contentDescription = null)
+                        }
+                    }
+                }
+            }
+            state.error?.let { item { ErrorCard(it) } }
+        }
+    }
+}
+
+@Composable
+private fun ComponentPackageScreen(
+    state: DashboardUiState,
+    onBack: () -> Unit,
+    onRefresh: () -> Unit,
+    onSetEnabled: (AppComponentRecord, Boolean) -> Unit,
+) {
+    val snapshot = state.componentSnapshot ?: return
+    var selectedKind by rememberSaveable(snapshot.packageName) { mutableStateOf<ComponentKind?>(null) }
+    var filter by rememberSaveable(snapshot.packageName) { mutableStateOf(ComponentViewFilter.ALL) }
+    var pending by remember { mutableStateOf<Pair<AppComponentRecord, Boolean>?>(null) }
+
+    pending?.let { (component, enabled) ->
+        AlertDialog(
+            onDismissRequest = { pending = null },
+            title = { Text("${if (enabled) "启用" else "停用"} ${component.kind.displayName}？") },
+            text = {
+                Text(
+                    if (enabled) {
+                        "将恢复 ${component.className}。操作会记录 before / after 与实际 Backend。"
+                    } else {
+                        "停用组件可能改变应用启动、推送或后台行为。关键 Launcher、受保护应用和系统 App 已由安全策略禁止修改。"
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { pending = null; onSetEnabled(component, enabled) }) { Text("确认") }
+            },
+            dismissButton = { TextButton(onClick = { pending = null }) { Text("取消") } },
+        )
+    }
+
+    val components = remember(snapshot, selectedKind, filter) {
+        snapshot.components.filter { component ->
+            (selectedKind == null || component.kind == selectedKind) && when (filter) {
+                ComponentViewFilter.ALL -> true
+                ComponentViewFilter.BOOT -> component.bootReceiver
+                ComponentViewFilter.EXPORTED -> component.exported
+                ComponentViewFilter.FGS -> component.foregroundService
+                ComponentViewFilter.DISABLED -> !component.enabled
+            }
+        }
+    }
+    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(18.dp, 14.dp, 18.dp, 36.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item { DetailHeader(snapshot.label, snapshot.packageName, onBack, state.componentLoading, onRefresh) }
+            item {
+                Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
+                    Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            HealthMetric("Components", snapshot.components.size.toString(), "total", Modifier.weight(1f))
+                            HealthMetric("BOOT", snapshot.bootReceiverCount.toString(), "receivers", Modifier.weight(1f))
+                            HealthMetric("Disabled", snapshot.disabledCount.toString(), "overrides", Modifier.weight(1f))
+                        }
+                        SummaryRow("Exported", snapshot.exportedCount.toString())
+                        SummaryRow("Foreground service", snapshot.foregroundServiceCount.toString())
+                        SummaryRow("Write backend", if (state.shizuku.ready) state.shizuku.backend.displayName else if (state.snapshot.rootAvailable) "RootShell fallback" else "Unavailable")
+                        if (snapshot.systemApp) {
+                            Text("系统 App 第一版只读。", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+            item {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    item { FilterChip(selected = selectedKind == null, onClick = { selectedKind = null }, label = { Text("ALL") }) }
+                    items(ComponentKind.entries.size) { index ->
+                        val kind = ComponentKind.entries[index]
+                        FilterChip(selected = selectedKind == kind, onClick = { selectedKind = kind }, label = { Text(kind.displayName) })
+                    }
+                }
+            }
+            item {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    items(ComponentViewFilter.entries.size) { index ->
+                        val option = ComponentViewFilter.entries[index]
+                        FilterChip(selected = filter == option, onClick = { filter = option }, label = { Text(option.displayName) })
+                    }
+                }
+            }
+            item { SectionLabel("组件", "${components.size} / ${snapshot.components.size} · 仅显式操作才写系统") }
+            if (components.isEmpty()) {
+                item { Text("当前筛选没有组件", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            } else {
+                itemsIndexed(components, key = { _, component -> component.componentName }) { _, component ->
+                    val safety = ComponentSafetyPolicy.evaluate(snapshot, component)
+                    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                        Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(component.className.substringAfterLast('.'), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(component.kind.displayName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                Text(
+                                    buildList {
+                                        if (component.bootReceiver) add("BOOT")
+                                        if (component.exported) add("EXPORTED")
+                                        if (component.foregroundService) add("FGS")
+                                        if (component.directBootAware) add("DIRECT_BOOT")
+                                        component.protectedReason?.let(::add)
+                                    }.joinToString(" · ").ifBlank { component.permission ?: "manifest component" },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = component.enabled,
+                                onCheckedChange = { enabled -> pending = component to enabled },
+                                enabled = safety.allowed && !state.actionInProgress,
+                            )
+                        }
+                    }
+                }
+            }
+            state.actionMessage?.let { item { Text(it, color = MaterialTheme.colorScheme.primary) } }
+            state.error?.let { item { ErrorCard(it) } }
+        }
+    }
 }
 
 @Composable
@@ -2270,6 +2558,7 @@ private fun ShizukuSuiScreen(
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onRequestPermission: () -> Unit,
+    onSelfTest: () -> Unit,
 ) {
     val context = LocalContext.current
     val bridge = state.shizuku
@@ -2316,6 +2605,46 @@ private fun ShizukuSuiScreen(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !bridge.permissionDeniedPermanently,
                     ) { Text(if (bridge.permissionDeniedPermanently) "需要在 Manager 中重新授权" else "授权 Root Tools 使用 Shizuku") }
+                }
+            }
+            item { SectionLabel("Capability self-test", "只读验证 UserService / Package / Activity / AppOps，不修改系统状态") }
+            item {
+                OutlinedButton(
+                    onClick = onSelfTest,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = bridge.ready && !state.shizukuSelfTestRunning,
+                ) {
+                    if (state.shizukuSelfTestRunning) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text(if (state.shizukuProbes.isEmpty()) "运行只读 Self-test" else "重新运行 Self-test")
+                }
+            }
+            if (state.shizukuProbes.isNotEmpty()) {
+                item {
+                    Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            state.shizukuProbes.forEach { probe ->
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(probe.capability.name, fontWeight = FontWeight.SemiBold)
+                                        Text(
+                                            "${probe.backend.displayName} · ${probe.detail} · ${probe.latencyMs?.let { "%.1f ms".format(it) } ?: "—"}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    Text(
+                                        if (probe.available) "PASS" else "FAIL",
+                                        color = if (probe.available) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
             item { SectionLabel("快速入口", "Shizuku Manager 负责服务本身，Root Tools 只消费 API") }
