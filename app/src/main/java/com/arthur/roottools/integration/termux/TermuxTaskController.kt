@@ -10,6 +10,7 @@ class TermuxTaskController(context: Context) {
     private val backend = OfficialTermuxRunCommandBackend(appContext)
     private val audit = TermuxTaskAuditStore(appContext)
     private val cliProvisioner = TermuxCliProvisioner(appContext)
+    private val mcpProvisioner = TermuxMcpRelayProvisioner(appContext)
 
     suspend fun run(taskId: TermuxManagedTaskId): TermuxTaskResult = execute(taskId)
 
@@ -47,6 +48,44 @@ class TermuxTaskController(context: Context) {
             result = result,
             installed = values["installed"] == "1",
             mode = values["mode"],
+            installedSha256 = remoteHash,
+            expectedSha256 = artifact?.sha256,
+            matchesGeneratedArtifact = result.success && artifact != null && remoteHash == artifact.sha256,
+        )
+    }
+
+    suspend fun installGeneratedMcpRelay(): TermuxTaskResult = withContext(Dispatchers.IO) {
+        val artifact = mcpProvisioner.existingArtifactInfo()
+            ?: return@withContext localFailure(
+                TermuxManagedTaskId.INSTALL_MCP_RELAY,
+                "Generate the RootTools MCP relay artifact first",
+            )
+        val script = runCatching { artifact.file.readText() }.getOrElse {
+            return@withContext localFailure(
+                TermuxManagedTaskId.INSTALL_MCP_RELAY,
+                "Unable to read RootTools MCP relay artifact",
+            )
+        }
+        val result = execute(TermuxManagedTaskId.INSTALL_MCP_RELAY, script)
+        if (!result.success) return@withContext result
+        val reportedHash = parseKeyValue(result.stdout)["sha256"]
+        if (reportedHash != artifact.sha256) {
+            return@withContext result.copy(
+                success = false,
+                transportError = "Installed MCP relay checksum does not match the RootTools artifact",
+            )
+        }
+        result
+    }
+
+    suspend fun verifyGeneratedMcpRelay(): TermuxMcpRelayVerification {
+        val artifact = withContext(Dispatchers.IO) { mcpProvisioner.existingArtifactInfo() }
+        val result = execute(TermuxManagedTaskId.VERIFY_MCP_RELAY)
+        val values = parseKeyValue(result.stdout)
+        val remoteHash = values["sha256"]
+        return TermuxMcpRelayVerification(
+            result = result,
+            installed = values["installed"] == "1",
             installedSha256 = remoteHash,
             expectedSha256 = artifact?.sha256,
             matchesGeneratedArtifact = result.success && artifact != null && remoteHash == artifact.sha256,
@@ -108,6 +147,14 @@ data class TermuxCliVerification(
     val result: TermuxTaskResult,
     val installed: Boolean,
     val mode: String?,
+    val installedSha256: String?,
+    val expectedSha256: String?,
+    val matchesGeneratedArtifact: Boolean,
+)
+
+data class TermuxMcpRelayVerification(
+    val result: TermuxTaskResult,
+    val installed: Boolean,
     val installedSha256: String?,
     val expectedSha256: String?,
     val matchesGeneratedArtifact: Boolean,

@@ -55,5 +55,13 @@ object AutomationAuthorizationPolicy {
         AutomationScope.APP_POLICY,
         AutomationScope.INTEGRITY_SCAN,
     )
+
+    val termuxMcpScopes: Set<AutomationScope> = setOf(
+        AutomationScope.READ_STATUS,
+        AutomationScope.RUN_DIAGNOSTIC,
+        AutomationScope.SET_PERFORMANCE,
+        AutomationScope.SET_ADB_ENABLE,
+        AutomationScope.APP_POLICY,
+    )
 }
 

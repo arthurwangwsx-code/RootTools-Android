@@ -9,6 +9,10 @@ import com.arthur.roottools.data.TermuxRuntimeRepository
 import com.arthur.roottools.integration.termux.TermuxCliVerification
 import com.arthur.roottools.integration.termux.TermuxCliProvisioner
 import com.arthur.roottools.integration.termux.TermuxManagedTaskId
+import com.arthur.roottools.integration.termux.TermuxMcpRelayProvisioner
+import com.arthur.roottools.integration.termux.TermuxMcpRelayStatus
+import com.arthur.roottools.integration.termux.TermuxMcpRelayStatusParser
+import com.arthur.roottools.integration.termux.TermuxMcpRelayVerification
 import com.arthur.roottools.integration.termux.TermuxRuntimeProbeParser
 import com.arthur.roottools.integration.termux.TermuxSshdConfigParser
 import com.arthur.roottools.integration.termux.TermuxSshdConfigSnapshot
@@ -37,6 +41,13 @@ data class DeveloperRuntimeUiState(
     val cliArtifactSha256: String? = null,
     val cliArtifactVersion: Int? = null,
     val cliVerification: TermuxCliVerification? = null,
+    val mcpRelayArtifactPath: String? = null,
+    val mcpRelayArtifactSha256: String? = null,
+    val mcpRelayVersion: Int? = null,
+    val mcpRelayDeviceId: String? = null,
+    val mcpRelayBearerToken: String? = null,
+    val mcpRelayVerification: TermuxMcpRelayVerification? = null,
+    val mcpRelayStatus: TermuxMcpRelayStatus = TermuxMcpRelayStatus(),
     val sshdConfig: TermuxSshdConfigSnapshot? = null,
     val audit: List<TermuxTaskAuditRecord> = emptyList(),
     val message: String? = null,
@@ -47,6 +58,7 @@ class DeveloperRuntimeViewModel(application: Application) : AndroidViewModel(app
     private val runtimeRepository = TermuxRuntimeRepository(application)
     private val clientStore = AutomationClientStore(application)
     private val cliProvisioner = TermuxCliProvisioner(application)
+    private val mcpProvisioner = TermuxMcpRelayProvisioner(application)
     private val taskController = TermuxTaskController(application)
 
     private val _state = MutableStateFlow(DeveloperRuntimeUiState())
@@ -64,6 +76,7 @@ class DeveloperRuntimeViewModel(application: Application) : AndroidViewModel(app
                 result.fold(
                     onSuccess = { snapshot ->
                         val artifact = cliProvisioner.existingArtifactInfo()
+                        val mcpArtifact = mcpProvisioner.existingArtifactInfo()
                         current.copy(
                             runtime = snapshot,
                             loading = false,
@@ -71,6 +84,11 @@ class DeveloperRuntimeViewModel(application: Application) : AndroidViewModel(app
                             cliArtifactPath = artifact?.file?.absolutePath,
                             cliArtifactSha256 = artifact?.sha256,
                             cliArtifactVersion = artifact?.version,
+                            mcpRelayArtifactPath = mcpArtifact?.file?.absolutePath,
+                            mcpRelayArtifactSha256 = mcpArtifact?.sha256,
+                            mcpRelayVersion = mcpArtifact?.version,
+                            mcpRelayDeviceId = mcpArtifact?.deviceId,
+                            mcpRelayBearerToken = mcpArtifact?.bearerToken,
                             audit = taskController.readAudit(),
                         )
                     },
@@ -125,6 +143,51 @@ class DeveloperRuntimeViewModel(application: Application) : AndroidViewModel(app
         }
     }
 
+    fun provisionMcpRelay() {
+        viewModelScope.launch {
+            _state.update { it.copy(loading = true, error = null, message = null) }
+            val result = withContext(Dispatchers.IO) { runCatching { mcpProvisioner.provision() } }
+            _state.update { current ->
+                result.fold(
+                    onSuccess = { artifact ->
+                        current.copy(
+                            loading = false,
+                            mcpRelayArtifactPath = artifact.file.absolutePath,
+                            mcpRelayArtifactSha256 = artifact.sha256,
+                            mcpRelayVersion = artifact.version,
+                            mcpRelayDeviceId = artifact.deviceId,
+                            mcpRelayBearerToken = artifact.bearerToken,
+                            mcpRelayVerification = null,
+                            mcpRelayStatus = TermuxMcpRelayStatus(),
+                            message = "MCP relay credentials rotated and artifact generated",
+                        )
+                    },
+                    onFailure = { error ->
+                        current.copy(loading = false, error = error.message ?: "MCP relay provisioning failed")
+                    },
+                )
+            }
+        }
+    }
+
+    fun revokeMcpRelay() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { mcpProvisioner.revoke() }
+            _state.update {
+                it.copy(
+                    mcpRelayArtifactPath = null,
+                    mcpRelayArtifactSha256 = null,
+                    mcpRelayVersion = null,
+                    mcpRelayBearerToken = null,
+                    mcpRelayVerification = null,
+                    mcpRelayStatus = TermuxMcpRelayStatus(),
+                    message = "MCP relay credential revoked",
+                    error = null,
+                )
+            }
+        }
+    }
+
     fun runReadOnlyTask(taskId: TermuxManagedTaskId) {
         if (TermuxManagedTaskRegistry.spec(taskId).mutation != TermuxTaskMutation.READ_ONLY) {
             _state.update { it.copy(error = "Mutation task requires an explicit controller action") }
@@ -165,6 +228,50 @@ class DeveloperRuntimeViewModel(application: Application) : AndroidViewModel(app
         runTask(TermuxManagedTaskId.INSTALL_DEVELOPER_PRESET) {
             taskController.run(TermuxManagedTaskId.INSTALL_DEVELOPER_PRESET)
         }
+    }
+
+    fun installMcpRelayInTermux() {
+        runTask(TermuxManagedTaskId.INSTALL_MCP_RELAY) { taskController.installGeneratedMcpRelay() }
+    }
+
+    fun verifyMcpRelayInTermux() {
+        if (!bridgeReady()) return
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    runningTask = TermuxManagedTaskId.VERIFY_MCP_RELAY,
+                    lastTaskResult = null,
+                    error = null,
+                    message = null,
+                )
+            }
+            val verification = withContext(Dispatchers.IO) { taskController.verifyGeneratedMcpRelay() }
+            _state.update { current ->
+                current.copy(
+                    runningTask = null,
+                    lastTaskResult = verification.result,
+                    mcpRelayVerification = verification,
+                    audit = taskController.readAudit(),
+                    error = resultError(verification.result),
+                )
+            }
+        }
+    }
+
+    fun refreshMcpRelayStatus() = runTask(TermuxManagedTaskId.MCP_RELAY_STATUS) {
+        taskController.run(TermuxManagedTaskId.MCP_RELAY_STATUS)
+    }
+
+    fun startMcpRelayLoopback() = runTask(TermuxManagedTaskId.MCP_RELAY_START_LOOPBACK) {
+        taskController.run(TermuxManagedTaskId.MCP_RELAY_START_LOOPBACK)
+    }
+
+    fun startMcpRelayTailscale() = runTask(TermuxManagedTaskId.MCP_RELAY_START_TAILSCALE) {
+        taskController.run(TermuxManagedTaskId.MCP_RELAY_START_TAILSCALE)
+    }
+
+    fun stopMcpRelay() = runTask(TermuxManagedTaskId.MCP_RELAY_STOP) {
+        taskController.run(TermuxManagedTaskId.MCP_RELAY_STOP)
     }
 
     fun startSshd() = runTask(TermuxManagedTaskId.SSHD_START) {
@@ -223,11 +330,25 @@ class DeveloperRuntimeViewModel(application: Application) : AndroidViewModel(app
                 val sshConfig = if (taskId == TermuxManagedTaskId.SSHD_CONFIG && result.success) {
                     TermuxSshdConfigParser.parse(result.stdout)
                 } else current.sshdConfig
+                val relayStatus = if (
+                    taskId in setOf(
+                        TermuxManagedTaskId.MCP_RELAY_STATUS,
+                        TermuxManagedTaskId.MCP_RELAY_START_LOOPBACK,
+                        TermuxManagedTaskId.MCP_RELAY_START_TAILSCALE,
+                        TermuxManagedTaskId.MCP_RELAY_STOP,
+                    ) && result.success
+                ) {
+                    val parsed = TermuxMcpRelayStatusParser.parse(result.stdout)
+                    if (taskId == TermuxManagedTaskId.MCP_RELAY_STOP && parsed.running == null) {
+                        TermuxMcpRelayStatus(running = false)
+                    } else parsed
+                } else current.mcpRelayStatus
                 current.copy(
                     runtime = updatedRuntime,
                     runningTask = null,
                     lastTaskResult = result,
                     sshdConfig = sshConfig,
+                    mcpRelayStatus = relayStatus,
                     audit = taskController.readAudit(),
                     error = resultError(result),
                 )

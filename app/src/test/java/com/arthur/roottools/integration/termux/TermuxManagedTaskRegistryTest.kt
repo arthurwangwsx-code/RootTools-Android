@@ -34,11 +34,25 @@ class TermuxManagedTaskRegistryTest {
     }
 
     @Test
-    fun `only cli install accepts roottools owned stdin`() {
+    fun `only generated artifact installers accept roottools owned stdin`() {
         val stdinTasks = TermuxManagedTaskId.entries.filter {
             TermuxManagedTaskRegistry.spec(it).acceptsRootToolsStdin
         }
-        assertEquals(listOf(TermuxManagedTaskId.INSTALL_ROOTTOOLS_CLI), stdinTasks)
+        assertEquals(
+            listOf(TermuxManagedTaskId.INSTALL_ROOTTOOLS_CLI, TermuxManagedTaskId.INSTALL_MCP_RELAY),
+            stdinTasks,
+        )
+    }
+
+    @Test
+    fun `relay start tasks cannot bind wildcard interfaces`() {
+        val serialized = listOf(
+            TermuxManagedTaskId.MCP_RELAY_START_LOOPBACK,
+            TermuxManagedTaskId.MCP_RELAY_START_TAILSCALE,
+        ).joinToString("\n") { TermuxManagedTaskRegistry.spec(it).arguments.joinToString(" ") }
+        assertFalse(serialized.contains("--bind 0.0.0.0"))
+        assertTrue(serialized.contains("--bind loopback"))
+        assertTrue(serialized.contains("--bind tailscale"))
     }
 }
 

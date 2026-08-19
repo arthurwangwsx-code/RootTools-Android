@@ -59,6 +59,10 @@ class ActionRouterReceiver : BroadcastReceiver() {
             )
             return
         }
+        if (scopedClient != null && !AutomationRateLimiter.tryAcquire(scopedClient.clientId)) {
+            completeImmediate(requestId, command.wireName, false, "Automation client rate limit exceeded")
+            return
+        }
 
         val requestId = safeRequestId(intent.getStringExtra(EXTRA_REQUEST_ID))
         val ordered = isOrderedBroadcast

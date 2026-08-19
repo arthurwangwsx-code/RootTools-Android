@@ -1,5 +1,7 @@
 package com.arthur.roottools.feature.developer
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -76,6 +78,14 @@ fun DeveloperRuntimeRoute(
         onStopSshd = viewModel::stopSshd,
         onEnableSshdAutostart = viewModel::enableSshdAutostart,
         onDisableSshdAutostart = viewModel::disableSshdAutostart,
+        onProvisionMcpRelay = viewModel::provisionMcpRelay,
+        onRevokeMcpRelay = viewModel::revokeMcpRelay,
+        onInstallMcpRelay = viewModel::installMcpRelayInTermux,
+        onVerifyMcpRelay = viewModel::verifyMcpRelayInTermux,
+        onRefreshMcpRelayStatus = viewModel::refreshMcpRelayStatus,
+        onStartMcpLoopback = viewModel::startMcpRelayLoopback,
+        onStartMcpTailscale = viewModel::startMcpRelayTailscale,
+        onStopMcpRelay = viewModel::stopMcpRelay,
     )
 }
 
@@ -94,6 +104,14 @@ private fun DeveloperRuntimeScreen(
     onStopSshd: () -> Unit,
     onEnableSshdAutostart: () -> Unit,
     onDisableSshdAutostart: () -> Unit,
+    onProvisionMcpRelay: () -> Unit,
+    onRevokeMcpRelay: () -> Unit,
+    onInstallMcpRelay: () -> Unit,
+    onVerifyMcpRelay: () -> Unit,
+    onRefreshMcpRelayStatus: () -> Unit,
+    onStartMcpLoopback: () -> Unit,
+    onStartMcpTailscale: () -> Unit,
+    onStopMcpRelay: () -> Unit,
 ) {
     val context = LocalContext.current
     var confirmation by remember { mutableStateOf<DeveloperRuntimeConfirmation?>(null) }
@@ -204,6 +222,26 @@ private fun DeveloperRuntimeScreen(
                     )
                 }
 
+                item {
+                    McpRelayCard(
+                        state = state,
+                        onProvision = onProvisionMcpRelay,
+                        onRevoke = onRevokeMcpRelay,
+                        onShare = {
+                            state.mcpRelayArtifactPath?.let { shareMcpRelayFile(context, File(it)) }
+                        },
+                        onCopyBearer = {
+                            state.mcpRelayBearerToken?.let { copySensitiveText(context, it) }
+                        },
+                        onInstall = onInstallMcpRelay,
+                        onVerify = onVerifyMcpRelay,
+                        onStatus = onRefreshMcpRelayStatus,
+                        onStartLoopback = { confirmation = DeveloperRuntimeConfirmation.START_MCP_LOOPBACK },
+                        onStartTailscale = { confirmation = DeveloperRuntimeConfirmation.START_MCP_TAILSCALE },
+                        onStop = onStopMcpRelay,
+                    )
+                }
+
                 state.lastTaskResult?.let { result ->
                     item { TaskResultCard(state) }
                 }
@@ -230,6 +268,10 @@ private fun DeveloperRuntimeScreen(
             DeveloperRuntimeConfirmation.ENABLE_SSHD_AUTOSTART,
             DeveloperRuntimeConfirmation.DISABLE_SSHD_AUTOSTART ->
                 R.string.developer_runtime_sshd_persistence_confirm_title to R.string.developer_runtime_sshd_persistence_confirm_body
+            DeveloperRuntimeConfirmation.START_MCP_LOOPBACK ->
+                R.string.developer_runtime_mcp_start_loopback_confirm_title to R.string.developer_runtime_mcp_start_loopback_confirm_body
+            DeveloperRuntimeConfirmation.START_MCP_TAILSCALE ->
+                R.string.developer_runtime_mcp_start_tailscale_confirm_title to R.string.developer_runtime_mcp_start_tailscale_confirm_body
         }
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirmation = null },
@@ -243,6 +285,8 @@ private fun DeveloperRuntimeScreen(
                         DeveloperRuntimeConfirmation.START_SSHD -> onStartSshd()
                         DeveloperRuntimeConfirmation.ENABLE_SSHD_AUTOSTART -> onEnableSshdAutostart()
                         DeveloperRuntimeConfirmation.DISABLE_SSHD_AUTOSTART -> onDisableSshdAutostart()
+                        DeveloperRuntimeConfirmation.START_MCP_LOOPBACK -> onStartMcpLoopback()
+                        DeveloperRuntimeConfirmation.START_MCP_TAILSCALE -> onStartMcpTailscale()
                     }
                 }) {
                     Text(stringResource(R.string.developer_runtime_confirm))
@@ -581,6 +625,174 @@ private fun SshdServiceCard(
 }
 
 @Composable
+private fun McpRelayCard(
+    state: DeveloperRuntimeUiState,
+    onProvision: () -> Unit,
+    onRevoke: () -> Unit,
+    onShare: () -> Unit,
+    onCopyBearer: () -> Unit,
+    onInstall: () -> Unit,
+    onVerify: () -> Unit,
+    onStatus: () -> Unit,
+    onStartLoopback: () -> Unit,
+    onStartTailscale: () -> Unit,
+    onStop: () -> Unit,
+) {
+    SectionCard(title = stringResource(R.string.developer_runtime_mcp_title)) {
+        Text(
+            stringResource(R.string.developer_runtime_mcp_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        val artifactReady = state.mcpRelayArtifactPath != null && state.mcpRelayBearerToken != null
+        if (artifactReady) {
+            Spacer(Modifier.height(10.dp))
+            state.mcpRelayVersion?.let { version ->
+                Text(
+                    stringResource(R.string.developer_runtime_mcp_version, version),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+            RuntimeRow(
+                stringResource(R.string.developer_runtime_mcp_device_id),
+                state.mcpRelayDeviceId ?: stringResource(R.string.developer_runtime_unknown),
+            )
+            RuntimeRow(
+                stringResource(R.string.developer_runtime_mcp_token),
+                state.mcpRelayBearerToken?.let(::maskedCredential)
+                    ?: stringResource(R.string.developer_runtime_unknown),
+            )
+            Text(
+                stringResource(R.string.developer_runtime_mcp_sensitive),
+                modifier = Modifier.padding(top = 6.dp),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+            Text(
+                stringResource(R.string.developer_runtime_mcp_manual_hint),
+                modifier = Modifier.padding(top = 8.dp),
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                stringResource(R.string.developer_runtime_mcp_stdio_hint),
+                modifier = Modifier.padding(top = 6.dp),
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                stringResource(R.string.developer_runtime_mcp_http_hint),
+                modifier = Modifier.padding(top = 6.dp),
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        state.mcpRelayVerification?.let { verification ->
+            Text(
+                stringResource(
+                    if (verification.matchesGeneratedArtifact) {
+                        R.string.developer_runtime_mcp_checksum_match
+                    } else {
+                        R.string.developer_runtime_mcp_checksum_mismatch
+                    }
+                ),
+                modifier = Modifier.padding(top = 8.dp),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (verification.matchesGeneratedArtifact) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.error
+                },
+            )
+        }
+
+        val relayState = when (state.mcpRelayStatus.running) {
+            true -> stringResource(R.string.developer_runtime_mcp_running)
+            false -> stringResource(R.string.developer_runtime_mcp_stopped)
+            null -> stringResource(R.string.developer_runtime_mcp_unknown_state)
+        }
+        RuntimeRow(stringResource(R.string.developer_runtime_mcp_status), relayState)
+        state.mcpRelayStatus.pid?.let {
+            RuntimeRow(stringResource(R.string.developer_runtime_mcp_pid), it.toString())
+        }
+        state.mcpRelayStatus.bindMode?.let {
+            RuntimeRow(stringResource(R.string.developer_runtime_mcp_bind), it)
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(onClick = onProvision, enabled = !state.loading, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.developer_runtime_mcp_generate), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            OutlinedButton(onClick = onShare, enabled = artifactReady, modifier = Modifier.weight(1f)) {
+                Icon(Icons.Rounded.Share, null)
+                Text(stringResource(R.string.developer_runtime_mcp_share), Modifier.padding(start = 4.dp), maxLines = 1)
+            }
+        }
+        if (artifactReady) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(onClick = onCopyBearer, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.developer_runtime_mcp_copy_token), maxLines = 1)
+                }
+                OutlinedButton(onClick = onRevoke, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.developer_runtime_mcp_revoke), maxLines = 1)
+                }
+            }
+        }
+
+        val officialReady = state.runtime.bridgeMode == TermuxBridgeMode.OFFICIAL_RUN_COMMAND
+        val managedEnabled = officialReady && state.runningTask == null
+        if (artifactReady && officialReady) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(onClick = onInstall, enabled = managedEnabled, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.developer_runtime_mcp_install))
+                }
+                OutlinedButton(onClick = onVerify, enabled = managedEnabled, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.developer_runtime_mcp_verify))
+                }
+            }
+            OutlinedButton(
+                onClick = onStatus,
+                enabled = managedEnabled,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            ) {
+                Text(stringResource(R.string.developer_runtime_mcp_status))
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(onClick = onStartLoopback, enabled = managedEnabled, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.developer_runtime_mcp_start_loopback), maxLines = 1)
+                }
+                Button(onClick = onStartTailscale, enabled = managedEnabled, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.developer_runtime_mcp_start_tailscale), maxLines = 1)
+                }
+            }
+            OutlinedButton(
+                onClick = onStop,
+                enabled = managedEnabled,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            ) {
+                Text(stringResource(R.string.developer_runtime_mcp_stop))
+            }
+        }
+    }
+}
+
+@Composable
 private fun AuditCard(state: DeveloperRuntimeUiState) {
     SectionCard(title = stringResource(R.string.developer_runtime_audit_title)) {
         Text(
@@ -725,6 +937,8 @@ private enum class DeveloperRuntimeConfirmation {
     START_SSHD,
     ENABLE_SSHD_AUTOSTART,
     DISABLE_SSHD_AUTOSTART,
+    START_MCP_LOOPBACK,
+    START_MCP_TAILSCALE,
 }
 
 private fun shareCliFile(context: android.content.Context, file: File) {
@@ -736,5 +950,27 @@ private fun shareCliFile(context: android.content.Context, file: File) {
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(Intent.createChooser(intent, context.getString(R.string.developer_runtime_share_chooser)))
+}
+
+private fun shareMcpRelayFile(context: android.content.Context, file: File) {
+    if (!file.isFile) return
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/x-python"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(intent, context.getString(R.string.developer_runtime_mcp_share_chooser)))
+}
+
+private fun copySensitiveText(context: android.content.Context, text: String) {
+    val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return
+    clipboard.setPrimaryClip(ClipData.newPlainText("RootTools MCP bearer", text))
+}
+
+private fun maskedCredential(value: String): String = if (value.length > 16) {
+    "${value.take(8)}••••${value.takeLast(6)}"
+} else {
+    "••••"
 }
 

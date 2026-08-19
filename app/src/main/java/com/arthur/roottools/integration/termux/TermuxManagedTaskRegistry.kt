@@ -17,6 +17,12 @@ enum class TermuxManagedTaskId {
     SSHD_STOP,
     SSHD_ENABLE_AUTOSTART,
     SSHD_DISABLE_AUTOSTART,
+    INSTALL_MCP_RELAY,
+    VERIFY_MCP_RELAY,
+    MCP_RELAY_STATUS,
+    MCP_RELAY_START_LOOPBACK,
+    MCP_RELAY_START_TAILSCALE,
+    MCP_RELAY_STOP,
 }
 
 enum class TermuxTaskMutation {
@@ -174,6 +180,64 @@ object TermuxManagedTaskRegistry {
             description = "Disable only the allowlisted sshd service autostart.",
             mutation = TermuxTaskMutation.PERSISTENCE,
         )
+
+        TermuxManagedTaskId.INSTALL_MCP_RELAY -> TermuxCommandSpec(
+            id = id,
+            executable = "${'$'}PREFIX/bin/sh",
+            arguments = listOf(
+                "-c",
+                "set -eu; umask 077; dir=\"${'$'}HOME/roottools/agent\"; target=\"${'$'}dir/roottools_mcp.py\"; tmp=\"${'$'}dir/.roottools_mcp.py.new\"; mkdir -p \"${'$'}dir\"; cat > \"${'$'}tmp\"; chmod 700 \"${'$'}tmp\"; mv -f \"${'$'}tmp\" \"${'$'}target\"; printf 'path=%s\\n' \"${'$'}target\"; sha256sum \"${'$'}target\" | awk '{print \"sha256=\"${'$'}1}'",
+            ),
+            timeoutMs = 15_000L,
+            maxOutputChars = 4_000,
+            label = "Install RootTools MCP relay",
+            description = "Install the RootTools-generated MCP relay into a fixed private Termux path.",
+            mutation = TermuxTaskMutation.WRITE_ROOTTOOLS_FILES,
+            acceptsRootToolsStdin = true,
+        )
+
+        TermuxManagedTaskId.VERIFY_MCP_RELAY -> TermuxCommandSpec(
+            id = id,
+            executable = "${'$'}PREFIX/bin/sh",
+            arguments = listOf(
+                "-c",
+                "target=\"${'$'}HOME/roottools/agent/roottools_mcp.py\"; [ -f \"${'$'}target\" ] || { echo installed=0; exit 4; }; echo installed=1; sha256sum \"${'$'}target\" | awk '{print \"sha256=\"${'$'}1}'",
+            ),
+            timeoutMs = 8_000L,
+            maxOutputChars = 4_000,
+            label = "Verify RootTools MCP relay",
+            description = "Verify the installed RootTools MCP relay checksum.",
+        )
+
+        TermuxManagedTaskId.MCP_RELAY_STATUS -> TermuxCommandSpec(
+            id = id,
+            executable = "${'$'}PREFIX/bin/sh",
+            arguments = listOf(
+                "-c",
+                "pidfile=\"${'$'}HOME/roottools/agent/roottools_mcp.pid\"; if [ ! -f \"${'$'}pidfile\" ]; then echo running=0; exit 0; fi; pid=${'$'}(cat \"${'$'}pidfile\" 2>/dev/null || true); case \"${'$'}pid\" in ''|*[!0-9]*) echo running=0; exit 0;; esac; if kill -0 \"${'$'}pid\" 2>/dev/null && tr '\\0' ' ' < \"/proc/${'$'}pid/cmdline\" 2>/dev/null | grep -q 'roottools_mcp.py'; then echo running=1; echo pid=\"${'$'}pid\"; else echo running=0; fi",
+            ),
+            timeoutMs = 8_000L,
+            maxOutputChars = 4_000,
+            label = "Read RootTools MCP relay status",
+            description = "Check only the RootTools MCP relay pid file and matching process command line.",
+        )
+
+        TermuxManagedTaskId.MCP_RELAY_START_LOOPBACK -> relayStartTask(id, "loopback")
+        TermuxManagedTaskId.MCP_RELAY_START_TAILSCALE -> relayStartTask(id, "tailscale")
+
+        TermuxManagedTaskId.MCP_RELAY_STOP -> TermuxCommandSpec(
+            id = id,
+            executable = "${'$'}PREFIX/bin/sh",
+            arguments = listOf(
+                "-c",
+                "set -eu; pidfile=\"${'$'}HOME/roottools/agent/roottools_mcp.pid\"; [ -f \"${'$'}pidfile\" ] || { echo stopped=1; exit 0; }; pid=${'$'}(cat \"${'$'}pidfile\"); case \"${'$'}pid\" in ''|*[!0-9]*) rm -f \"${'$'}pidfile\"; echo stopped=1; exit 0;; esac; if kill -0 \"${'$'}pid\" 2>/dev/null; then cmd=${'$'}(tr '\\0' ' ' < \"/proc/${'$'}pid/cmdline\" 2>/dev/null || true); echo \"${'$'}cmd\" | grep -q 'roottools_mcp.py' || { echo 'refusing to kill unrelated pid' >&2; exit 8; }; kill \"${'$'}pid\"; fi; rm -f \"${'$'}pidfile\"; echo stopped=1",
+            ),
+            timeoutMs = 8_000L,
+            maxOutputChars = 4_000,
+            label = "Stop RootTools MCP relay",
+            description = "Stop only the process whose pid file still resolves to roottools_mcp.py.",
+            mutation = TermuxTaskMutation.SERVICE_STATE,
+        )
     }
 
     private fun versionTask(
@@ -204,6 +268,23 @@ object TermuxManagedTaskRegistry {
         label = label,
         description = "Manage only the allowlisted Termux sshd service.",
         mutation = mutation,
+    )
+
+    private fun relayStartTask(
+        id: TermuxManagedTaskId,
+        bindMode: String,
+    ) = TermuxCommandSpec(
+        id = id,
+        executable = "${'$'}PREFIX/bin/sh",
+        arguments = listOf(
+            "-c",
+            "set -eu; dir=\"${'$'}HOME/roottools/agent\"; target=\"${'$'}dir/roottools_mcp.py\"; pidfile=\"${'$'}dir/roottools_mcp.pid\"; log=\"${'$'}dir/roottools_mcp.log\"; [ -f \"${'$'}target\" ] || { echo 'relay not installed' >&2; exit 4; }; if [ -f \"${'$'}pidfile\" ]; then old=${'$'}(cat \"${'$'}pidfile\" 2>/dev/null || true); case \"${'$'}old\" in *[!0-9]*|'') old=0;; esac; if [ \"${'$'}old\" -gt 0 ] && kill -0 \"${'$'}old\" 2>/dev/null; then cmd=${'$'}(tr '\\0' ' ' < \"/proc/${'$'}old/cmdline\" 2>/dev/null || true); echo \"${'$'}cmd\" | grep -q 'roottools_mcp.py' && { echo already_running=1; echo pid=\"${'$'}old\"; exit 0; }; fi; fi; nohup \"${'$'}PREFIX/bin/python\" \"${'$'}target\" --transport http --bind $bindMode </dev/null >\"${'$'}log\" 2>&1 & pid=${'$'}!; echo \"${'$'}pid\" > \"${'$'}pidfile\"; sleep 1; kill -0 \"${'$'}pid\" 2>/dev/null || { tail -n 20 \"${'$'}log\" >&2 || true; rm -f \"${'$'}pidfile\"; exit 9; }; echo running=1; echo pid=\"${'$'}pid\"; echo bind=$bindMode",
+        ),
+        timeoutMs = 12_000L,
+        maxOutputChars = 8_000,
+        label = "Start RootTools MCP relay ($bindMode)",
+        description = "Start the installed RootTools MCP relay with the fixed $bindMode binding policy.",
+        mutation = TermuxTaskMutation.SERVICE_STATE,
     )
 }
 
