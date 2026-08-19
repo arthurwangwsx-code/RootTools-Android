@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.arthur.roottools.automation.AutomationClientRecord
 import com.arthur.roottools.automation.AutomationClientStore
 import com.arthur.roottools.data.TermuxRuntimeRepository
+import com.arthur.roottools.integration.termux.DeveloperRuntimeRegistryExporter
 import com.arthur.roottools.integration.termux.TermuxCliVerification
 import com.arthur.roottools.integration.termux.TermuxCliProvisioner
 import com.arthur.roottools.integration.termux.TermuxManagedTaskId
@@ -23,6 +24,13 @@ import com.arthur.roottools.integration.termux.TermuxManagedTaskRegistry
 import com.arthur.roottools.integration.termux.TermuxTaskResult
 import com.arthur.roottools.model.TermuxBridgeMode
 import com.arthur.roottools.model.TermuxRuntimeSnapshot
+import com.arthur.roottools.workflow.ManagedWorkflowAuditRecord
+import com.arthur.roottools.workflow.ManagedWorkflowController
+import com.arthur.roottools.workflow.ManagedWorkflowExecutionResult
+import com.arthur.roottools.workflow.ManagedWorkflowId
+import com.arthur.roottools.workflow.ManagedWorkflowManifestExporter
+import com.arthur.roottools.workflow.ManagedWorkflowPolicy
+import com.arthur.roottools.workflow.ManagedWorkflowRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,6 +58,11 @@ data class DeveloperRuntimeUiState(
     val mcpRelayStatus: TermuxMcpRelayStatus = TermuxMcpRelayStatus(),
     val sshdConfig: TermuxSshdConfigSnapshot? = null,
     val audit: List<TermuxTaskAuditRecord> = emptyList(),
+    val workflowRunning: ManagedWorkflowId? = null,
+    val lastWorkflowExecution: ManagedWorkflowExecutionResult? = null,
+    val workflowAudit: List<ManagedWorkflowAuditRecord> = emptyList(),
+    val workflowManifestPath: String? = null,
+    val runtimeRegistryPath: String? = null,
     val message: String? = null,
     val error: String? = null,
 )
@@ -60,6 +73,9 @@ class DeveloperRuntimeViewModel(application: Application) : AndroidViewModel(app
     private val cliProvisioner = TermuxCliProvisioner(application)
     private val mcpProvisioner = TermuxMcpRelayProvisioner(application)
     private val taskController = TermuxTaskController(application)
+    private val workflowController = ManagedWorkflowController(application)
+    private val workflowManifestExporter = ManagedWorkflowManifestExporter(application)
+    private val runtimeRegistryExporter = DeveloperRuntimeRegistryExporter(application)
 
     private val _state = MutableStateFlow(DeveloperRuntimeUiState())
     val state: StateFlow<DeveloperRuntimeUiState> = _state.asStateFlow()
@@ -90,6 +106,7 @@ class DeveloperRuntimeViewModel(application: Application) : AndroidViewModel(app
                             mcpRelayDeviceId = mcpArtifact?.deviceId,
                             mcpRelayBearerToken = mcpArtifact?.bearerToken,
                             audit = taskController.readAudit(),
+                            workflowAudit = workflowController.audit(),
                         )
                     },
                     onFailure = { error ->
@@ -288,6 +305,82 @@ class DeveloperRuntimeViewModel(application: Application) : AndroidViewModel(app
 
     fun disableSshdAutostart() = runTask(TermuxManagedTaskId.SSHD_DISABLE_AUTOSTART) {
         taskController.run(TermuxManagedTaskId.SSHD_DISABLE_AUTOSTART)
+    }
+
+    fun runWorkflow(workflowId: ManagedWorkflowId, packageName: String? = null) {
+        if (_state.value.workflowRunning != null || _state.value.runningTask != null) {
+            _state.update { it.copy(error = "Another Developer Runtime operation is already running") }
+            return
+        }
+        val request = ManagedWorkflowRequest(workflowId, packageName?.trim()?.takeIf { it.isNotBlank() })
+        val validation = ManagedWorkflowPolicy.validate(request)
+        if (!validation.valid) {
+            _state.update { it.copy(error = validation.message) }
+            return
+        }
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    workflowRunning = workflowId,
+                    lastWorkflowExecution = null,
+                    error = null,
+                    message = null,
+                )
+            }
+            val execution = withContext(Dispatchers.IO) { workflowController.run(request) }
+            _state.update { current ->
+                current.copy(
+                    workflowRunning = null,
+                    lastWorkflowExecution = execution,
+                    workflowAudit = workflowController.audit(),
+                    error = if (execution.success) null else execution.steps.lastOrNull()?.message
+                        ?: "Managed workflow failed",
+                    message = if (execution.success) "Managed workflow completed" else null,
+                )
+            }
+        }
+    }
+
+    fun exportWorkflowManifest(workflowId: ManagedWorkflowId, packageName: String? = null) {
+        val request = ManagedWorkflowRequest(workflowId, packageName?.trim()?.takeIf { it.isNotBlank() })
+        val validation = ManagedWorkflowPolicy.validate(request)
+        if (!validation.valid) {
+            _state.update { it.copy(error = validation.message) }
+            return
+        }
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { runCatching { workflowManifestExporter.export(request) } }
+            _state.update { current ->
+                result.fold(
+                    onSuccess = { artifact ->
+                        current.copy(
+                            workflowManifestPath = artifact.file.absolutePath,
+                            error = null,
+                            message = "Signed workflow manifest generated",
+                        )
+                    },
+                    onFailure = { error -> current.copy(error = error.message ?: "Workflow manifest export failed") },
+                )
+            }
+        }
+    }
+
+    fun exportRuntimeRegistry() {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { runCatching { runtimeRegistryExporter.export() } }
+            _state.update { current ->
+                result.fold(
+                    onSuccess = { registry ->
+                        current.copy(
+                            runtimeRegistryPath = registry.file.absolutePath,
+                            error = null,
+                            message = "Signed Developer Runtime registry generated",
+                        )
+                    },
+                    onFailure = { error -> current.copy(error = error.message ?: "Runtime registry export failed") },
+                )
+            }
+        }
     }
 
     private fun runTask(

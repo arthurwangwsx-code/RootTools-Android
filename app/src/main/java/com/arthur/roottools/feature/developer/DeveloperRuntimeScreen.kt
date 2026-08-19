@@ -31,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -56,6 +57,7 @@ import com.arthur.roottools.integration.termux.TermuxRunCommandContract
 import com.arthur.roottools.model.RuntimeToolState
 import com.arthur.roottools.model.TermuxBridgeMode
 import com.arthur.roottools.model.TermuxDistribution
+import com.arthur.roottools.workflow.ManagedWorkflowId
 import java.io.File
 
 @Composable
@@ -86,6 +88,9 @@ fun DeveloperRuntimeRoute(
         onStartMcpLoopback = viewModel::startMcpRelayLoopback,
         onStartMcpTailscale = viewModel::startMcpRelayTailscale,
         onStopMcpRelay = viewModel::stopMcpRelay,
+        onRunWorkflow = viewModel::runWorkflow,
+        onExportWorkflow = viewModel::exportWorkflowManifest,
+        onExportRuntimeRegistry = viewModel::exportRuntimeRegistry,
     )
 }
 
@@ -112,9 +117,13 @@ private fun DeveloperRuntimeScreen(
     onStartMcpLoopback: () -> Unit,
     onStartMcpTailscale: () -> Unit,
     onStopMcpRelay: () -> Unit,
+    onRunWorkflow: (ManagedWorkflowId, String?) -> Unit,
+    onExportWorkflow: (ManagedWorkflowId, String?) -> Unit,
+    onExportRuntimeRegistry: () -> Unit,
 ) {
     val context = LocalContext.current
     var confirmation by remember { mutableStateOf<DeveloperRuntimeConfirmation?>(null) }
+    var pendingWorkflow by remember { mutableStateOf<Pair<ManagedWorkflowId, String?>?>(null) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
@@ -242,6 +251,35 @@ private fun DeveloperRuntimeScreen(
                     )
                 }
 
+                item {
+                    ManagedWorkflowCard(
+                        state = state,
+                        onRun = { id, packageName -> pendingWorkflow = id to packageName },
+                        onExport = onExportWorkflow,
+                        onShareManifest = {
+                            state.workflowManifestPath?.let {
+                                shareJsonFile(
+                                    context,
+                                    File(it),
+                                    R.string.developer_runtime_workflow_manifest_chooser,
+                                )
+                            }
+                        },
+                    )
+                }
+
+                item {
+                    RuntimeRegistryCard(
+                        state = state,
+                        onGenerate = onExportRuntimeRegistry,
+                        onShare = {
+                            state.runtimeRegistryPath?.let {
+                                shareJsonFile(context, File(it), R.string.developer_runtime_registry_chooser)
+                            }
+                        },
+                    )
+                }
+
                 state.lastTaskResult?.let { result ->
                     item { TaskResultCard(state) }
                 }
@@ -294,6 +332,27 @@ private fun DeveloperRuntimeScreen(
             },
             dismissButton = {
                 OutlinedButton(onClick = { confirmation = null }) {
+                    Text(stringResource(R.string.developer_runtime_cancel))
+                }
+            },
+        )
+    }
+
+    pendingWorkflow?.let { pending ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pendingWorkflow = null },
+            title = { Text(stringResource(R.string.developer_runtime_workflow_confirm_title)) },
+            text = { Text(stringResource(R.string.developer_runtime_workflow_confirm_body)) },
+            confirmButton = {
+                Button(onClick = {
+                    pendingWorkflow = null
+                    onRunWorkflow(pending.first, pending.second)
+                }) {
+                    Text(stringResource(R.string.developer_runtime_confirm))
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { pendingWorkflow = null }) {
                     Text(stringResource(R.string.developer_runtime_cancel))
                 }
             },
@@ -659,8 +718,7 @@ private fun McpRelayCard(
             )
             RuntimeRow(
                 stringResource(R.string.developer_runtime_mcp_token),
-                state.mcpRelayBearerToken?.let(::maskedCredential)
-                    ?: stringResource(R.string.developer_runtime_unknown),
+                maskedCredential(state.mcpRelayBearerToken),
             )
             Text(
                 stringResource(R.string.developer_runtime_mcp_sensitive),
@@ -787,6 +845,206 @@ private fun McpRelayCard(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             ) {
                 Text(stringResource(R.string.developer_runtime_mcp_stop))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ManagedWorkflowCard(
+    state: DeveloperRuntimeUiState,
+    onRun: (ManagedWorkflowId, String?) -> Unit,
+    onExport: (ManagedWorkflowId, String?) -> Unit,
+    onShareManifest: () -> Unit,
+) {
+    var packageName by remember { mutableStateOf("") }
+    SectionCard(title = stringResource(R.string.developer_runtime_workflow_title)) {
+        Text(
+            stringResource(R.string.developer_runtime_workflow_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(10.dp))
+        WorkflowActionRow(
+            label = stringResource(R.string.developer_runtime_workflow_test_ready),
+            workflowId = ManagedWorkflowId.TEST_DEVICE_READY,
+            packageName = null,
+            state = state,
+            onRun = onRun,
+            onExport = onExport,
+        )
+        WorkflowActionRow(
+            label = stringResource(R.string.developer_runtime_workflow_diagnostic),
+            workflowId = ManagedWorkflowId.DIAGNOSTIC_PIPELINE,
+            packageName = null,
+            state = state,
+            onRun = onRun,
+            onExport = onExport,
+        )
+        WorkflowActionRow(
+            label = stringResource(R.string.developer_runtime_workflow_health),
+            workflowId = ManagedWorkflowId.DEVELOPER_RUNTIME_HEALTH,
+            packageName = null,
+            state = state,
+            onRun = onRun,
+            onExport = onExport,
+        )
+
+        Spacer(Modifier.height(10.dp))
+        Text(
+            stringResource(R.string.developer_runtime_workflow_app_ready),
+            fontWeight = FontWeight.SemiBold,
+        )
+        OutlinedTextField(
+            value = packageName,
+            onValueChange = { packageName = it.take(200) },
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+            singleLine = true,
+            label = { Text(stringResource(R.string.developer_runtime_workflow_package_hint)) },
+        )
+        WorkflowButtons(
+            workflowId = ManagedWorkflowId.APP_TEST_READY,
+            packageName = packageName.trim().takeIf { it.isNotBlank() },
+            state = state,
+            onRun = onRun,
+            onExport = onExport,
+        )
+
+        state.lastWorkflowExecution?.let { execution ->
+            Spacer(Modifier.height(12.dp))
+            Text(
+                stringResource(R.string.developer_runtime_workflow_result),
+                fontWeight = FontWeight.SemiBold,
+            )
+            execution.steps.forEach { step ->
+                Text(
+                    stringResource(
+                        R.string.developer_runtime_workflow_step,
+                        step.type.name,
+                        if (step.success) "OK" else "FAIL",
+                        step.message,
+                    ),
+                    modifier = Modifier.padding(top = 5.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+
+        OutlinedButton(
+            onClick = onShareManifest,
+            enabled = state.workflowManifestPath != null,
+            modifier = Modifier.padding(top = 10.dp),
+        ) {
+            Text(stringResource(R.string.developer_runtime_workflow_share))
+        }
+
+        Spacer(Modifier.height(12.dp))
+        Text(
+            stringResource(R.string.developer_runtime_workflow_audit_title),
+            fontWeight = FontWeight.SemiBold,
+        )
+        if (state.workflowAudit.isEmpty()) {
+            Text(
+                stringResource(R.string.developer_runtime_workflow_audit_empty),
+                modifier = Modifier.padding(top = 5.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            state.workflowAudit.take(6).forEach { record ->
+                Text(
+                    stringResource(
+                        R.string.developer_runtime_workflow_audit_row,
+                        record.workflowId.name,
+                        if (record.success) "OK" else "FAIL",
+                        record.completedSteps,
+                        record.durationMs,
+                    ),
+                    modifier = Modifier.padding(top = 5.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WorkflowActionRow(
+    label: String,
+    workflowId: ManagedWorkflowId,
+    packageName: String?,
+    state: DeveloperRuntimeUiState,
+    onRun: (ManagedWorkflowId, String?) -> Unit,
+    onExport: (ManagedWorkflowId, String?) -> Unit,
+) {
+    Text(label, modifier = Modifier.padding(top = 8.dp), fontWeight = FontWeight.SemiBold)
+    WorkflowButtons(workflowId, packageName, state, onRun, onExport)
+}
+
+@Composable
+private fun WorkflowButtons(
+    workflowId: ManagedWorkflowId,
+    packageName: String?,
+    state: DeveloperRuntimeUiState,
+    onRun: (ManagedWorkflowId, String?) -> Unit,
+    onExport: (ManagedWorkflowId, String?) -> Unit,
+) {
+    val busy = state.workflowRunning != null || state.runningTask != null
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Button(
+            onClick = { onRun(workflowId, packageName) },
+            enabled = !busy,
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(
+                if (state.workflowRunning == workflowId) {
+                    stringResource(R.string.developer_runtime_workflow_running)
+                } else {
+                    stringResource(R.string.developer_runtime_workflow_run)
+                },
+                maxLines = 1,
+            )
+        }
+        OutlinedButton(
+            onClick = { onExport(workflowId, packageName) },
+            enabled = !busy,
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(stringResource(R.string.developer_runtime_workflow_export), maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun RuntimeRegistryCard(
+    state: DeveloperRuntimeUiState,
+    onGenerate: () -> Unit,
+    onShare: () -> Unit,
+) {
+    SectionCard(title = stringResource(R.string.developer_runtime_registry_title)) {
+        Text(
+            stringResource(R.string.developer_runtime_registry_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(onClick = onGenerate, enabled = !state.loading, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.developer_runtime_registry_generate), maxLines = 1)
+            }
+            OutlinedButton(
+                onClick = onShare,
+                enabled = state.runtimeRegistryPath != null,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(stringResource(R.string.developer_runtime_registry_share), maxLines = 1)
             }
         }
     }
@@ -961,6 +1219,17 @@ private fun shareMcpRelayFile(context: android.content.Context, file: File) {
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(Intent.createChooser(intent, context.getString(R.string.developer_runtime_mcp_share_chooser)))
+}
+
+private fun shareJsonFile(context: android.content.Context, file: File, chooserTitleRes: Int) {
+    if (!file.isFile) return
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "application/json"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(intent, context.getString(chooserTitleRes)))
 }
 
 private fun copySensitiveText(context: android.content.Context, text: String) {
