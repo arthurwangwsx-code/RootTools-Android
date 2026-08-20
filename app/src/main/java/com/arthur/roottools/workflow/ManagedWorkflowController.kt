@@ -1,26 +1,21 @@
 package com.arthur.roottools.workflow
 
 import android.content.Context
+import com.arthur.roottools.app.rootToolsContainer
 import com.arthur.roottools.data.DeviceHealthCollector
-import com.arthur.roottools.data.DeviceRepository
-import com.arthur.roottools.data.DiagnosticReportStore
-import com.arthur.roottools.data.DiagnosticsRepository
-import com.arthur.roottools.data.RootActionAuditStore
 import com.arthur.roottools.integration.termux.TermuxManagedTaskId
 import com.arthur.roottools.integration.termux.TermuxTaskController
-import com.arthur.roottools.policy.PackagePolicyController
-import com.arthur.roottools.root.RootShell
 import com.arthur.roottools.service.CpuPolicyService
 
 /** Cross-feature orchestration that reuses existing semantic controllers and repositories. */
 class ManagedWorkflowController(context: Context) {
     private val appContext = context.applicationContext
-    private val shell = RootShell()
-    private val rootAudit = RootActionAuditStore(appContext)
-    private val deviceRepository = DeviceRepository(shell, rootAudit, "Workflow")
-    private val packageController = PackagePolicyController(shell, rootAudit, "Workflow")
-    private val diagnosticsRepository = DiagnosticsRepository(shell)
-    private val reportStore = DiagnosticReportStore(appContext)
+    private val container = appContext.rootToolsContainer
+    private val shell = container.shell
+    private val adbController = container.createAdbController("Workflow")
+    private val packageController = container.createPackagePolicyController("Workflow")
+    private val diagnosticsRepository = container.diagnosticsRepository
+    private val reportStore = container.reportStore
     private val termuxController = TermuxTaskController(appContext)
     private val auditStore = ManagedWorkflowAuditStore(appContext)
 
@@ -60,11 +55,11 @@ class ManagedWorkflowController(context: Context) {
                 }
 
                 ManagedWorkflowStepType.ENSURE_ROOT_ADB -> {
-                    val success = deviceRepository.setAdbTcpEnabled(true)
+                    val action = adbController.setRootTcpEnabled(true)
                     ManagedWorkflowStepResult(
                         step.type,
-                        success,
-                        if (success) "Root TCP ADB enabled" else "Root TCP ADB enable failed",
+                        action.success,
+                        action.message,
                     )
                 }
 
