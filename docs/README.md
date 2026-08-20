@@ -63,8 +63,8 @@
 - 常用 Root 操作
 - 自动化入口
 - 设备快照 / 报告
-- Shizuku / Sui 特权桥接（规划中）
-- App Control Center（核心 Inventory / Detail / Components / Permission / AppOps 已开始落地）
+- Shizuku / Sui 特权桥接（已落地：typed UserService / PrivilegeRouter / self-test，Framework 操作优先 Shizuku/Sui、Root fallback）
+- App Control Center（核心 Inventory / Detail / Components / Permission / AppOps 已落地并持续扩展）
 - Environment Integrity Center（基础实现已落地；Hardware Attestation 已完成 Samsung 真机验收，其余扫描模式持续扩展/验收）
 - Developer Runtime / Termux Bridge（规划完成；当前 Samsung Play Termux 先走 reverse bridge）
 
