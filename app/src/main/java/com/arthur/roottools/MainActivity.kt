@@ -28,7 +28,11 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermissionIfNeeded()
         setContent {
             RootToolsTheme {
-                DashboardRoute(dashboardViewModel)
+                DashboardRoute(
+                    viewModel = dashboardViewModel,
+                    openAdbOnStart = intent?.getStringExtra(EXTRA_OPEN_SCREEN) == SCREEN_ADB,
+                    openIntegrityOnStart = intent?.getStringExtra(EXTRA_OPEN_SCREEN) == SCREEN_INTEGRITY,
+                )
             }
         }
     }
@@ -59,6 +63,12 @@ class MainActivity : ComponentActivity() {
     private fun needsNotificationPermission(): Boolean =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+
+    companion object {
+        const val EXTRA_OPEN_SCREEN = "open_screen"
+        const val SCREEN_ADB = "adb"
+        const val SCREEN_INTEGRITY = "integrity"
+    }
 
 }
 

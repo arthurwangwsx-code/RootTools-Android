@@ -1,0 +1,163 @@
+package com.arthur.roottools.data
+
+import android.content.Context
+import com.arthur.roottools.model.AppControlDetail
+import com.arthur.roottools.model.AppControlExportResult
+import com.arthur.roottools.model.ComponentSnapshot
+import com.arthur.roottools.model.PermissionAppOpsSnapshot
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+
+class AppControlDiagnosticStore(context: Context) {
+    private val directory = File(context.filesDir, "diagnostics/app-control").apply { mkdirs() }
+
+    fun write(
+        detail: AppControlDetail,
+        components: ComponentSnapshot?,
+        permissionOps: PermissionAppOpsSnapshot?,
+    ): AppControlExportResult {
+        val now = System.currentTimeMillis()
+        val safeName = detail.packageName.replace(Regex("[^A-Za-z0-9_.-]"), "_")
+        val jsonFile = File(directory, "$safeName-$now.json")
+        val mdFile = File(directory, "$safeName-$now.md")
+        jsonFile.writeText(buildJson(detail, components, permissionOps).toString(2))
+        mdFile.writeText(buildMarkdown(detail, components, permissionOps))
+        return AppControlExportResult(mdFile.absolutePath, jsonFile.absolutePath, now)
+    }
+
+    private fun buildJson(
+        detail: AppControlDetail,
+        components: ComponentSnapshot?,
+        permissionOps: PermissionAppOpsSnapshot?,
+    ): JSONObject = JSONObject().apply {
+        put("packageName", detail.packageName)
+        put("label", detail.label)
+        put("versionName", detail.versionName)
+        put("versionCode", detail.versionCode)
+        put("uid", detail.uid)
+        put("minSdk", detail.minSdk)
+        put("targetSdk", detail.targetSdk)
+        put("compileSdk", detail.compileSdk ?: JSONObject.NULL)
+        put("firstInstallTimeMs", detail.firstInstallTimeMs)
+        put("lastUpdateTimeMs", detail.lastUpdateTimeMs)
+        put("installerPackage", detail.installerPackage ?: JSONObject.NULL)
+        put("sourceStatus", detail.sourceStatus.name)
+        put("systemApp", detail.systemApp)
+        put("updatedSystemApp", detail.updatedSystemApp)
+        put("debuggable", detail.debuggable)
+        put("persistent", detail.persistent)
+        put("enabled", detail.enabled)
+        put("enabledState", detail.enabledState)
+        put("stopped", detail.stopped)
+        put("launchable", detail.launchable)
+        put("sourceDir", detail.sourceDir)
+        put("splitSourceDirs", JSONArray(detail.splitSourceDirs))
+        put("sourceReadable", detail.sourceReadable)
+        put("baseApkBytes", detail.baseApkBytes)
+        put("splitApkBytes", detail.splitApkBytes)
+        put("totalApkBytes", detail.totalApkBytes)
+        put("dataDir", detail.dataDir)
+        put("deviceProtectedDataDir", detail.deviceProtectedDataDir)
+        put("credentialProtectedDataDir", detail.credentialProtectedDataDir)
+        put("nativeLibraryDir", detail.nativeLibraryDir)
+        put("sharedLibraryFiles", JSONArray(detail.sharedLibraryFiles))
+        put("signingSha256", JSONArray(detail.signingSha256))
+        put("components", JSONArray().apply {
+            components?.components.orEmpty().forEach { component ->
+                put(JSONObject().apply {
+                    put("name", component.componentName)
+                    put("className", component.className)
+                    put("kind", component.kind.name)
+                    put("enabled", component.enabled)
+                    put("exported", component.exported)
+                    put("bootReceiver", component.bootReceiver)
+                    put("foregroundService", component.foregroundService)
+                    put("permission", component.permission ?: JSONObject.NULL)
+                    put("protectedReason", component.protectedReason ?: JSONObject.NULL)
+                })
+            }
+        })
+        put("permissions", JSONArray().apply {
+            permissionOps?.permissions.orEmpty().forEach { permission ->
+                put(JSONObject().apply {
+                    put("name", permission.name)
+                    put("granted", permission.granted)
+                    put("protection", permission.protection)
+                })
+            }
+        })
+        put("appOps", JSONArray().apply {
+            permissionOps?.appOps.orEmpty().forEach { op ->
+                put(JSONObject().apply {
+                    put("name", op.name)
+                    put("mode", op.mode ?: JSONObject.NULL)
+                    put("supported", op.supported)
+                    put("backend", op.backend.name)
+                    put("raw", op.raw)
+                })
+            }
+        })
+    }
+
+    private fun buildMarkdown(
+        detail: AppControlDetail,
+        components: ComponentSnapshot?,
+        permissionOps: PermissionAppOpsSnapshot?,
+    ): String = buildString {
+        appendLine("# ${detail.label} — ${detail.packageName}")
+        appendLine()
+        appendLine("Generated by Root Tools App Control Center.")
+        appendLine()
+        appendLine("## Identity")
+        appendLine()
+        appendLine("- Version: `${detail.versionName}` (`${detail.versionCode}`)")
+        appendLine("- UID: `${detail.uid}`")
+        appendLine("- SDK: `${detail.minSdk} → ${detail.targetSdk}`${detail.compileSdk?.let { " / compile `$it`" }.orEmpty()}")
+        appendLine("- Source: **${detail.sourceStatus.displayName}** `${detail.installerPackage ?: "—"}`")
+        appendLine("- State: `${detail.enabledState}` / stopped `${detail.stopped}`")
+        appendLine("- System: `${detail.systemApp}` / updated-system `${detail.updatedSystemApp}`")
+        appendLine()
+        appendLine("## Code & Paths")
+        appendLine()
+        appendLine("- Base APK: `${detail.sourceDir}` (${formatBytes(detail.baseApkBytes)})")
+        appendLine("- Split APKs: `${detail.splitSourceDirs.size}` (${formatBytes(detail.splitApkBytes)})")
+        appendLine("- Source readable: `${detail.sourceReadable}`")
+        appendLine("- Data: `${detail.dataDir}`")
+        appendLine("- Device protected: `${detail.deviceProtectedDataDir}`")
+        appendLine("- Native libs: `${detail.nativeLibraryDir}`")
+        appendLine()
+        appendLine("## Signing")
+        appendLine()
+        detail.signingSha256.ifEmpty { listOf("—") }.forEach { appendLine("- `$it`") }
+        appendLine()
+        appendLine("## Components")
+        appendLine()
+        appendLine("- Activities: `${detail.activityCount}`")
+        appendLine("- Services: `${detail.serviceCount}`")
+        appendLine("- Receivers: `${detail.receiverCount}`")
+        appendLine("- Providers: `${detail.providerCount}`")
+        components?.components.orEmpty().filter { it.bootReceiver || it.exported || !it.enabled }.take(80).forEach { component ->
+            appendLine("- `${component.kind.name}` `${component.className}` enabled `${component.enabled}` exported `${component.exported}` boot `${component.bootReceiver}`")
+        }
+        appendLine()
+        appendLine("## Runtime Permissions")
+        appendLine()
+        permissionOps?.permissions.orEmpty().forEach { permission ->
+            appendLine("- `${permission.name}` — `${if (permission.granted) "granted" else "denied"}` / `${permission.protection}`")
+        }
+        appendLine()
+        appendLine("## AppOps")
+        appendLine()
+        permissionOps?.appOps.orEmpty().forEach { op ->
+            appendLine("- `${op.name}` — `${op.mode ?: "—"}` / `${op.backend.displayName}`")
+        }
+    }
+
+    private fun formatBytes(bytes: Long): String = when {
+        bytes >= 1024L * 1024L * 1024L -> "%.2f GiB".format(bytes / (1024.0 * 1024 * 1024))
+        bytes >= 1024L * 1024L -> "%.1f MiB".format(bytes / (1024.0 * 1024))
+        bytes >= 1024L -> "%.1f KiB".format(bytes / 1024.0)
+        else -> "$bytes B"
+    }
+}

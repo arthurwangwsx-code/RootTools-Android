@@ -159,13 +159,18 @@ logcat -b events -v epoch -s am_proc_start:I
 
 `启动治理`：本次启动摘要 + 时间分桶 + App 排名。
 
-`应用冻结`：优先显示当前测试机高价值对象，支持筛选：
+原 `应用冻结` 将在 Milestone L 升级为 `应用控制 / App Control Center`。Startup 页面继续负责“本次开机发生了什么”，
+App Control Center 的 Runtime/Components 页面负责“这个 App 为什么会起来、具体控制哪个入口”。两边复用同一个 `StartupRepository`，不重复采集。
+
+当前 `应用冻结` 入口优先显示当前测试机高价值对象，支持筛选：
 
 - Protected
 - Running
 - Boot capable
 - Frozen
 - Restricted
+
+完整应用治理升级方案见 `15-app-control-center.md`。
 
 ### C6. 验收
 

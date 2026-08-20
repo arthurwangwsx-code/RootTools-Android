@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Automation credentials must never leave the device through Auto Backup. -->
+    <exclude domain="sharedpref" path="automation_api.xml" />
+    <exclude domain="sharedpref" path="automation_clients.xml" />
+</full-backup-content>

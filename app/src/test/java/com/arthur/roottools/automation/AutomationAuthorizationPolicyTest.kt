@@ -47,12 +47,36 @@ class AutomationAuthorizationPolicyTest {
     }
 
     @Test
+    fun `integrity scans require the typed integrity scope`() {
+        assertTrue(
+            AutomationAuthorizationPolicy.isAllowed(
+                scopes = setOf(AutomationScope.INTEGRITY_SCAN),
+                command = AutomationCommand.INTEGRITY_FAST_SCAN,
+            )
+        )
+        assertTrue(
+            AutomationAuthorizationPolicy.isAllowed(
+                scopes = setOf(AutomationScope.INTEGRITY_SCAN),
+                command = AutomationCommand.INTEGRITY_DEEP_SCAN,
+            )
+        )
+        assertFalse(
+            AutomationAuthorizationPolicy.isAllowed(
+                scopes = setOf(AutomationScope.RUN_DIAGNOSTIC),
+                command = AutomationCommand.INTEGRITY_DEEP_SCAN,
+            )
+        )
+        assertTrue(AutomationCommand.parse("integrity_fast_scan") == AutomationCommand.INTEGRITY_FAST_SCAN)
+    }
+
+    @Test
     fun `termux defaults contain no destructive root scope`() {
         val defaults = AutomationAuthorizationPolicy.termuxDefaultScopes
         assertTrue(AutomationScope.READ_STATUS in defaults)
         assertTrue(AutomationScope.RUN_DIAGNOSTIC in defaults)
         assertTrue(AutomationScope.SET_PERFORMANCE in defaults)
         assertTrue(AutomationScope.APP_POLICY in defaults)
+        assertTrue(AutomationScope.INTEGRITY_SCAN in defaults)
     }
 }
 

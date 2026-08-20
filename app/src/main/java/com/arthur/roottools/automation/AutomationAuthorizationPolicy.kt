@@ -7,6 +7,7 @@ enum class AutomationScope {
     SET_ADB_ENABLE,
     SET_NATIVE_ADB,
     APP_POLICY,
+    INTEGRITY_SCAN,
 }
 
 enum class AutomationCommand(
@@ -20,6 +21,9 @@ enum class AutomationCommand(
     RUN_DIAGNOSTIC("RUN_DIAGNOSTIC", AutomationScope.RUN_DIAGNOSTIC),
     FREEZE("FREEZE", AutomationScope.APP_POLICY),
     UNFREEZE("UNFREEZE", AutomationScope.APP_POLICY),
+    INTEGRITY_FAST_SCAN("INTEGRITY_FAST_SCAN", AutomationScope.INTEGRITY_SCAN),
+    INTEGRITY_DEEP_SCAN("INTEGRITY_DEEP_SCAN", AutomationScope.INTEGRITY_SCAN),
+    INTEGRITY_EXPORT_LAST_REPORT("INTEGRITY_EXPORT_LAST_REPORT", AutomationScope.INTEGRITY_SCAN),
     ;
 
     companion object {
@@ -49,6 +53,7 @@ object AutomationAuthorizationPolicy {
         AutomationScope.SET_ADB_ENABLE,
         AutomationScope.SET_NATIVE_ADB,
         AutomationScope.APP_POLICY,
+        AutomationScope.INTEGRITY_SCAN,
     )
 }
 

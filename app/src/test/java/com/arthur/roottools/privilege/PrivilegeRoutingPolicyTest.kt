@@ -35,6 +35,10 @@ class PrivilegeRoutingPolicyTest {
             listOf(PrivilegeRouteBackend.SHIZUKU_ADB),
             PrivilegeRoutingPolicy.routesFor(PrivilegeCapability.APP_OPS, bridge, rootAvailable = false),
         )
+        assertEquals(
+            PrivilegeRouteBackend.SHIZUKU_ADB,
+            PrivilegeRoutingPolicy.primaryBackend(bridge, rootAvailable = false),
+        )
     }
 
     @Test
@@ -66,6 +70,10 @@ class PrivilegeRoutingPolicyTest {
                 ShizukuBridgeState(),
                 rootAvailable = false,
             ),
+        )
+        assertEquals(
+            PrivilegeRouteBackend.NONE,
+            PrivilegeRoutingPolicy.primaryBackend(ShizukuBridgeState(), rootAvailable = false),
         )
     }
 

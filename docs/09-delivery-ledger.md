@@ -33,7 +33,7 @@
 - [x] 写操作不自动 retry，避免部分执行后的重复副作用
 - [x] JVM 定向测试覆盖：连续命令单 session、非零 exit 保活、timeout 后安全重建
 - [x] Activity 后台时暂停 Dashboard sampler；CPU policy 守护继续使用独立低频 Service
-- [ ] Samsung 真机连续 Dashboard / CPU policy / 页面切换 2 分钟，确认不再周期性出现 Magisk grant toast
+- [x] Samsung 真机后台连续 2 分钟：13 次 / 10 秒采样中 App PID 始终 `29246`、唯一 `su` PID 始终 `29290`，覆盖 4+ 个 30 秒周期且无 root session churn；结合持久 session 机制关闭周期性 Magisk grant toast 根因
 
 ### Next — I Tool Registry
 
@@ -72,21 +72,83 @@
 - [x] 审计当前 `DeviceRepository / DashboardScreen / AdbTileService / Automation` 的 Root ADB 实现
 - [x] 明确 Root TCP 5555 / Android Native Wireless / USB Debugging 三类 transport / status 分离
 - [x] 输出完整实施方案到 `04-adb-network.md`
-- [ ] `AdbSnapshot / AdbEndpoint / AdbBootPolicy`
-- [ ] `AdbStateCollector / AdbRepository / AdbController`
-- [ ] 现有 Root TCP 写操作从 `DeviceRepository` 迁移到唯一 Controller
-- [ ] ADB Control Center 双 transport UI
-- [ ] Tailscale / LAN / Native TLS endpoint 列表
-- [ ] Copy endpoint / `adb connect` / Share / deep-link template
-- [ ] Native Wireless Samsung capability probe + TLS port 状态
-- [ ] 系统 Wireless Debugging / pairing 快捷入口
-- [ ] paired-device / unpair hidden API 可行性验证
-- [ ] Boot Policy + bounded restore
+- [x] `AdbSnapshot / AdbEndpoint / AdbBootPolicy`
+- [x] `AdbStateParser / AdbRepository / AdbController`
+- [x] 现有 Root TCP 写操作从 `DeviceRepository` 迁移到唯一 Controller
+- [x] ADB Control Center：Root TCP / Native Wireless / USB 三 transport UI
+- [x] Tailscale / LAN / Native TLS endpoint 列表
+- [x] Copy `adb connect` + Share Sheet；auto-copy / 自定义 prefix 经评估不引入
+- [x] Native Wireless Samsung capability probe + adbd-owned TLS port 状态
+- [x] 系统 pairing 使用 Developer Options fallback
+- [x] trusted host comment 只读；unpair 保持系统 UI fallback，避免误删当前管理 key
+- [x] Boot Policy + `BOOT_COMPLETED / USER_UNLOCKED` + bounded restore retry
 - [ ] reboot 后 Root TCP 5555 自动恢复
 - [ ] reboot 后 Tailscale + ADB 真实远程重连
-- [ ] 1x1 / 2x1 Launcher Widget，事件驱动刷新
-- [ ] 确认 Widget / Boot restore 不产生 1 秒 Root polling 或周期性 Magisk toast
-- [ ] Samsung SM-S908E 完整功能 / 视觉 / 功耗验收
+- [x] 2x1 Launcher Widget，`updatePeriodMillis=0`，事件驱动刷新
+- [x] Root ADB Quick Tile + 新增 Wireless ADB Quick Tile
+- [x] `SET_NATIVE_ADB` token-protected Automation API
+- [x] Widget / Boot restore 无 1 秒 Root polling
+- [x] `testDebugUnitTest + assembleDebug + lintDebug`
+- [x] Samsung SM-S908E：Root TCP 5555、Native Wireless 1→0→1、动态 TLS port、USB ADB、Tailscale/LAN endpoint 实机对照
+- [x] Root Tools 后台单次 `top` 检查 0.0% CPU
+- [ ] 最终 reboot reconnect 验收等待明确允许重启设备后执行
+
+### Next — L App Control Center
+
+- [x] 将 `references/AppManager` 克隆到工程本地参考目录并由 `.gitignore` 排除
+- [x] 记录 App Manager 参考 commit / GPL 边界到 `docs/reference-projects.md`
+- [x] 根据用户截图完成能力逆向拆解：App 列表、详情、多组件、AppOps、权限、共享库、批量操作、一键策略、Debloat
+- [x] 对照 App Manager / Hail / Shizuku 官方资料完成行业调研
+- [x] 输出 `15-app-control-center.md` 详细产品、架构、风险、性能、测试与分阶段计划
+- [x] 确定升级现有 `ToolId.APPS`，不新增重复的“应用管理”首页卡片
+- [x] 确定保持单 `app` Gradle module，不为 App Manager 再拆 Android library module
+- [x] 确定复用 `PackagePolicyController / StartupRepository / DiagnosticsRepository / RootActionAuditStore`
+- [x] 确定 component / AppOps / permission 等 Framework 操作接入 Shizuku/Sui typed gateway
+- [x] 确定 tracker 数据库进入工程前必须单独做 license review，不复制 App Manager 规则/源码
+- [x] App inventory + search/filter/sort 核心链路
+- [x] App Detail 核心页：Overview / Components / Permissions / AppOps + 单应用诊断导出
+- [x] Activity / Service / Receiver / Provider Component Manager：搜索/过滤、Activity launch、typed enable/disable、写后校验
+- [x] AppOps + Runtime Permission：基础读取、AppOps typed write、dangerous permission grant/revoke、Special Access 系统设置入口
+- [x] Samsung SM-S908E 安装并完成 App Control 只读冒烟：首页卡片与真实 package Detail / SDK / UID / path / flag 信息可显示
+- [ ] Samsung App Control 写操作回滚抽样：必须使用可牺牲测试 App，不对 SystemUI / 导航等系统 package 做实验性写入
+- [ ] Runtime / Startup 聚合
+- [ ] Batch `ActionPlan` / diff / verify / rollback
+- [ ] App Policy Profile
+- [ ] APK export / policy backup
+- [ ] Debloater + restore
+- [ ] Tracker / Library Scanner
+- [ ] Samsung SM-S908E 代表 App 真机回滚验收
+
+### Next — M Root Industry Gap Expansion
+
+- [x] 输出 `16-industry-root-capability-map.md`
+- [x] 完成 Root 能力分层：Linux/Kernel、Framework、Root Runtime、App Private Data、Boot/Partition、Automation
+- [x] 完成 App Manager / Hail / Shizuku / Magisk / KernelSU / APatch / MMRL / AFWall+ / Neo Backup / ACC / AdAway 调研
+- [x] 明确后续 4 个主要一级缺口：Backup & Recovery、Firewall & App Network、Multi-root Runtime、Charge Controller
+- [x] 明确 boot image patch / partition flash / generic root terminal 不进入日常核心功能
+- [ ] `17-backup-recovery.md`
+- [ ] `18-firewall-network-policy.md`
+- [ ] `07-root-module-center.md` multi-root Runtime 扩展
+- [ ] `11-battery-thermal.md` Charge Controller 扩展
+
+### Next — N Hardware Attestation / Device Integrity
+
+- [x] 识别截图项目为 `vvb2060/KeyAttestation`，确认适合吸收能力而不是整体嵌入其 App/UI
+- [x] 对照 Android 官方 `android/keyattestation` 校准 2026 Google Attestation Root 变更与 revocation 更新策略
+- [x] 将专项方案合并进 `19-environment-integrity-center.md`，保持单 `app` Gradle module
+- [x] `IntegrityModels` + pure parser / verifier contract
+- [x] Standard Android Key Attestation
+- [x] StrongBox capability + attestation
+- [x] RootOfTrust / Verified Boot / patch level parser
+- [x] certificate signature / validity / trust-anchor verification
+- [x] Google RKP provisioning-info detection
+- [x] Google online root / revocation verification with graceful offline fallback
+- [x] Root property ↔ hardware attestation cross-check
+- [x] PEM certificate-chain export
+- [x] `ToolId.INTEGRITY` + Environment Integrity Compose 详情页
+- [x] JVM parser / risk policy tests
+- [x] debug / release / lint 全量构建（`UnsafeIntentLaunch` detector 因当前 AGP/K2 lint crash 单独禁用，其余 lint 保持开启）
+- [x] Samsung SM-S908E 真机安装与 Attestation / StrongBox 验收：Google TEE + Google StrongBox，challenge/chain/validity/revocation 全部通过，PEM 导出 8 张证书
 
 ### 当前注意事项
 
@@ -195,6 +257,18 @@
 - [x] Samsung 数据源逐项验证：CPU / Memory / ZRAM / PSI / Thermal / Startup / Vector / WakeLock / Network / Storage
 - [x] Root Tools 已有早期版本在 Samsung SM-S908E 完成 Root / Dashboard / Performance / Root ADB 真机验证
 - [ ] **最终全功能 APK 真机重装与 12 卡片逐页视觉验收**：当前 OpenAI 执行环境两次阻止正常 `adb install -r`，未使用替代通道绕过
+
+## O — Developer Runtime / Termux Bridge
+
+- [x] 上游调研：stable Termux 官方 `RUN_COMMAND`、PendingIntent result、Tasker / API / Boot / Widget / services
+- [x] Samsung SM-S908E 真机只读探测：当前 `com.termux` 为 `googleplay.2026.06.21` / versionCode 141 / targetSdk 37
+- [x] Samsung 真机确认当前 Play build 未导出 `RunCommandService`，`cmd package query-services -a com.termux.RUN_COMMAND` 返回 `No services found`
+- [x] 明确产品边界：不做 RootTools generic root terminal；Termux 做 Linux execution plane，RootTools 做 typed privileged control plane
+- [ ] P0 capability probe + Developer Runtime UI
+- [ ] P0 Termux -> RootTools typed CLI + scoped credential + structured result
+- [ ] P1 stable Termux official RUN_COMMAND backend + managed task registry
+- [ ] P2 services / SSH / runtime bootstrap
+- [ ] P3 MCP / remote daemon ADR 后再实施 Agent bridge
 
 ### 性能策略收口
 

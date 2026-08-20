@@ -665,63 +665,68 @@ ADB 5555 listening
 
 ### K1. Domain / Controller
 
-- [ ] `AdbSnapshot / AdbEndpoint / AdbBootPolicy`
-- [ ] `AdbStateCollector / AdbRepository`
-- [ ] 新增唯一写入口 `AdbController`
-- [ ] 现有 `DeviceRepository.setAdbTcpEnabled()` 迁移到 Controller
-- [ ] Tile / Automation 统一迁移
-- [ ] ADB action audit 补齐失败阶段
+- [x] `AdbSnapshot / AdbEndpoint / AdbBootPolicy`
+- [x] `AdbStateParser / AdbRepository`
+- [x] 新增唯一写入口 `AdbController`
+- [x] 删除 `DeviceRepository.setAdbTcpEnabled()`，Root TCP 写操作迁移到 Controller
+- [x] Root ADB Tile / Wireless ADB Tile / Widget / Automation 统一调用 Controller
+- [x] ADB action audit 覆盖 Root TCP 与 Native Wireless 成功 / 失败结果
+- [x] “确保开启”具备 no-op：已经监听时不会为了刷新状态重复 restart adbd
 
 ### K2. ADB Control Center UI
 
-- [ ] Overview 双 transport 状态
-- [ ] Root TCP 独立开关
-- [ ] USB Debugging 状态
-- [ ] Connection Endpoints 列表
-- [ ] Copy endpoint / command
-- [ ] Share sheet
-- [ ] Auto-copy preference
-- [ ] Copy / deep-link template
-- [ ] Safety / Diagnose 状态卡
+- [x] Overview：Root TCP / Native Wireless / USB 三类状态分离
+- [x] Root TCP 独立开关 + 关闭远程链路二次确认
+- [x] Native Wireless 独立开关
+- [x] USB Debugging 状态
+- [x] Connection Endpoints：Tailscale / LAN / Native TLS
+- [x] Copy `adb connect` command
+- [x] Android Share Sheet
+- [x] Safety / Diagnose 状态卡
+- [x] **Auto-copy 不落地**：改为显式 Copy / Share，避免后台剪贴板副作用和系统 clipboard 提示
+- [x] **自定义连接前缀不落地**：当前没有 Root Tools consumer；保留标准 `adb connect` 作为可互操作协议
 
 ### K3. Native Wireless
 
-- [ ] Samsung baseline / property diff
-- [ ] `cmd adb is-wifi-supported` / QR capability
-- [ ] Native Wireless state + TLS port
-- [ ] 系统 Wireless Debugging / pairing 快捷入口
-- [ ] 验证可回滚的 typed ON/OFF 实现
-- [ ] paired devices / unpair feasibility probe
-- [ ] 不可稳定实现时保持系统 UI fallback，不阻塞 Root TCP 主链路
+- [x] Samsung SM-S908E baseline / property diff
+- [x] `cmd adb is-wifi-supported` / QR capability
+- [x] `settings global adb_wifi_enabled` 作为 Native Wireless 状态真值
+- [x] Native TLS port 通过 **adbd-owned listening socket** 探测，不依赖三星为空的 `service.adb.tls.port`
+- [x] 系统 pairing 入口采用 Developer Options fallback；One UI 14 未暴露可解析的 `android.settings.WIRELESS_DEBUGGING_SETTINGS`
+- [x] typed ON/OFF 实现并在 Samsung 真机通过 Automation API 做 1 → 0 → 1 回滚验证
+- [x] trusted hosts 只读取 `/data/misc/adb/adb_keys` 的 comment，不把公钥暴露到 UI
+- [x] unpair 不直接改 `/data/misc/adb/*`；统一回退系统设置，避免误删当前远程管理 key
 
 ### K4. Boot Persistence
 
-- [ ] `AdbBootPolicy` preference
-- [ ] Boot / UserUnlocked restore
-- [ ] bounded retry + result record
+- [x] `AdbBootPolicy` preference，默认关闭
+- [x] `BOOT_COMPLETED / USER_UNLOCKED` restore
+- [x] 失败使用一次性 Alarm 做 bounded retry，不注册周期任务
 - [ ] reboot 后 Root TCP 5555 自动恢复真机验收
 - [ ] reboot 后 Tailscale + ADB 远程重连验收
-- [ ] App restore 不可靠时再评估 Magisk `service.d`
+- [x] App restore 不可靠前不引入 Magisk `service.d`；真实 reboot 验收后再决定是否需要
 
 ### K5. Quick Entry / Widget
 
-- [ ] 1x1 status Widget
-- [ ] 2x1 status + Copy Widget
-- [ ] action / connectivity event-driven refresh
-- [ ] 确认无 1s root polling
-- [ ] KDE Connect presence probe / optional adapter（若实际有收益）
+- [x] 2x1 Launcher Widget：状态 + 一键确保 Root TCP 开启 + 点击进入 Control Center
+- [x] action event-driven refresh；`updatePeriodMillis=0`
+- [x] Root ADB Quick Tile 保持“只确保开启”安全语义
+- [x] 新增 Wireless ADB Quick Tile，可切换 Android 原生无线调试
+- [x] 确认没有 1s root polling；Widget 没有实例时不会主动采集
+- [x] KDE Connect adapter 当前不引入：Android Share Sheet 已覆盖跨应用发送，避免新增硬依赖
 
 ### K6. Regression / Acceptance
 
-- [ ] `assembleDebug`
-- [ ] `lintDebug`
-- [ ] ADB domain unit tests
-- [ ] Samsung SM-S908E 真机视觉验收
-- [ ] Root TCP ON/OFF 与 `getprop + ss` 对照
-- [ ] Native Wireless 与系统设置页状态对照
-- [ ] 自动复制只发生一次，不污染后台 clipboard
-- [ ] Widget / Tile 不产生新的高频 Magisk grant toast
-- [ ] Root Tools 后台没有 ADB / Widget shell busy-loop
+- [x] `assembleDebug`
+- [x] `lintDebug`
+- [x] `AdbStateParserTest`：legacy/native port 分离 + endpoint 生成
+- [x] Samsung SM-S908E 页面层级与真机状态验收：Root TCP + Native Wireless + USB 均正确显示
+- [x] Root TCP **ON** 与 `getprop service.adb.tcp.port + ss -ltnp` 对照一致；OFF 暂不主动执行，避免切断当前远程链路
+- [x] Native Wireless 1 → 0 → 1 与 `settings global adb_wifi_enabled` 对照一致
+- [x] Native TLS 端口重开后从 `42387` 变化为 `43885`，页面能按 adbd socket 动态识别
+- [x] 不做自动 clipboard 写入
+- [x] Root Tools 退到后台后 Samsung `top` 单次检查为 0.0% CPU；没有 ADB / Widget shell busy-loop
+- [ ] reboot + post-boot reconnect 属于破坏当前会话的验收，等待明确允许重启后执行
 
 ---
 
@@ -733,9 +738,34 @@ ADB Control Center 只有同时满足以下条件才算完成：
 2. Root TCP 5555 与 `getprop + ss` 对照一致；
 3. Native Wireless 与 One UI 系统设置页状态一致；
 4. 至少能生成 Tailscale / LAN / Native TLS 的有效连接数据；
-5. Auto-copy / Share / Widget 不产生后台副作用；
+5. Copy / Share / Widget 不产生后台副作用；不做后台 auto-copy；
 6. Boot Policy 默认关闭，打开后可以解释恢复结果；
 7. 重启后 Tailscale + Root ADB 能完成一次真实远程重连，才解除“remote reboot”前置阻塞；
 8. 所有写动作经过 `AdbController + RootActionAuditStore`；
 9. 不新增 Gradle module，不复制 GPL-3.0 源码，不引入与目标无关的大依赖；
-10. Samsung SM-S908E 完成真机功能、视觉、功耗三类验收。
+10. Samsung SM-S908E 完成功能、页面状态与后台开销验收；真实 reboot reconnect 单独作为高风险验收门槛。
+
+---
+
+## 15. 2026-08-20 Samsung 实机基线
+
+本轮在 `SM-S908E / Android 14` 上读取到：
+
+```text
+Root TCP:          5555 / listening
+Tailscale:         100.91.126.56
+Local Wi-Fi:       10.1.1.193 / wlan0
+Wireless support:  true
+Wireless QR:       true
+adb_wifi_enabled:  1
+Native TLS port:   42387 -> disable/enable -> 43885
+USB ADB:           active
+```
+
+关键结论：
+
+1. One UI 14 上 `service.adb.tls.port` 为空，不能用它作为 Native Wireless port 真值；
+2. `adbd` 会同时监听 Root TCP 5555 和一个动态 Native TLS port，因此 Collector 按 owner=`adbd` 识别并排除 legacy port；
+3. Native Wireless disable / enable 不需要重启整个 `adbd`，因此不会主动影响现有 5555 远程链路；
+4. Root TCP 的“确保开启”如果当前已经监听 5555 必须直接 no-op，禁止无意义 restart adbd；
+5. 当前已授权 Host 只展示 comment（例如设备名），UI 和报告都不保存/显示原始 ADB key。

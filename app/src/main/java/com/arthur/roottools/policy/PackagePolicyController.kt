@@ -4,65 +4,54 @@ import com.arthur.roottools.data.RootActionAuditStore
 import com.arthur.roottools.model.PackageActionResult
 import com.arthur.roottools.privilege.PrivilegeResult
 import com.arthur.roottools.privilege.PrivilegeRouter
+import com.arthur.roottools.privilege.PrivilegeInputValidator
 
-/**
- * Package governance Controller. Framework mutations have exactly one entry point and are routed
- * through Shizuku/Sui first with a safe RootShell fallback inside [PrivilegeRouter].
- */
 class PackagePolicyController(
     private val router: PrivilegeRouter,
     private val auditStore: RootActionAuditStore? = null,
     private val auditSource: String = "internal",
 ) {
     suspend fun freeze(packageName: String): PackageActionResult {
-        val decision = PackageMutationPolicy.evaluate(packageName, PackageMutationKind.FREEZE)
-        if (!decision.allowed) return rejected(decision, "冻结")
-        val pkg = requireNotNull(decision.packageName)
-        val before = router.getPackageEnabledState(pkg).value ?: "unknown"
+        val safe = validate(packageName) ?: return invalid()
+        if (safe in PROTECTED_PACKAGES) return PackageActionResult(false, "受保护基础设施不能冻结")
+        val before = router.getPackageEnabledState(safe).value ?: "unknown"
         return finish(
-            result = router.setPackageEnabled(pkg, false),
+            result = router.setPackageEnabled(safe, false),
             successMessage = "已冻结",
             failureMessage = "冻结失败",
             action = "freeze",
-            target = pkg,
+            target = safe,
             before = before,
             after = "disabled-user",
-            rollbackHint = "Enable $pkg",
+            rollbackHint = "Enable $safe",
         )
     }
 
     suspend fun enable(packageName: String): PackageActionResult {
-        val decision = PackageMutationPolicy.evaluate(packageName, PackageMutationKind.ENABLE)
-        if (!decision.allowed) return rejected(decision, "启用")
-        val pkg = requireNotNull(decision.packageName)
-        val before = router.getPackageEnabledState(pkg).value ?: "unknown"
+        val safe = validate(packageName) ?: return invalid()
+        val before = router.getPackageEnabledState(safe).value ?: "unknown"
         return finish(
-            result = router.setPackageEnabled(pkg, true),
+            result = router.setPackageEnabled(safe, true),
             successMessage = "已启用",
             failureMessage = "启用失败",
             action = "enable",
-            target = pkg,
+            target = safe,
             before = before,
             after = "enabled",
-            rollbackHint = if (before == "disabled-user") "Freeze $pkg" else "保持 enabled",
+            rollbackHint = if (before == "disabled-user") "Freeze $safe" else "保持 enabled",
         )
     }
 
     suspend fun forceStop(packageName: String): PackageActionResult {
-        val decision = PackageMutationPolicy.evaluate(packageName, PackageMutationKind.FORCE_STOP)
-        if (!decision.allowed) return rejected(decision, "停止")
-        val pkg = requireNotNull(decision.packageName)
-        val before = when (router.isPackageRunning(pkg).value) {
-            true -> "running"
-            false -> "not-running"
-            null -> "unknown"
-        }
+        val safe = validate(packageName) ?: return invalid()
+        if (safe in PROTECTED_PACKAGES) return PackageActionResult(false, "受保护基础设施不能强制停止")
+        val before = if (router.isPackageRunning(safe).value == true) "running" else "not-running"
         return finish(
-            result = router.forceStop(pkg),
+            result = router.forceStop(safe),
             successMessage = "已停止",
             failureMessage = "停止失败",
             action = "force_stop",
-            target = pkg,
+            target = safe,
             before = before,
             after = "stopped",
             rollbackHint = "手工重新打开应用",
@@ -70,47 +59,37 @@ class PackagePolicyController(
     }
 
     suspend fun setStandbyBucket(packageName: String, bucket: Int): PackageActionResult {
-        val decision = PackageMutationPolicy.evaluate(
-            packageName,
-            PackageMutationKind.SET_STANDBY_BUCKET,
-            bucket = bucket,
-        )
-        if (!decision.allowed) return rejected(decision, "后台档位")
-        val pkg = requireNotNull(decision.packageName)
-        val safeBucket = requireNotNull(decision.bucket)
-        val beforeRaw = router.getStandbyBucket(pkg).value.orEmpty()
-        val before = beforeRaw.substringAfter(':', beforeRaw).trim().ifBlank { "unknown" }
+        val safe = validate(packageName) ?: return invalid()
+        if (bucket !in ALLOWED_BUCKETS) return PackageActionResult(false, "不支持的 Standby bucket")
+        if (safe in PROTECTED_PACKAGES && bucket > 10) return PackageActionResult(false, "受保护基础设施不能降级到 Rare/Restricted")
+        val beforeRaw = router.getStandbyBucket(safe).value.orEmpty().trim()
+        val before = beforeRaw.substringAfter(':', beforeRaw).trim()
         return finish(
-            result = router.setStandbyBucket(pkg, safeBucket),
+            result = router.setStandbyBucket(safe, bucket),
             successMessage = "后台档位已更新",
             failureMessage = "后台档位更新失败",
             action = "standby_bucket",
-            target = pkg,
+            target = safe,
             before = before,
-            after = safeBucket.toString(),
+            after = bucket.toString(),
             rollbackHint = before.toIntOrNull()?.let { "恢复 bucket $it" }.orEmpty(),
         )
     }
 
     suspend fun setBackgroundAllowed(packageName: String, allowed: Boolean): PackageActionResult {
-        val decision = PackageMutationPolicy.evaluate(
-            packageName,
-            PackageMutationKind.SET_BACKGROUND_ALLOWED,
-            backgroundAllowed = allowed,
-        )
-        if (!decision.allowed) return rejected(decision, "后台策略")
-        val pkg = requireNotNull(decision.packageName)
-        val before = router.getAppOp(pkg, "RUN_IN_BACKGROUND").value.orEmpty().take(240).ifBlank { "unknown" }
-        val result = router.setBackgroundAllowed(pkg, allowed)
+        val safe = validate(packageName) ?: return invalid()
+        if (!allowed && safe in PROTECTED_PACKAGES) return PackageActionResult(false, "受保护基础设施不能禁止后台")
+        val before = router.getAppOp(safe, "RUN_IN_BACKGROUND").value.orEmpty().take(280)
+        val mode = if (allowed) "allow" else "ignore"
         return finish(
-            result = result,
+            result = router.setBackgroundAllowed(safe, allowed),
             successMessage = if (allowed) "后台运行已允许" else "后台运行已限制",
             failureMessage = "AppOps 更新失败",
             action = "background_appops",
-            target = pkg,
+            target = safe,
             before = before,
-            after = if (allowed) "allow" else "ignore",
-            rollbackHint = "按前值恢复 RUN_IN_BACKGROUND",
+            after = mode,
+            rollbackHint = if (allowed) "按需恢复之前 AppOps" else "BG allow",
         )
     }
 
@@ -152,15 +131,8 @@ class PackagePolicyController(
         }
     }
 
-    private fun rejected(decision: PackageMutationDecision, operation: String): PackageActionResult {
-        val message = when (decision.rejection) {
-            PackageMutationRejection.INVALID_PACKAGE -> "非法 package name"
-            PackageMutationRejection.INVALID_BUCKET -> "不支持的 Standby bucket"
-            PackageMutationRejection.PROTECTED_PACKAGE -> "受保护基础设施不能执行$operation"
-            null -> "$operation 被安全策略拒绝"
-        }
-        return PackageActionResult(false, message)
-    }
+    private fun validate(packageName: String): String? = PrivilegeInputValidator.packageName(packageName)
+    private fun invalid() = PackageActionResult(false, "非法 package name")
 
     companion object {
         val PROTECTED_PACKAGES = setOf(
@@ -171,6 +143,7 @@ class PackagePolicyController(
             "li.songe.gkd",
             "moe.shizuku.privileged.api",
         )
+        private val ALLOWED_BUCKETS = setOf(5, 10, 20, 30, 40, 45)
         private const val APPIUM_PACKAGE = "io.appium.settings"
     }
 }

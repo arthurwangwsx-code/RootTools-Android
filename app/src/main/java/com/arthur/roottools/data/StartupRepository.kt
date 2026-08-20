@@ -5,6 +5,7 @@ import com.arthur.roottools.model.AppPolicyCategory
 import com.arthur.roottools.model.StartupAnalysis
 import com.arthur.roottools.model.StartupAppRecord
 import com.arthur.roottools.model.StartupBucketSummary
+import com.arthur.roottools.policy.AppPolicyClassifier
 import com.arthur.roottools.root.RootShell
 
 class StartupRepository(
@@ -70,7 +71,7 @@ class StartupRepository(
                 running = pkg in running,
                 disabled = pkg in disabled,
                 standbyBucket = buckets[pkg],
-                category = categoryFor(pkg),
+                category = AppPolicyClassifier.categoryFor(pkg),
             )
         }.sortedWith(compareByDescending<StartupAppRecord> { it.startupRiskScore }.thenBy { it.firstStartSeconds ?: Long.MAX_VALUE })
 
@@ -104,14 +105,6 @@ class StartupRepository(
         context.packageManager.getApplicationLabel(info).toString()
     }.getOrDefault(packageName.substringAfterLast('.'))
 
-    private fun categoryFor(packageName: String): AppPolicyCategory = when (packageName) {
-        in PROTECTED -> AppPolicyCategory.PROTECTED
-        in FREEZE -> AppPolicyCategory.FREEZE
-        in ON_DEMAND -> AppPolicyCategory.ON_DEMAND
-        in RARE -> AppPolicyCategory.RARE
-        else -> AppPolicyCategory.NORMAL
-    }
-
     private fun splitSections(raw: String): Map<String, List<String>> {
         val result = linkedMapOf<String, MutableList<String>>()
         var current: String? = null
@@ -129,17 +122,6 @@ class StartupRepository(
         const val APP_IUM_PACKAGE = "io.appium.settings"
         const val APP_IUM_COMPONENT = "io.appium.settings/io.appium.settings.NLService"
         val EVENT_REGEX = Regex("^\\s*([0-9]+\\.[0-9]+).*am_proc_start: \\[0,[0-9]+,[0-9]+,([^,]+),([^,]+),")
-        val PROTECTED = setOf(
-            "com.arthur.roottools",
-            "com.tailscale.ipn",
-            "com.arthur.aibox.android.rootlab",
-            "com.arlosoft.macrodroid",
-            "li.songe.gkd",
-        )
-        val FREEZE = setOf("com.tencent.android.qqdownloader")
-        val ON_DEMAND = setOf("com.apextuner.app.debug", "io.appium.settings", "com.omarea.vtools", "net.dinglisch.android.taskerm")
-        val RARE = setOf("com.bilibili.app.in", "com.facebook.katana", "com.esuper.file.explorer", "com.google.android.apps.photos")
-
         val COMMAND = """
             echo '__META__'
             echo NOW=${'$'}(date +%s)

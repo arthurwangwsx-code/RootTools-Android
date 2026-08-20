@@ -6,8 +6,6 @@ import com.arthur.roottools.root.RootShell
 
 class DeviceRepository(
     private val shell: RootShell,
-    private val auditStore: RootActionAuditStore? = null,
-    private val auditSource: String = "internal",
 ) {
     suspend fun readSnapshot(): DeviceSnapshot {
         val root = shell.isAvailable()
@@ -33,50 +31,11 @@ class DeviceRepository(
               echo "CUR=${'$'}(cat ${'$'}d/scaling_cur_freq 2>/dev/null)"
               echo "AVAIL=${'$'}(cat ${'$'}d/scaling_available_frequencies 2>/dev/null)"
             done
-            echo '__ADB__'
-            echo "PORT=${'$'}(getprop service.adb.tcp.port)"
-            if ss -ltn 2>/dev/null | grep -qE '[:.]5555[[:space:]]'; then echo 'LISTENING=1'; else echo 'LISTENING=0'; fi
-            echo '__TAILSCALE__'
-            ip -4 -o addr show tun0 2>/dev/null | awk '{print ${'$'}4}' | cut -d/ -f1 | head -n 1
         """.trimIndent()
 
         val result = shell.execute(command, timeoutSeconds = 10)
         if (!result.success) return DeviceSnapshot(rootAvailable = true)
         return parseSnapshot(result.output)
-    }
-
-    suspend fun setAdbTcpEnabled(enabled: Boolean, port: Int = 5555): Boolean {
-        val before = shell.execute("getprop service.adb.tcp.port", timeoutSeconds = 3).output.trim().ifBlank { "-1" }
-        val command = if (enabled) {
-            """
-                setprop service.adb.tcp.port $port
-                stop adbd
-                start adbd
-                sleep 1
-                getprop service.adb.tcp.port
-            """.trimIndent()
-        } else {
-            """
-                setprop service.adb.tcp.port -1
-                stop adbd
-                start adbd
-                sleep 1
-                getprop service.adb.tcp.port
-            """.trimIndent()
-        }
-        val result = shell.execute(command, timeoutSeconds = 6)
-        val after = shell.execute("getprop service.adb.tcp.port", timeoutSeconds = 3).output.trim().ifBlank { "-1" }
-        auditStore?.record(
-            source = auditSource,
-            feature = "adb",
-            action = if (enabled) "enable_tcp" else "disable_tcp",
-            target = port.toString(),
-            before = before,
-            after = after,
-            success = result.success,
-            rollbackHint = if (enabled) "关闭 Root ADB TCP" else "重新开启 Root ADB TCP $port",
-        )
-        return result.success
     }
 
     private fun parseSnapshot(raw: String): DeviceSnapshot {

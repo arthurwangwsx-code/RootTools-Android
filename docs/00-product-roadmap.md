@@ -48,10 +48,15 @@ Root Tools
 │   └── startup benchmark
 │
 ├── Apps / 应用治理
-│   ├── Freeze / Enable
-│   ├── Background policy
-│   ├── favorites
-│   └── automation whitelist
+│   ├── App inventory / search / filter
+│   ├── App detail inspector
+│   ├── Activity / Service / Receiver / Provider
+│   ├── AppOps / Runtime Permissions
+│   ├── Freeze / Enable / Force-stop
+│   ├── Background / Standby / Battery policy
+│   ├── Batch / Profile / Debloat
+│   ├── APK / policy export
+│   └── Tracker / library scanner
 │
 ├── Diagnostics / 系统诊断
 │   ├── Processes
@@ -60,6 +65,15 @@ Root Tools
 │   ├── Services
 │   ├── Logcat
 │   └── one-click snapshot
+│
+├── Integrity / 环境完整性
+│   ├── App self integrity
+│   ├── Root / Hook / runtime signals
+│   ├── Boot / ROM / SELinux
+│   ├── Device surface consistency
+│   ├── Sandbox / virtualization
+│   ├── Attestation
+│   └── Expected baseline / drift
 │
 ├── Modules / Root 模块
 │   ├── Magisk modules
@@ -100,7 +114,7 @@ Root Tools
 | 卡片 | 首页摘要 | 点击后 |
 |---|---|---|
 | 启动治理 | 最近启动耗时、异常启动 App 数 | 开机事件、服务、Receiver 排名 |
-| 应用冻结 | 已冻结数量 / 常驻风险 | Freeze / enable / bucket / AppOps |
+| 应用控制 | Running / Frozen / Risk | Package、组件、AppOps、权限、运行态、批量策略 |
 | 电池与温控 | 电量、充电、Skin、保护状态 | 电池保护、温控历史、充电状态 |
 | 进程诊断 | Top CPU / 高耗电异常 | Process / root shell / wakelock |
 
@@ -113,6 +127,7 @@ Root Tools
 | 存储与 IO | 可用空间 / IO pressure | 文件系统、IO、缓存、存储健康 |
 | 常用操作 | 收藏动作数量 | SystemUI、adbd、reboot 等动作 |
 | Shizuku / Sui | ROOT / ADB / SUI / OFF | Binder、权限、Backend、Capability 自检 |
+| 环境完整性 | Expected Root / Hook / Drift | 自身完整性、Root/Hook、Boot/ROM、设备表面、Sandbox、可信基线 |
 
 ---
 
@@ -313,6 +328,100 @@ Root Tools 本身必须满足：
 - [ ] Samsung SM-S908E 完整真机验收
 
 详细方案见 [04-adb-network.md](./04-adb-network.md)。
+
+### Milestone L — App Control Center
+
+截图与行业调研确认：现有 `ToolId.APPS` 不应继续停留在“应用冻结”层级，而应升级成完整 App Control Center。
+
+- [x] 完成截图能力拆解：应用列表、详情、组件、AppOps、权限、共享库、批量操作、Debloat
+- [x] 对照 App Manager / Hail / Shizuku 等官方资料完成产品边界调研
+- [x] 明确不新增 Gradle module，继续复用现有 `PackagePolicyController / StartupRepository / DiagnosticsRepository`
+- [x] 明确 Shizuku/Sui 负责 framework typed operations，RootShell 负责 root FS / IFW 等 root-only 能力
+- [ ] `ToolId.APPS` 文案升级为“应用控制”
+- [ ] App inventory + search/filter/sort
+- [ ] App Detail：Overview / Components / Ops / Permissions / Runtime / Storage / Code & Signing / Policy & Backup
+- [ ] Activity / Service / Receiver / Provider 组件管理
+- [ ] AppOps / Runtime Permission typed gateway
+- [ ] Batch `ActionPlan` + diff preview + verify + rollback metadata
+- [ ] Profile / 一键策略
+- [ ] APK export + policy backup
+- [ ] Debloater：disable-user / uninstall-for-user / install-existing restore
+- [ ] tracker / library scanner（完成 license review 后）
+- [ ] Samsung SM-S908E 10 个代表 App 的读写回滚验收
+
+详细方案见 [15-app-control-center.md](./15-app-control-center.md)。
+
+### Milestone M — Root 工具行业缺口扩展
+
+行业调研后确认后续最值得补齐的 4 个一级方向：
+
+1. **Backup & Recovery**：APK、policy、app private data、module/config、加密与 restore verify；
+2. **Firewall & App Network**：per-app Wi-Fi/mobile/VPN/LAN、netfilter、profile、日志、boot restore；
+3. **Root Runtime Center**：Magisk / KernelSU / APatch 统一探测与 module provider；
+4. **Charge Controller**：在 Battery/Thermal 上增加 device-specific charging capability probe 与安全控制。
+
+- [x] 完成行业能力地图与产品边界
+- [ ] `17-backup-recovery.md`
+- [ ] `18-firewall-network-policy.md`
+- [ ] 扩展 `07-root-module-center.md` 为 multi-root Runtime 方案
+- [ ] 扩展 `11-battery-thermal.md` 的 Charge Controller 方案
+
+行业调研与完整能力地图见 [16-industry-root-capability-map.md](./16-industry-root-capability-map.md)。
+
+### Milestone N — Environment Integrity Center
+
+基于 Hunter 6.65 真机分析确认：RootTools 需要一个面向 **个人 Root / 自动化测试设备** 的环境完整性能力，但不能沿用“Root = 黑灰产设备”的传统风控模型。
+
+核心方向是：
+
+```text
+App self integrity
+    +
+Android / Root / Native 多视角交叉验证
+    +
+Expected Root / ADB / Automation baseline
+    +
+Unexpected drift / Hook / tamper finding
+```
+
+- [x] 完成 Hunter 6.65 Manifest / resources / JNI / Native 检测域调研
+- [x] 明确 Hunter 6.65 未找到可直接复用的官方公开源码，采用 clean-room 独立实现
+- [x] 明确 `EXPECTED / INFO / WARN / CRITICAL / UNAVAILABLE` 可解释 finding 模型
+- [x] 明确不新增 Gradle module，复用 Device / Diagnostics / Network / Module / Shizuku / RootShell 真值源
+- [ ] `ToolId.INTEGRITY` + 独立详情页
+- [ ] Fast Integrity：self identity / boot / SELinux / root runtime / TracerPid / maps / environment context
+- [ ] Trusted baseline + profile + drift diff
+- [ ] Device Surface：CPU / thermal / GPU / Vulkan / sensor / audio / battery shape
+- [ ] Sandbox / clone path consistency
+- [ ] Native Integrity：ELF runtime/file、executable maps、limited hook-surface diagnostics
+- [x] Android Key Attestation：TEE / StrongBox / certificate chain / RootOfTrust / Google roots+revocation / PEM export
+- [ ] trusted off-device verifier（Mac / server 重新验证 certificate chain 与 challenge）
+- [ ] Samsung SM-S908E rooted / LSPosed / emulator / non-root Shizuku 降级验收
+
+详细方案见 [19-environment-integrity-center.md](./19-environment-integrity-center.md)。
+
+### Milestone O — Developer Runtime / Termux Bridge
+
+Termux 不作为第二套 RootTools，也不把 arbitrary `su` terminal 暴露给 Agent。它承担 Linux userland / package / script / SSH / Python / Node / job runtime，RootTools 继续承担 Android privileged typed control plane。
+
+2026-08-20 Samsung SM-S908E 实测当前安装的是 `googleplay.2026.06.21`，PackageManager 没有 `com.termux.RUN_COMMAND` / `RunCommandService`，所以必须按运行时 capability 选择 bridge，而不能只判断 `com.termux` 包名。
+
+- [x] 完成 Termux 官方 RUN_COMMAND / Tasker / API / Boot / Widget / services 能力调研
+- [x] Samsung 真机确认当前 Google Play Termux 无 `RUN_COMMAND` service
+- [x] 明确双层定位：Termux execution plane + RootTools privileged control plane
+- [ ] `TermuxRuntimeSnapshot` / distribution + capability probe
+- [ ] Developer Runtime 详情页
+- [ ] Termux -> RootTools `roottools` typed CLI
+- [ ] Automation credential 从单 token 演进为 client + scopes
+- [ ] structured result callback / requestId
+- [ ] Stable Termux `OfficialRunCommandBackend`
+- [ ] Managed Termux Task Registry（不开放 arbitrary command）
+- [ ] optional OpenSSH / Python / Node runtime bootstrap
+- [ ] Play Termux local SSH fallback feasibility
+- [ ] Remote MCP / Agent bridge ADR + Tailscale-only exposure
+- [ ] Samsung Termux -> RootTools round-trip 真机验收
+
+详细方案见 [20-termux-developer-runtime.md](./20-termux-developer-runtime.md)。
 
 ### 高风险动作暂缓
 

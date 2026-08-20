@@ -1,8 +1,13 @@
 .gradle/
 .kotlin/
+.cxx/
 .idea/
 local.properties
 **/build/
 *.iml
 .DS_Store
 captures/
+
+# Local reference projects used for research only. These repositories are
+# intentionally not part of RootTools source control.
+/references/

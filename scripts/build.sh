@@ -4,7 +4,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease
+python3 scripts/quality_guard.py
+python3 scripts/security_guard.py
+gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease :app:koverXmlReportDebug
+python3 scripts/coverage_guard.py
 
 echo
 echo "Artifacts:"

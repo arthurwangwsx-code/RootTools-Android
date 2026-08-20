@@ -4,44 +4,43 @@ import com.arthur.roottools.model.AppComponentRecord
 import com.arthur.roottools.model.ComponentSnapshot
 import com.arthur.roottools.privilege.PrivilegeInputValidator
 
-enum class ComponentMutationRejection {
-    INVALID_PACKAGE,
-    SYSTEM_APP,
-    PROTECTED_PACKAGE,
-    INVALID_COMPONENT,
-    CROSS_PACKAGE_COMPONENT,
-    STALE_COMPONENT,
-    PROTECTED_COMPONENT,
-}
-
 data class ComponentMutationDecision(
     val allowed: Boolean,
-    val componentName: String? = null,
-    val rejection: ComponentMutationRejection? = null,
+    val reason: String = "",
 )
 
-/** Pure safety gate shared by every future component-management entry point. */
+/**
+ * Pure safety gate for component mutations.
+ *
+ * Keep these invariants out of Compose/Android APIs so they remain unit-testable and apply equally
+ * to UI, automation and future profile/batch entry points.
+ */
 object ComponentSafetyPolicy {
     fun evaluate(
         snapshot: ComponentSnapshot,
         component: AppComponentRecord,
-        protectedPackages: Set<String> = PackagePolicyController.PROTECTED_PACKAGES,
+        protectedPackages: Set<String> = ComponentPolicyController.PROTECTED_PACKAGES,
     ): ComponentMutationDecision {
-        val pkg = PrivilegeInputValidator.packageName(snapshot.packageName)
-            ?: return ComponentMutationDecision(false, rejection = ComponentMutationRejection.INVALID_PACKAGE)
-        if (snapshot.systemApp) return ComponentMutationDecision(false, rejection = ComponentMutationRejection.SYSTEM_APP)
-        if (pkg in protectedPackages) return ComponentMutationDecision(false, rejection = ComponentMutationRejection.PROTECTED_PACKAGE)
+        if (PrivilegeInputValidator.packageName(snapshot.packageName) == null) {
+            return ComponentMutationDecision(false, "非法 package name")
+        }
+        if (snapshot.systemApp) {
+            return ComponentMutationDecision(false, "首版不允许修改系统 App 组件")
+        }
+        if (snapshot.packageName in protectedPackages) {
+            return ComponentMutationDecision(false, "受保护应用不能修改组件")
+        }
         val componentName = PrivilegeInputValidator.componentName(component.componentName)
-            ?: return ComponentMutationDecision(false, rejection = ComponentMutationRejection.INVALID_COMPONENT)
-        if (!componentName.startsWith("$pkg/")) {
-            return ComponentMutationDecision(false, componentName, ComponentMutationRejection.CROSS_PACKAGE_COMPONENT)
+            ?: return ComponentMutationDecision(false, "非法 component name")
+        if (!componentName.startsWith("${snapshot.packageName}/")) {
+            return ComponentMutationDecision(false, "组件不属于当前应用")
         }
         if (snapshot.components.none { it.componentName == component.componentName }) {
-            return ComponentMutationDecision(false, componentName, ComponentMutationRejection.STALE_COMPONENT)
+            return ComponentMutationDecision(false, "组件不在当前快照中")
         }
-        if (component.protectedReason != null) {
-            return ComponentMutationDecision(false, componentName, ComponentMutationRejection.PROTECTED_COMPONENT)
+        component.protectedReason?.let {
+            return ComponentMutationDecision(false, "受保护组件：$it")
         }
-        return ComponentMutationDecision(true, componentName)
+        return ComponentMutationDecision(true)
     }
 }

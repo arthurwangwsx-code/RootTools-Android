@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.arthur.roottools.MainActivity
 import com.arthur.roottools.R
+import com.arthur.roottools.app.rootToolsContainer
 import com.arthur.roottools.data.DeviceRepository
 import com.arthur.roottools.data.RootActionAuditStore
 import com.arthur.roottools.model.CpuPolicyEventType
@@ -41,17 +42,11 @@ class CpuPolicyService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        val shell = RootShell()
-        repository = DeviceRepository(shell)
-        store = PolicyStore(this)
-        eventStore = CpuPolicyEventStore(this)
-        controller = CpuPolicyController(
-            shell = shell,
-            store = store,
-            eventStore = eventStore,
-            auditStore = RootActionAuditStore(this),
-            auditSource = "CpuPolicyService",
-        )
+        val container = applicationContext.rootToolsContainer
+        repository = container.deviceRepository
+        store = container.policyStore
+        eventStore = container.policyEventStore
+        controller = container.createCpuPolicyController("CpuPolicyService")
         createNotificationChannel()
     }
 
@@ -72,7 +67,7 @@ class CpuPolicyService : Service() {
             }
         }
 
-        startForeground(NOTIFICATION_ID, buildNotification("正在读取设备状态…"))
+        startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.cpu_notification_reading)))
         when (store.mode) {
             PerformanceMode.COOL -> applyStaticCool()
             PerformanceMode.AUTO,
@@ -96,9 +91,13 @@ class CpuPolicyService : Service() {
             val snapshot = repository.readSnapshot()
             val policy = controller.apply(PerformanceMode.COOL, snapshot)
             val summary = if (policy != null) {
-                "Cool · ${snapshot.apTempC?.let { "AP %.1f°C".format(it) } ?: "已限峰"}"
+                getString(
+                    R.string.cpu_notification_cool,
+                    snapshot.apTempC?.let { getString(R.string.cpu_temperature_ap, it) }
+                        ?: getString(R.string.cpu_peak_limited),
+                )
             } else {
-                "Cool 应用失败，请检查 Root 授权"
+                getString(R.string.cpu_notification_apply_failed)
             }
             val manager = getSystemService(NotificationManager::class.java)
             manager.notify(NOTIFICATION_ID, buildNotification(summary))
@@ -140,16 +139,17 @@ class CpuPolicyService : Service() {
                 // needs to add a stricter one, so a stable state produces no sysfs writes.
                 if (snapshot.rootAvailable) controller.apply(mode, snapshot, stage)
 
-                val temp = snapshot.apTempC?.let { "AP %.1f°C".format(it) } ?: "温度读取中"
+                val temp = snapshot.apTempC?.let { getString(R.string.cpu_temperature_ap, it) }
+                    ?: getString(R.string.cpu_temperature_loading)
                 val subtitle = when (mode) {
-                    PerformanceMode.AUTO -> "Auto · ${effectiveStage.displayName} · $temp"
-                    PerformanceMode.COOL -> "Cool · $temp"
+                    PerformanceMode.AUTO -> getString(R.string.cpu_notification_auto, effectiveStage.displayName, temp)
+                    PerformanceMode.COOL -> getString(R.string.cpu_notification_cool, temp)
                     PerformanceMode.PERFORMANCE -> {
                         val minutes = ((store.performanceUntilMs - System.currentTimeMillis()).coerceAtLeast(0L) / 60_000L) + 1
                         if (effectiveStage >= ThermalStage.MODERATE) {
-                            "Performance · 热保护 ${effectiveStage.displayName} · $temp"
+                            getString(R.string.cpu_notification_performance_thermal, effectiveStage.displayName, temp)
                         } else {
-                            "Performance · 剩余 ${minutes}m · $temp"
+                            getString(R.string.cpu_notification_performance_remaining, minutes, temp)
                         }
                     }
                 }
@@ -165,10 +165,10 @@ class CpuPolicyService : Service() {
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                "CPU 策略守护",
+                getString(R.string.cpu_notification_channel_name),
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
-                description = "以低频采样根据温度调整 CPU 峰值，不关闭系统温控"
+                description = getString(R.string.cpu_notification_channel_description)
                 setShowBadge(false)
             },
         )
@@ -176,7 +176,7 @@ class CpuPolicyService : Service() {
 
     private fun buildNotification(text: String) = NotificationCompat.Builder(this, CHANNEL_ID)
         .setSmallIcon(R.drawable.ic_speed)
-        .setContentTitle("Root Tools · CPU 策略")
+        .setContentTitle(getString(R.string.cpu_notification_title))
         .setContentText(text)
         .setOngoing(true)
         .setOnlyAlertOnce(true)

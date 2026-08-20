@@ -54,7 +54,8 @@ MacroDroid / Agent 可以调用语义化 action，不直接执行 shell：
 
 ```text
 SET_MODE(AUTO|COOL|PERFORMANCE)
-SET_ADB(true|false)
+SET_ADB(true)
+SET_NATIVE_ADB(true|false)
 RUN_DIAGNOSTIC
 FREEZE(package)
 UNFREEZE(package)
@@ -108,6 +109,7 @@ Receiver 会拒绝没有显式 component 的隐式广播，避免 token 被其�
 
 - `SET_MODE`
 - `SET_ADB`
+- `SET_NATIVE_ADB`
 - `RUN_DIAGNOSTIC`
 - `FREEZE`
 - `UNFREEZE`

@@ -1,148 +1,71 @@
 package com.arthur.roottools.ui
 
 import android.app.Application
-import android.content.pm.PackageManager
-import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.arthur.roottools.automation.ActionTokenStore
-import com.arthur.roottools.data.DiagnosticReportStore
-import com.arthur.roottools.data.DeviceSamplerService
-import com.arthur.roottools.data.DeviceRepository
-import com.arthur.roottools.data.DiagnosticsRepository
-import com.arthur.roottools.data.FrameworkAppCatalogRepository
-import com.arthur.roottools.data.ModuleCenterRepository
-import com.arthur.roottools.data.NetworkRepository
-import com.arthur.roottools.data.ComponentRepository
-import com.arthur.roottools.data.RootActionAuditStore
-import com.arthur.roottools.data.StorageRepository
-import com.arthur.roottools.data.StartupRepository
-import com.arthur.roottools.model.DeviceHealthSnapshot
+import com.arthur.roottools.R
+import com.arthur.roottools.app.RootToolsApp
+import com.arthur.roottools.model.AdbBootPolicy
+import com.arthur.roottools.model.AdbSnapshot
+import com.arthur.roottools.model.AppComponentRecord
+import com.arthur.roottools.model.AppPolicyProfileId
 import com.arthur.roottools.model.DeviceSnapshot
-import com.arthur.roottools.model.CpuCapState
-import com.arthur.roottools.model.CpuPolicyEvent
-import com.arthur.roottools.model.CapabilityProbeResult
-import com.arthur.roottools.model.ComponentSnapshot
-import com.arthur.roottools.model.DiagnosticsSnapshot
-import com.arthur.roottools.model.HealthHistoryPoint
-import com.arthur.roottools.model.ModuleCenterSnapshot
-import com.arthur.roottools.model.NetworkSnapshot
-import com.arthur.roottools.model.PingResult
-import com.arthur.roottools.model.PrivilegeCapability
-import com.arthur.roottools.model.PackageCatalogItem
 import com.arthur.roottools.model.PerformanceMode
+import com.arthur.roottools.model.CapabilityProbeResult
+import com.arthur.roottools.model.PrivilegeCapability
 import com.arthur.roottools.model.StartupAnalysis
-import com.arthur.roottools.model.RootShellDetails
-import com.arthur.roottools.model.RootActionAuditRecord
-import com.arthur.roottools.model.ShizukuBridgeState
-import com.arthur.roottools.model.StorageSnapshot
 import com.arthur.roottools.model.SystemActionId
-import com.arthur.roottools.policy.PackagePolicyController
-import com.arthur.roottools.policy.BatteryPolicyController
-import com.arthur.roottools.policy.ActionFavoritesStore
-import com.arthur.roottools.policy.CpuPolicyController
-import com.arthur.roottools.policy.CpuPolicyEventStore
-import com.arthur.roottools.policy.CpuPolicyInspector
-import com.arthur.roottools.policy.ComponentPolicyController
-import com.arthur.roottools.policy.PolicyStore
-import com.arthur.roottools.policy.SystemActionController
-import com.arthur.roottools.root.RootShell
-import com.arthur.roottools.privilege.PrivilegeRouter
-import com.arthur.roottools.privilege.ShizukuBridge
-import com.arthur.roottools.privilege.ShizukuSelfTestParser
-import com.arthur.roottools.privilege.ShizukuUserServiceClient
 import com.arthur.roottools.service.CpuPolicyService
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class DashboardUiState(
-    val loading: Boolean = true,
-    val actionInProgress: Boolean = false,
-    val snapshot: DeviceSnapshot = DeviceSnapshot(),
-    val health: DeviceHealthSnapshot = DeviceHealthSnapshot(),
-    val healthHistory: List<HealthHistoryPoint> = emptyList(),
-    val dailyHealthHistory: List<HealthHistoryPoint> = emptyList(),
-    val detailSamplingSeconds: Int = 2,
-    val cpuCapStates: List<CpuCapState> = emptyList(),
-    val cpuPolicyEvents: List<CpuPolicyEvent> = emptyList(),
-    val mode: PerformanceMode = PerformanceMode.AUTO,
-    val notificationsGranted: Boolean = false,
-    val startup: StartupAnalysis = StartupAnalysis(),
-    val startupLoading: Boolean = false,
-    val diagnostics: DiagnosticsSnapshot = DiagnosticsSnapshot(),
-    val diagnosticsLoading: Boolean = false,
-    val rootShellDetails: Map<Int, RootShellDetails> = emptyMap(),
-    val diagnosticText: String = "",
-    val modules: ModuleCenterSnapshot = ModuleCenterSnapshot(),
-    val modulesLoading: Boolean = false,
-    val pendingRebootModules: Set<String> = emptySet(),
-    val network: NetworkSnapshot = NetworkSnapshot(),
-    val networkLoading: Boolean = false,
-    val pingResult: PingResult? = null,
-    val storage: StorageSnapshot = StorageSnapshot(),
-    val storageLoading: Boolean = false,
-    val automationToken: String = "",
-    val lastReportPath: String? = null,
-    val favoriteActions: Set<SystemActionId> = emptySet(),
-    val auditRecords: List<RootActionAuditRecord> = emptyList(),
-    val shizuku: ShizukuBridgeState = ShizukuBridgeState(),
-    val shizukuProbes: List<CapabilityProbeResult> = emptyList(),
-    val shizukuSelfTestRunning: Boolean = false,
-    val componentCatalog: List<PackageCatalogItem> = emptyList(),
-    val componentCatalogLoading: Boolean = false,
-    val componentSnapshot: ComponentSnapshot? = null,
-    val componentLoading: Boolean = false,
-    val actionMessage: String? = null,
-    val error: String? = null,
-)
-
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
-    private val shell = RootShell()
-    private val shizukuBridge = ShizukuBridge(application)
-    private val shizukuUserServiceClient = ShizukuUserServiceClient(application)
-    private val privilegeRouter = PrivilegeRouter(shizukuBridge, shizukuUserServiceClient, shell)
-    private val auditStore = RootActionAuditStore(application)
-    private val store = PolicyStore(application)
-    private val policyEventStore = CpuPolicyEventStore(application)
-    private val policyInspector = CpuPolicyInspector(store)
-    private val cpuPolicyController = CpuPolicyController(
-        shell = shell,
-        store = store,
-        eventStore = policyEventStore,
-        auditStore = auditStore,
-        auditSource = "UI",
-    )
-    private val repository = DeviceRepository(shell, auditStore, "UI")
-    private val sampler = DeviceSamplerService(application)
-    private val startupRepository = StartupRepository(application, shell)
-    private val frameworkAppCatalogRepository = FrameworkAppCatalogRepository(application)
-    private val componentRepository = ComponentRepository(application)
-    private val diagnosticsRepository = DiagnosticsRepository(shell)
-    private val moduleCenterRepository = ModuleCenterRepository(shell, auditStore, "UI")
-    private val networkRepository = NetworkRepository(shell)
-    private val storageRepository = StorageRepository(shell)
-    private val batteryPolicyController = BatteryPolicyController(shell, auditStore, "UI")
-    private val systemActionController = SystemActionController(
-        shell = shell,
-        auditStore = auditStore,
-        auditSource = "UI",
-        batteryController = batteryPolicyController,
-    )
-    private val tokenStore = ActionTokenStore(application)
-    private val reportStore = DiagnosticReportStore(application)
-    private val packagePolicyController = PackagePolicyController(privilegeRouter, auditStore, "UI")
-    private val componentPolicyController = ComponentPolicyController(privilegeRouter, auditStore, "UI")
-    private val favoritesStore = ActionFavoritesStore(application)
+    private val container = (application as RootToolsApp).container
+    private val shell = container.shell
+    private val shizukuBridge = container.shizukuBridge
+    private val shizukuUserService = container.shizukuUserService
+    private val appControlRepository = container.appControlRepository
+    private val appControlDiagnosticStore = container.appControlDiagnosticStore
+    private val appRuntimeRepository = container.appRuntimeRepository
+    private val appBatchPolicyEngine = container.appBatchPolicyEngine
+    private val componentRepository = container.componentRepository
+    private val permissionAppOpsRepository = container.permissionAppOpsRepository
+    private val auditStore = container.auditStore
+    private val store = container.policyStore
+    private val policyEventStore = container.policyEventStore
+    private val policyInspector = container.policyInspector
+    private val cpuPolicyController = container.cpuPolicyController
+    private val repository = container.deviceRepository
+    private val adbRepository = container.adbRepository
+    private val adbController = container.adbController
+    private val sampler = container.sampler
+    private val startupRepository = container.startupRepository
+    private val diagnosticsRepository = container.diagnosticsRepository
+    private val moduleCenterRepository = container.moduleCenterRepository
+    private val networkRepository = container.networkRepository
+    private val storageRepository = container.storageRepository
+    private val batteryPolicyController = container.batteryPolicyController
+    private val systemActionController = container.systemActionController
+    private val tokenStore = container.tokenStore
+    private val reportStore = container.reportStore
+    private val packagePolicyController = container.packagePolicyController
+    private val componentPolicyController = container.componentPolicyController
+    private val appOpsPolicyController = container.appOpsPolicyController
+    private val permissionPolicyController = container.permissionPolicyController
+    private val favoritesStore = container.favoritesStore
     private val _state = MutableStateFlow(
         DashboardUiState(
             mode = store.mode,
             detailSamplingSeconds = sampler.detailIntervalSeconds(),
             automationToken = tokenStore.token,
             favoriteActions = favoritesStore.read(),
+            componentCatalog = componentRepository.installedUserPackages(),
+            appBatchLastApplied = appBatchPolicyEngine.lastApplied(),
             cpuPolicyEvents = policyEventStore.read(30),
             auditRecords = auditStore.read(30),
         )
@@ -181,9 +104,10 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         if (bootstrapStarted) return
         bootstrapStarted = true
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, error = null, notificationsGranted = notificationsGranted()) }
+            _state.update { it.copy(loading = true, error = null, notificationsGranted = notificationsGranted(getApplication())) }
             val rootGranted = shell.isAvailable(timeoutSeconds = 30)
-            val snapshot = if (rootGranted) repository.readSnapshot() else DeviceSnapshot(rootAvailable = false)
+            val adb = if (rootGranted) adbRepository.read() else AdbSnapshot()
+            val snapshot = if (rootGranted) mergeAdbIntoSnapshot(repository.readSnapshot(), adb) else DeviceSnapshot(rootAvailable = false)
             if (rootGranted && (store.mode == PerformanceMode.AUTO || store.mode == PerformanceMode.PERFORMANCE)) {
                 CpuPolicyService.ensureRunning(getApplication())
             }
@@ -192,14 +116,13 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 it.copy(
                     loading = false,
                     snapshot = snapshot,
+                    adb = adb,
                     mode = store.mode,
                     cpuCapStates = policyInspector.inspect(snapshot),
                     cpuPolicyEvents = policyEventStore.read(30),
                     auditRecords = auditStore.read(30),
-                    notificationsGranted = notificationsGranted(),
-                    error = if (!rootGranted && !shizukuBridge.state.value.ready) {
-                        "Root 权限未通过；Framework 工具仍可在 Shizuku 授权后使用"
-                    } else null,
+                    notificationsGranted = notificationsGranted(getApplication()),
+                    error = null,
                 )
             }
         }
@@ -208,7 +131,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     fun refresh() {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
-            val snapshot = repository.readSnapshot()
+            val adb = adbRepository.read()
+            val snapshot = mergeAdbIntoSnapshot(repository.readSnapshot(), adb)
             if (snapshot.rootAvailable && appForeground && !sampler.snapshot.value.rootAvailable) {
                 sampler.start(viewModelScope, dashboardSamplingActive)
             }
@@ -216,14 +140,13 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 it.copy(
                     loading = false,
                     snapshot = snapshot,
+                    adb = adb,
                     mode = store.mode,
                     cpuCapStates = policyInspector.inspect(snapshot),
                     cpuPolicyEvents = policyEventStore.read(30),
                     auditRecords = auditStore.read(30),
-                    notificationsGranted = notificationsGranted(),
-                    error = if (!snapshot.rootAvailable && !shizukuBridge.state.value.ready) {
-                        "Root 不可用；Framework 工具需要 Shizuku / Sui"
-                    } else null,
+                    notificationsGranted = notificationsGranted(getApplication()),
+                    error = null,
                 )
             }
         }
@@ -233,7 +156,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             _state.update { it.copy(actionInProgress = true, error = null) }
             val rootGranted = shell.isAvailable(timeoutSeconds = 30)
-            val snapshot = if (rootGranted) repository.readSnapshot() else DeviceSnapshot(rootAvailable = false)
+            val adb = if (rootGranted) adbRepository.read() else AdbSnapshot()
+            val snapshot = if (rootGranted) mergeAdbIntoSnapshot(repository.readSnapshot(), adb) else DeviceSnapshot(rootAvailable = false)
             if (rootGranted && (store.mode == PerformanceMode.AUTO || store.mode == PerformanceMode.PERFORMANCE)) {
                 CpuPolicyService.ensureRunning(getApplication())
             }
@@ -242,10 +166,11 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 it.copy(
                     actionInProgress = false,
                     snapshot = snapshot,
+                    adb = adb,
                     cpuCapStates = policyInspector.inspect(snapshot),
                     cpuPolicyEvents = policyEventStore.read(30),
                     auditRecords = auditStore.read(30),
-                    notificationsGranted = notificationsGranted(),
+                    notificationsGranted = notificationsGranted(getApplication()),
                     error = if (!rootGranted) "Root 授权未通过，请在 Magisk 中允许 Root Tools" else null,
                 )
             }
@@ -272,20 +197,72 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun toggleAdb() {
-        val enable = !_state.value.snapshot.adbEnabled
+        val enable = !_state.value.adb.rootTcpEnabled
         viewModelScope.launch {
             _state.update { it.copy(actionInProgress = true, error = null) }
-            val success = repository.setAdbTcpEnabled(enable)
-            delay(900)
-            val snapshot = repository.readSnapshot()
+            val result = adbController.setRootTcpEnabled(enable)
+            val adb = result.snapshot ?: adbRepository.read()
+            val snapshot = mergeAdbIntoSnapshot(repository.readSnapshot(), adb)
             _state.update {
                 it.copy(
                     actionInProgress = false,
                     snapshot = snapshot,
+                    adb = adb,
                     auditRecords = auditStore.read(30),
-                    error = if (!success) "ADB 切换失败，请检查 Root 权限" else null,
+                    actionMessage = if (result.success) result.message else null,
+                    error = if (!result.success) result.message else null,
                 )
             }
+        }
+    }
+
+    fun loadAdb() {
+        if (_state.value.adbLoading) return
+        viewModelScope.launch {
+            _state.update { it.copy(adbLoading = true, actionMessage = null, error = null) }
+            val adb = adbRepository.read()
+            _state.update {
+                it.copy(
+                    adb = adb,
+                    adbLoading = false,
+                    snapshot = mergeAdbIntoSnapshot(it.snapshot, adb),
+                    error = if (!adb.rootAvailable) "ADB Control Center 需要 Root 权限" else null,
+                )
+            }
+        }
+    }
+
+    fun setNativeWireless(enabled: Boolean) {
+        viewModelScope.launch {
+            _state.update { it.copy(actionInProgress = true, actionMessage = null, error = null) }
+            val result = adbController.setNativeWirelessEnabled(enabled)
+            val adb = result.snapshot ?: adbRepository.read()
+            _state.update {
+                it.copy(
+                    actionInProgress = false,
+                    adb = adb,
+                    snapshot = mergeAdbIntoSnapshot(it.snapshot, adb),
+                    auditRecords = auditStore.read(30),
+                    actionMessage = if (result.success) result.message else null,
+                    error = if (result.success) null else result.message,
+                )
+            }
+        }
+    }
+
+    fun setAdbBootPolicy(restoreRootTcp: Boolean? = null, restoreNativeWireless: Boolean? = null) {
+        val current = _state.value.adb.bootPolicy
+        val policy = AdbBootPolicy(
+            restoreRootTcp = restoreRootTcp ?: current.restoreRootTcp,
+            restoreNativeWireless = restoreNativeWireless ?: current.restoreNativeWireless,
+        )
+        adbController.setBootPolicy(policy)
+        _state.update {
+            it.copy(
+                adb = it.adb.copy(bootPolicy = policy),
+                actionMessage = "ADB 开机恢复策略已保存",
+                error = null,
+            )
         }
     }
 
@@ -372,55 +349,289 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun runShizukuSelfTest() {
-        if (_state.value.shizukuSelfTestRunning) return
+        if (_state.value.shizukuSelfTestLoading) return
         viewModelScope.launch {
-            val bridge = shizukuBridge.state.value
-            if (!bridge.ready) {
-                _state.update { it.copy(error = "请先启动并授权 Shizuku / Sui") }
+            val bridgeState = _state.value.shizuku
+            if (!bridgeState.ready) {
+                _state.update { it.copy(error = "Shizuku / Sui 尚未 Ready，无法运行 Self-test") }
                 return@launch
             }
-            _state.update { it.copy(shizukuSelfTestRunning = true, shizukuProbes = emptyList(), actionMessage = null, error = null) }
-            val started = System.nanoTime()
-            val result = shizukuUserServiceClient.selfTest()
-            val latencyMs = (System.nanoTime() - started) / 1_000_000.0
-            val parsed = ShizukuSelfTestParser.parse(result.getOrNull().orEmpty())
-            val backend = bridge.backend
-            val probes = listOf(
+            _state.update { it.copy(shizukuSelfTestLoading = true, error = null, actionMessage = null) }
+            val backend = bridgeState.backend
+            val startNs = System.nanoTime()
+            val uidResult = shizukuUserService.call { it.backendUid }
+            val latencyMs = (System.nanoTime() - startNs) / 1_000_000.0
+            val packageResult = shizukuUserService.call { it.packageExists(getApplication<Application>().packageName) }
+            val activityResult = shizukuUserService.call { it.topPackage }
+            val appOpsResult = shizukuUserService.call { it.getAppOp(getApplication<Application>().packageName, "RUN_IN_BACKGROUND") }
+            val frameworkResult = shizukuUserService.selfTest()
+
+            val results = listOf(
                 CapabilityProbeResult(
                     capability = PrivilegeCapability.FRAMEWORK_DIAGNOSTICS,
-                    available = result.isSuccess && parsed.uid == bridge.uid,
+                    available = uidResult.isSuccess,
                     backend = backend,
-                    detail = if (result.isSuccess) "UserService UID ${parsed.uid ?: "?"}" else result.exceptionOrNull()?.message.orEmpty(),
-                    latencyMs = latencyMs,
+                    detail = uidResult.getOrNull()?.let { "UserService UID $it" } ?: uidResult.exceptionOrNull()?.message.orEmpty(),
+                    latencyMs = if (uidResult.isSuccess) latencyMs else null,
                 ),
                 CapabilityProbeResult(
                     capability = PrivilegeCapability.PACKAGE_CONTROL,
-                    available = result.isSuccess && parsed.packageControl,
+                    available = packageResult.getOrDefault(false),
                     backend = backend,
-                    detail = "pm=${if (parsed.packageControl) "ok" else "fail"}",
-                    latencyMs = latencyMs,
+                    detail = if (packageResult.getOrDefault(false)) "PackageManager command path reachable" else "Package read failed",
+                ),
+                CapabilityProbeResult(
+                    capability = PrivilegeCapability.COMPONENT_CONTROL,
+                    available = packageResult.isSuccess,
+                    backend = backend,
+                    detail = "Typed component gateway ${if (packageResult.isSuccess) "available" else "unavailable"}",
                 ),
                 CapabilityProbeResult(
                     capability = PrivilegeCapability.ACTIVITY_CONTROL,
-                    available = result.isSuccess && parsed.activityControl,
+                    available = activityResult.isSuccess,
                     backend = backend,
-                    detail = "activity=${if (parsed.activityControl) "ok" else "fail"}",
-                    latencyMs = latencyMs,
+                    detail = activityResult.getOrNull()?.ifBlank { "Activity service reachable" } ?: "Activity service failed",
                 ),
                 CapabilityProbeResult(
                     capability = PrivilegeCapability.APP_OPS,
-                    available = result.isSuccess && parsed.appOps,
+                    available = appOpsResult.isSuccess,
                     backend = backend,
-                    detail = "appops=${if (parsed.appOps) "ok" else "fail"}",
-                    latencyMs = latencyMs,
+                    detail = appOpsResult.getOrNull()?.take(160).orEmpty().ifBlank { if (appOpsResult.isSuccess) "AppOps reachable" else "AppOps failed" },
+                ),
+                CapabilityProbeResult(
+                    capability = PrivilegeCapability.ROOT_LINUX,
+                    available = bridgeState.uid == 0,
+                    backend = backend,
+                    detail = if (bridgeState.uid == 0) "Remote identity is root; RootTools still prefers RootShell for Linux/sysfs" else "Remote identity is shell",
                 ),
             )
             _state.update {
                 it.copy(
-                    shizukuSelfTestRunning = false,
-                    shizukuProbes = probes,
-                    actionMessage = if (probes.all { probe -> probe.available }) "Shizuku Framework self-test 通过" else null,
-                    error = if (probes.all { probe -> probe.available }) null else "Shizuku self-test 有能力不可用",
+                    shizukuSelfTest = results,
+                    shizukuSelfTestLoading = false,
+                    actionMessage = frameworkResult.getOrNull()?.let { text -> "Self-test: $text" },
+                    error = frameworkResult.exceptionOrNull()?.message,
+                )
+            }
+        }
+    }
+
+    fun loadComponents(packageName: String) {
+        if (_state.value.componentLoading) return
+        viewModelScope.launch(Dispatchers.Default) {
+            _state.update { it.copy(componentLoading = true, actionMessage = null, error = null) }
+            val snapshot = componentRepository.read(packageName.trim())
+            _state.update {
+                it.copy(
+                    componentSnapshot = snapshot,
+                    componentLoading = false,
+                    error = if (snapshot == null) "未找到应用或 package name 无效" else null,
+                )
+            }
+        }
+    }
+
+    fun setComponentEnabled(component: AppComponentRecord, enabled: Boolean) {
+        val current = _state.value.componentSnapshot ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(actionInProgress = true, actionMessage = null, error = null) }
+            val result = componentPolicyController.setEnabled(current, component, enabled)
+            val refreshed = componentRepository.read(current.packageName)
+            val verified = refreshed?.components?.firstOrNull { it.componentName == component.componentName }?.enabled == enabled
+            _state.update {
+                it.copy(
+                    actionInProgress = false,
+                    componentSnapshot = refreshed ?: current,
+                    auditRecords = auditStore.read(30),
+                    actionMessage = if (result.success && verified) "${result.message} · verified" else null,
+                    error = when {
+                        !result.success -> result.message
+                        !verified -> "组件命令返回成功，但重新读取状态未验证通过"
+                        else -> null
+                    },
+                )
+            }
+        }
+    }
+
+    fun launchComponent(component: AppComponentRecord) {
+        val current = _state.value.componentSnapshot ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(actionInProgress = true, actionMessage = null, error = null) }
+            val result = componentPolicyController.launch(current, component)
+            _state.update {
+                it.copy(
+                    actionInProgress = false,
+                    actionMessage = if (result.success) result.message else null,
+                    error = if (result.success) null else result.message,
+                )
+            }
+        }
+    }
+
+    fun loadPermissionAppOps(packageName: String) {
+        if (_state.value.permissionOpsLoading) return
+        viewModelScope.launch {
+            _state.update { it.copy(permissionOpsLoading = true, actionMessage = null, error = null) }
+            val canAppOps = _state.value.snapshot.rootAvailable || _state.value.shizuku.ready
+            val snapshot = permissionAppOpsRepository.read(packageName.trim(), includeAppOps = canAppOps)
+            _state.update {
+                it.copy(
+                    permissionOpsSnapshot = snapshot,
+                    permissionOpsLoading = false,
+                    error = if (snapshot == null) "未找到应用或 package name 无效" else null,
+                )
+            }
+        }
+    }
+
+    fun setAppOpMode(op: String, mode: String) {
+        val current = _state.value.permissionOpsSnapshot ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(actionInProgress = true, actionMessage = null, error = null) }
+            val result = appOpsPolicyController.setMode(current.packageName, op, mode)
+            val refreshed = permissionAppOpsRepository.read(
+                current.packageName,
+                includeAppOps = _state.value.snapshot.rootAvailable || _state.value.shizuku.ready,
+            )
+            _state.update {
+                it.copy(
+                    actionInProgress = false,
+                    permissionOpsSnapshot = refreshed ?: current,
+                    auditRecords = auditStore.read(30),
+                    actionMessage = if (result.success) result.message else null,
+                    error = if (result.success) null else result.message,
+                )
+            }
+        }
+    }
+
+    fun setRuntimePermission(permissionName: String, granted: Boolean) {
+        val current = _state.value.permissionOpsSnapshot ?: return
+        val permission = current.permissions.firstOrNull { it.name == permissionName } ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(actionInProgress = true, actionMessage = null, error = null) }
+            val result = permissionPolicyController.setGranted(current.packageName, permission, granted)
+            val refreshed = permissionAppOpsRepository.read(
+                current.packageName,
+                includeAppOps = current.appOpsBackendAvailable,
+            )
+            val verified = refreshed?.permissions?.firstOrNull { it.name == permissionName }?.granted == granted
+            _state.update {
+                it.copy(
+                    actionInProgress = false,
+                    permissionOpsSnapshot = refreshed ?: current,
+                    auditRecords = auditStore.read(30),
+                    actionMessage = if (result.success && verified) "${result.message} · verified" else null,
+                    error = when {
+                        !result.success -> result.message
+                        !verified -> "Permission 命令返回成功，但重新读取状态未验证通过"
+                        else -> null
+                    },
+                )
+            }
+        }
+    }
+
+    fun exportAppControlDiagnostic() {
+        val detail = _state.value.appControlDetail ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            _state.update { it.copy(actionInProgress = true, actionMessage = null, error = null) }
+            val components = _state.value.componentSnapshot?.takeIf { it.packageName == detail.packageName }
+                ?: componentRepository.read(detail.packageName)
+            val permissionOps = permissionAppOpsRepository.read(
+                detail.packageName,
+                includeAppOps = _state.value.snapshot.rootAvailable || _state.value.shizuku.ready,
+            )
+            val result = runCatching { appControlDiagnosticStore.write(detail, components, permissionOps) }
+            _state.update {
+                it.copy(
+                    actionInProgress = false,
+                    appControlExport = result.getOrNull(),
+                    permissionOpsSnapshot = permissionOps ?: it.permissionOpsSnapshot,
+                    actionMessage = result.getOrNull()?.let { export -> "已导出单应用诊断：${export.markdownPath}" },
+                    error = result.exceptionOrNull()?.message,
+                )
+            }
+        }
+    }
+
+    fun loadAppRuntime(packageName: String) {
+        if (_state.value.appRuntimeLoading) return
+        viewModelScope.launch {
+            _state.update { it.copy(appRuntimeLoading = true, error = null) }
+            val runtime = appRuntimeRepository.read(packageName)
+            _state.update {
+                it.copy(
+                    appRuntime = runtime,
+                    appRuntimeLoading = false,
+                    error = if (runtime == null) "未读取到 Runtime snapshot；需要 Root 或 Shizuku/Sui" else null,
+                )
+            }
+        }
+    }
+
+    fun toggleAppBatchSelection(packageName: String) {
+        _state.update { state ->
+            val next = if (packageName in state.appBatchSelection) state.appBatchSelection - packageName else state.appBatchSelection + packageName
+            state.copy(appBatchSelection = next, appBatchPlan = null)
+        }
+    }
+
+    fun clearAppBatchSelection() {
+        _state.update { it.copy(appBatchSelection = emptySet(), appBatchPlan = null) }
+    }
+
+    fun setAppBatchProfile(profile: AppPolicyProfileId) {
+        _state.update { it.copy(appBatchProfile = profile, appBatchPlan = null) }
+    }
+
+    fun previewAppBatchPlan() {
+        val selected = _state.value.appBatchSelection
+        if (selected.isEmpty()) return
+        val profile = _state.value.appBatchProfile
+        viewModelScope.launch {
+            _state.update { it.copy(appBatchLoading = true, actionMessage = null, error = null) }
+            val plan = appBatchPolicyEngine.buildPlan(selected, profile)
+            _state.update { it.copy(appBatchPlan = plan, appBatchLoading = false) }
+        }
+    }
+
+    fun applyAppBatchPlan() {
+        val plan = _state.value.appBatchPlan ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(appBatchLoading = true, actionMessage = null, error = null) }
+            val result = appBatchPolicyEngine.apply(plan)
+            val inventory = appControlRepository.readInventory()
+            _state.update {
+                it.copy(
+                    appInventory = inventory,
+                    appBatchPlan = result.plan,
+                    appBatchLastApplied = if (result.success) result.plan else appBatchPolicyEngine.lastApplied(),
+                    appBatchLoading = false,
+                    auditRecords = auditStore.read(50),
+                    actionMessage = if (result.success) result.message else null,
+                    error = if (result.success) null else result.message,
+                )
+            }
+        }
+    }
+
+    fun rollbackLastAppBatchPlan() {
+        val plan = _state.value.appBatchLastApplied ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(appBatchLoading = true, actionMessage = null, error = null) }
+            val result = appBatchPolicyEngine.rollback(plan)
+            val inventory = appControlRepository.readInventory()
+            _state.update {
+                it.copy(
+                    appInventory = inventory,
+                    appBatchLastApplied = if (result.success) null else plan,
+                    appBatchPlan = result.plan,
+                    appBatchLoading = false,
+                    auditRecords = auditStore.read(50),
+                    actionMessage = if (result.success) result.message else null,
+                    error = if (result.success) null else result.message,
                 )
             }
         }
@@ -430,6 +641,19 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         if (_state.value.startupLoading) return
         viewModelScope.launch {
             _state.update { it.copy(startupLoading = true, actionMessage = null, error = null) }
+            if (!_state.value.snapshot.rootAvailable) {
+                _state.update {
+                    it.copy(
+                        startup = StartupAnalysis(
+                            degradedMode = true,
+                            source = "Root required for boot event trace",
+                        ),
+                        startupLoading = false,
+                        error = "启动时间线需要 Root；Shizuku-only 模式仍可使用应用治理 / 组件 / AppOps",
+                    )
+                }
+                return@launch
+            }
             val analysis = startupRepository.analyzeCurrentBoot()
             _state.update {
                 it.copy(
@@ -441,73 +665,62 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun loadApps() {
-        if (_state.value.startupLoading) return
-        viewModelScope.launch {
-            _state.update { it.copy(startupLoading = true, actionMessage = null, error = null) }
-            val analysis = readAppsAnalysis()
+    fun loadAppControl() {
+        if (_state.value.appInventoryLoading) return
+        viewModelScope.launch(Dispatchers.Default) {
+            _state.update { it.copy(appInventoryLoading = true, actionMessage = null, error = null) }
+            val inventory = appControlRepository.readInventory(allowRootRunningProbe = _state.value.snapshot.rootAvailable)
             _state.update {
                 it.copy(
-                    startup = analysis,
-                    startupLoading = false,
-                    error = when {
-                        analysis.apps.isNotEmpty() -> null
-                        !it.snapshot.rootAvailable && !it.shizuku.ready -> "应用治理需要 Root 或已授权的 Shizuku / Sui"
-                        else -> "应用治理未读取到应用数据"
-                    },
+                    appInventory = inventory,
+                    appInventoryLoading = false,
+                    error = if (inventory.apps.isEmpty()) getApplication<Application>().getString(R.string.app_control_error_inventory_empty) else null,
                 )
             }
         }
     }
 
-    fun loadComponentCatalog() {
-        if (_state.value.componentCatalogLoading) return
-        viewModelScope.launch {
-            _state.update { it.copy(componentCatalogLoading = true, actionMessage = null, error = null) }
-            val catalog = componentRepository.catalog(includeSystemApps = false)
+    fun loadAppControlDetail(packageName: String) {
+        val pkg = packageName.trim()
+        if (_state.value.appControlDetailLoading) return
+        viewModelScope.launch(Dispatchers.Default) {
             _state.update {
                 it.copy(
-                    componentCatalog = catalog,
-                    componentCatalogLoading = false,
-                    error = if (catalog.isEmpty()) "未读取到可管理的用户应用" else null,
+                    appControlDetailLoading = true,
+                    appControlExport = null,
+                    appRuntime = null,
+                    componentSnapshot = null,
+                    permissionOpsSnapshot = null,
+                    actionMessage = null,
+                    error = null,
+                )
+            }
+            val detail = appControlRepository.readDetail(pkg)
+            val components = componentRepository.read(pkg)
+            val permissionOps = permissionAppOpsRepository.read(pkg, includeAppOps = false)
+            _state.update {
+                it.copy(
+                    appControlDetail = detail,
+                    appControlDetailLoading = false,
+                    componentSnapshot = components,
+                    permissionOpsSnapshot = permissionOps,
+                    error = if (detail == null) getApplication<Application>().getString(R.string.app_control_error_package_not_found) else null,
                 )
             }
         }
     }
 
-    fun loadComponents(packageName: String) {
-        viewModelScope.launch {
-            _state.update { it.copy(componentLoading = true, actionMessage = null, error = null) }
-            val snapshot = componentRepository.read(packageName)
-            _state.update {
-                it.copy(
-                    componentSnapshot = snapshot,
-                    componentLoading = false,
-                    error = if (snapshot == null) "无法读取 $packageName 的组件信息" else null,
-                )
-            }
-        }
-    }
-
-    fun closeComponents() {
-        _state.update { it.copy(componentSnapshot = null, actionMessage = null, error = null) }
-    }
-
-    fun setComponentEnabled(component: com.arthur.roottools.model.AppComponentRecord, enabled: Boolean) {
-        val snapshot = _state.value.componentSnapshot ?: return
-        viewModelScope.launch {
-            _state.update { it.copy(actionInProgress = true, actionMessage = null, error = null) }
-            val result = componentPolicyController.setEnabled(snapshot, component, enabled)
-            val refreshed = if (result.success) componentRepository.read(snapshot.packageName) else snapshot
-            _state.update {
-                it.copy(
-                    actionInProgress = false,
-                    componentSnapshot = refreshed,
-                    auditRecords = auditStore.read(30),
-                    actionMessage = if (result.success) result.message else null,
-                    error = if (result.success) null else result.message,
-                )
-            }
+    fun clearAppControlDetail() {
+        _state.update {
+            it.copy(
+                appControlDetail = null,
+                appControlExport = null,
+                appRuntime = null,
+                componentSnapshot = null,
+                permissionOpsSnapshot = null,
+                actionMessage = null,
+                error = null,
+            )
         }
     }
 
@@ -530,7 +743,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             _state.update { it.copy(diagnosticsLoading = true, actionMessage = null, error = null) }
             val diagnostics = diagnosticsRepository.collect()
-            val text = appendPrivilegeDiagnostics(diagnosticsRepository.buildSnapshotText(_state.value.health, diagnostics))
+            val text = diagnosticsRepository.buildSnapshotText(_state.value.health, diagnostics)
             _state.update {
                 it.copy(
                     diagnostics = diagnostics,
@@ -640,7 +853,22 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             _state.update { it.copy(actionInProgress = true, actionMessage = null, error = null) }
             val diagnostics = if (_state.value.diagnostics.topProcesses.isEmpty()) diagnosticsRepository.collect() else _state.value.diagnostics
-            val text = appendPrivilegeDiagnostics(diagnosticsRepository.buildSnapshotText(_state.value.health, diagnostics))
+            val current = _state.value
+            val base = diagnosticsRepository.buildSnapshotText(current.health, diagnostics)
+            val shizukuSection = buildString {
+                appendLine()
+                appendLine("== Shizuku / Sui ==")
+                appendLine("binder=${current.shizuku.binderAlive}")
+                appendLine("permission=${current.shizuku.permissionGranted}")
+                appendLine("backend=${current.shizuku.backend.displayName}")
+                appendLine("uid=${current.shizuku.uid ?: -1}")
+                appendLine("server=${current.shizuku.serverVersion ?: -1}.${current.shizuku.serverPatchVersion ?: -1}")
+                appendLine("sui=${current.shizuku.suiAvailable}")
+                current.shizukuSelfTest.forEach { probe ->
+                    appendLine("probe ${probe.capability.name}=${probe.available} backend=${probe.backend.displayName} latency=${probe.latencyMs ?: -1.0} detail=${probe.detail}")
+                }
+            }
+            val text = base + shizukuSection
             val file = runCatching { reportStore.write(text) }.getOrNull()
             _state.update {
                 it.copy(
@@ -725,11 +953,30 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             _state.update { it.copy(actionInProgress = true, actionMessage = null, error = null) }
             val result = action()
-            val analysis = readAppsAnalysis()
+            val analysis = if (_state.value.snapshot.rootAvailable) startupRepository.analyzeCurrentBoot() else _state.value.startup
+            val inventory = if (_state.value.appInventory.apps.isNotEmpty()) {
+                appControlRepository.readInventory(allowRootRunningProbe = _state.value.snapshot.rootAvailable)
+            } else {
+                _state.value.appInventory
+            }
+            val detailPackage = _state.value.appControlDetail?.packageName
+            val detail = detailPackage?.let(appControlRepository::readDetail)
+            val components = detailPackage?.let(componentRepository::read)
+            val hadAppOpsLoaded = _state.value.permissionOpsSnapshot?.appOps?.isNotEmpty() == true
+            val permissionOps = detailPackage?.let { packageName ->
+                permissionAppOpsRepository.read(
+                    packageName,
+                    includeAppOps = hadAppOpsLoaded && (_state.value.snapshot.rootAvailable || _state.value.shizuku.ready),
+                )
+            }
             _state.update {
                 it.copy(
                     actionInProgress = false,
                     startup = analysis,
+                    appInventory = inventory,
+                    appControlDetail = detail ?: it.appControlDetail,
+                    componentSnapshot = components ?: it.componentSnapshot,
+                    permissionOpsSnapshot = permissionOps ?: it.permissionOpsSnapshot,
                     auditRecords = auditStore.read(30),
                     actionMessage = if (result.success) result.message else null,
                     error = if (result.success) null else result.message,
@@ -740,70 +987,10 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
     override fun onCleared() {
         sampler.stop()
-        shizukuUserServiceClient.close()
+        shizukuUserService.close()
         shizukuBridge.close()
         super.onCleared()
     }
 
-    private fun mergeHealthIntoSnapshot(
-        snapshot: DeviceSnapshot,
-        health: DeviceHealthSnapshot,
-    ): DeviceSnapshot {
-        if (!snapshot.rootAvailable || !health.rootAvailable) return snapshot
-        val healthByPolicy = health.cpuClusters.associateBy { it.policyId }
-        val clusters = snapshot.cpuClusters.map { cluster ->
-            val current = healthByPolicy[cluster.policyId] ?: return@map cluster
-            cluster.copy(
-                scalingMinKHz = current.scalingMinKHz,
-                scalingMaxKHz = current.scalingMaxKHz,
-                currentKHz = current.currentKHz,
-            )
-        }
-        return snapshot.copy(
-            thermalStatus = health.thermal.status,
-            apTempC = health.thermal.apC,
-            skinTempC = health.thermal.skinC,
-            batteryTempC = health.thermal.batteryC,
-            batteryLevel = health.battery.level,
-            charging = health.battery.charging,
-            cpuClusters = clusters,
-        )
-    }
-
-    private fun notificationsGranted(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
-        return getApplication<Application>().checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
-    }
-
-    private suspend fun readAppsAnalysis(): StartupAnalysis = when {
-        _state.value.snapshot.rootAvailable -> runCatching { startupRepository.analyzeCurrentBoot() }.getOrElse { StartupAnalysis() }
-        _state.value.shizuku.ready -> frameworkAppCatalogRepository.read()
-        else -> StartupAnalysis()
-    }
-
-    private fun appendPrivilegeDiagnostics(base: String): String {
-        val bridge = _state.value.shizuku
-        val probes = _state.value.shizukuProbes
-        return buildString {
-            append(base.trimEnd())
-            append("\n\n[Privilege Bridge]\n")
-            append("binder=").append(bridge.binderAlive)
-            append(" permission=").append(bridge.permissionGranted)
-            append(" backend=").append(bridge.backend.displayName)
-            append(" uid=").append(bridge.uid ?: -1)
-            append(" server=").append(bridge.serverVersion ?: -1)
-            append(" patch=").append(bridge.serverPatchVersion ?: -1)
-            append(" sui=").append(bridge.suiAvailable)
-            append('\n')
-            probes.forEach { probe ->
-                append("probe ").append(probe.capability.name)
-                    .append("=").append(if (probe.available) "PASS" else "FAIL")
-                    .append(" backend=").append(probe.backend.displayName)
-                    .append(" detail=").append(probe.detail.take(160))
-                    .append('\n')
-            }
-        }
-    }
 }
 

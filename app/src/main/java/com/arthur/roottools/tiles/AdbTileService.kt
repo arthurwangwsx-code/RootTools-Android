@@ -2,8 +2,11 @@ package com.arthur.roottools.tiles
 
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
-import com.arthur.roottools.data.DeviceRepository
+import com.arthur.roottools.R
+import com.arthur.roottools.app.rootToolsContainer
+import com.arthur.roottools.data.AdbRepository
 import com.arthur.roottools.data.RootActionAuditStore
+import com.arthur.roottools.policy.AdbController
 import com.arthur.roottools.root.RootShell
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -13,7 +16,8 @@ import kotlinx.coroutines.launch
 
 class AdbTileService : TileService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val repository by lazy { DeviceRepository(RootShell(), RootActionAuditStore(this), "QuickTile") }
+    private val repository by lazy { applicationContext.rootToolsContainer.adbRepository }
+    private val controller by lazy { applicationContext.rootToolsContainer.createAdbController("QuickTile") }
 
     override fun onStartListening() {
         super.onStartListening()
@@ -24,8 +28,8 @@ class AdbTileService : TileService() {
         super.onClick()
         val action = Runnable {
             scope.launch {
-                val current = repository.readSnapshot()
-                if (!current.adbEnabled) repository.setAdbTcpEnabled(true)
+                val current = repository.read()
+                if (!current.rootTcpEnabled) controller.setRootTcpEnabled(true)
                 refreshTile()
             }
         }
@@ -38,16 +42,20 @@ class AdbTileService : TileService() {
     }
 
     private suspend fun refreshTile() {
-        val snapshot = repository.readSnapshot()
+        val snapshot = repository.read()
         qsTile?.apply {
-            label = if (snapshot.adbEnabled) "ADB · 5555" else "Root ADB"
-            subtitle = when {
-                !snapshot.rootAvailable -> "需要 Root"
-                snapshot.adbEnabled && snapshot.tailscaleIpv4 != null -> snapshot.tailscaleIpv4
-                snapshot.adbEnabled -> "已开启"
-                else -> "点击开启"
+            label = if (snapshot.rootTcpEnabled) {
+                getString(R.string.adb_tile_label_port, snapshot.rootTcpPort ?: 5555)
+            } else {
+                getString(R.string.adb_tile_label_root)
             }
-            state = if (snapshot.adbEnabled) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+            subtitle = when {
+                !snapshot.rootAvailable -> getString(R.string.common_requires_root)
+                snapshot.rootTcpEnabled && snapshot.tailscaleIpv4 != null -> snapshot.tailscaleIpv4
+                snapshot.rootTcpEnabled -> getString(R.string.common_enabled)
+                else -> getString(R.string.common_tap_to_enable)
+            }
+            state = if (snapshot.rootTcpEnabled) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
             updateTile()
         }
     }

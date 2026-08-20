@@ -1,0 +1,57 @@
+name: Verify
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.4.1'
+
+      - name: Repository quality guard
+        run: python3 scripts/quality_guard.py
+
+      - name: Privileged security guard
+        run: python3 scripts/security_guard.py
+
+      - name: Commit convention
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            python3 scripts/commit_guard.py --range "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          else
+            python3 scripts/commit_guard.py --subject "$(git log -1 --format=%s)"
+          fi
+
+      - name: Unit tests, lint, and debug APK
+        run: gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+
+      - name: JVM coverage report
+        run: gradle :app:koverXmlReportDebug
+
+      - name: Core coverage guard
+        run: python3 scripts/coverage_guard.py

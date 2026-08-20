@@ -1,0 +1,12 @@
+{
+  "com/arthur/roottools/root/PersistentRootSession": 90.0,
+  "com/arthur/roottools/privilege/PrivilegeInputValidator": 100.0,
+  "com/arthur/roottools/privilege/PrivilegeRoutingPolicy": 85.0,
+  "com/arthur/roottools/policy/AppOpsMutationPolicy": 80.0,
+  "com/arthur/roottools/policy/ComponentSafetyPolicy": 80.0,
+  "com/arthur/roottools/policy/CpuCapOwnershipDecider": 100.0,
+  "com/arthur/roottools/policy/RuntimePermissionMutationPolicy": 85.0,
+  "com/arthur/roottools/policy/ThermalStageHysteresis": 80.0,
+  "com/arthur/roottools/feature/integrity/policy/IntegrityBaselineMatcher": 90.0,
+  "com/arthur/roottools/feature/integrity/policy/IntegrityRiskEngine": 48.0
+}

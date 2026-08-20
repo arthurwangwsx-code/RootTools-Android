@@ -21,8 +21,14 @@
 | [12-final-validation.md](./12-final-validation.md) | 最终 Samsung 真机验收清单 |
 | [13-shizuku-sui-bridge.md](./13-shizuku-sui-bridge.md) | Shizuku / Sui 特权桥接、Backend 路由与组件治理规划 |
 | [14-core-logic-testing-standard.md](./14-core-logic-testing-standard.md) | 核心逻辑分层、Backend 路由、输入安全与单元测试规范 |
-| [14-app-control-center.md](./14-app-control-center.md) | App Control Center：应用清单、详情、组件、AppOps、权限、批量策略、Debloat、APK 导出 |
-| [15-industry-root-capability-map.md](./15-industry-root-capability-map.md) | Root 工具行业能力地图、竞品/开源能力调研、RootTools 缺口与后续优先级 |
+| [15-app-control-center.md](./15-app-control-center.md) | App Control Center：应用清单、详情、组件、AppOps、权限、批量策略、Debloat、APK 导出 |
+| [16-industry-root-capability-map.md](./16-industry-root-capability-map.md) | Root 工具行业能力地图、竞品/开源能力调研、RootTools 缺口与后续优先级 |
+| [reference-projects.md](./reference-projects.md) | 本地忽略的开源参考仓库、版本、许可证边界与更新规则 |
+| [17-engineering-governance-and-ai-workflow.md](./17-engineering-governance-and-ai-workflow.md) | 工程治理与 AI 协作：模块化、组件库、多语言、提交、CI、质量门禁、Skills 与模板 |
+| [18-engineering-execution-ledger.md](./18-engineering-execution-ledger.md) | 工程治理实施账本：质量基线、Design System、i18n、composition root、巨型文件拆分与 module gate |
+| [adr/](./adr/) | Architecture Decision Records：composition root、模块化边界等长期工程决策 |
+| [19-environment-integrity-center.md](./19-environment-integrity-center.md) | Environment Integrity Center：Hook/篡改、Root runtime、Boot/ROM、设备表面、Sandbox、Attestation 与可信基线 |
+| [20-termux-developer-runtime.md](./20-termux-developer-runtime.md) | Termux / Developer Runtime Bridge：双向 Intent、CLI、managed task、SSH/MCP 执行平面与安全边界 |
 
 ## 工程原则
 
@@ -57,9 +63,10 @@
 - 常用 Root 操作
 - 自动化入口
 - 设备快照 / 报告
-- Shizuku / Sui 特权桥接（已落地：typed UserService / PrivilegeRouter / self-test）
-- 组件管理（Activity / Service / Receiver / Provider，Shizuku first + Root fallback）
-- App Control Center（规划完成，待实施）
+- Shizuku / Sui 特权桥接（规划中）
+- App Control Center（核心 Inventory / Detail / Components / Permission / AppOps 已开始落地）
+- Environment Integrity Center（基础实现已落地；Hardware Attestation 已完成 Samsung 真机验收，其余扫描模式持续扩展/验收）
+- Developer Runtime / Termux Bridge（规划完成；当前 Samsung Play Termux 先走 reverse bridge）
 
 ### 行业调研后确认的后续一级领域
 
@@ -67,5 +74,7 @@
 - Firewall & App Network
 - Multi-root Runtime（Magisk / KernelSU / APatch）
 - Charge Controller
+- Environment Integrity / Baseline Drift
+- Developer Runtime / Termux / Agent execution plane
 
 所有新增卡片必须先在 `00-product-roadmap.md` 登记，再创建对应详情页和文档章节。

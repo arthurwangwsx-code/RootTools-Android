@@ -33,13 +33,17 @@
 - 可直接复制 `adb connect <tailscale-ip>:5555`
 - 默认不做开机永久开放，降低长期暴露风险
 
-### 启动与应用治理
+### 启动与应用控制
 
 - 分析本次 boot 的真实 `am_proc_start` 时间线
 - BOOT_COMPLETED Receiver、启动次数、触发原因、当前常驻状态
 - Protected / On Demand / Rare / Freeze 分类
 - Freeze / Enable / force-stop / Standby bucket / AppOps
 - Appium 测试模式：Notification Listener + Doze whitelist 按需切换
+- 应用清单搜索 / 筛选 / 排序与系统 / 用户 / Running / Frozen 状态
+- 单应用 Detail：Package / SDK / installer / path / signing / shared libraries
+- Activity / Service / Receiver / Provider 组件查看与受保护的 enable / disable
+- dangerous runtime permission、AppOps 与 Special Access 入口统一收敛到 App Control Center
 
 ### 进程诊断
 
@@ -75,10 +79,11 @@
 
 ### Quick Settings
 
-应用注册两个系统快捷磁贴：
+应用注册三个系统快捷磁贴：
 
 - `CPU 档位`：Auto → Cool → Performance → Auto
 - `Root ADB`：开启 / 关闭 5555
+- `Wireless ADB`：Android 原生 Wireless Debugging 快捷入口
 
 ## 首页结构
 
@@ -89,7 +94,7 @@
 3. Root ADB
 4. 权限中心
 5. 启动治理
-6. 应用冻结
+6. 应用控制
 7. 进程诊断
 8. Root 模块
 9. 常用操作
@@ -126,6 +131,37 @@
 ```bash
 gradle :app:assembleDebug
 ```
+
+### 工程开发基线
+
+首次 clone 后启用版本化 Git hooks：
+
+```bash
+bash scripts/setup-dev.sh
+```
+
+日常提交前至少执行：
+
+```bash
+python3 scripts/quality_guard.py
+python3 scripts/security_guard.py
+gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+```
+
+核心 JVM 覆盖率基线：
+
+```bash
+gradle :app:koverXmlReportDebug
+python3 scripts/coverage_guard.py
+```
+
+提交信息使用 Conventional Commits，并可单独检查：
+
+```bash
+python3 scripts/commit_guard.py --subject "feat(adb): add endpoint health check"
+```
+
+当前工程坚持 **单 `:app` Gradle module + `app/core/feature` 逻辑边界**。公共 UI token、组件和 Android UI actions 放在 `core/ui`；Feature 不直接依赖其它 Feature 的实现，也不反向依赖 legacy `ui` host。只有出现明确复用、编译隔离、稳定 API 或持续并行冲突时，才评估拆出物理 Gradle module。完整规则见 [`docs/17-engineering-governance-and-ai-workflow.md`](./docs/17-engineering-governance-and-ai-workflow.md)。
 
 完整工程校验：
 

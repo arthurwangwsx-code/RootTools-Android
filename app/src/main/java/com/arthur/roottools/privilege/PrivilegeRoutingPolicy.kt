@@ -27,6 +27,10 @@ object PrivilegeRoutingPolicy {
         else -> PrivilegeBackendType.NONE
     }
 
+    fun primaryBackend(bridge: ShizukuBridgeState, rootAvailable: Boolean): PrivilegeRouteBackend =
+        routesFor(PrivilegeCapability.FRAMEWORK_DIAGNOSTICS, bridge, rootAvailable).firstOrNull()
+            ?: PrivilegeRouteBackend.NONE
+
     /**
      * Returns routes in execution priority order.
      *

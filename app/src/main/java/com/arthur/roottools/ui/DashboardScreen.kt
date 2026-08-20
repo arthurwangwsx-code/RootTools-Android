@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.SettingsEthernet
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
@@ -78,15 +79,44 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.content.FileProvider
 import com.arthur.roottools.model.CpuCluster
+import com.arthur.roottools.core.ui.action.copyToClipboard
+import com.arthur.roottools.core.ui.action.openPackage
+import com.arthur.roottools.core.ui.action.shareDiagnosticFile
+import com.arthur.roottools.core.ui.action.shareText
+import com.arthur.roottools.core.ui.chart.RootToolsTemperatureSparkline
+import com.arthur.roottools.app.navigation.ToolCapability
+import com.arthur.roottools.app.navigation.ToolDefinition
+import com.arthur.roottools.app.navigation.ToolId
+import com.arthur.roottools.app.navigation.ToolRegistry
+import com.arthur.roottools.app.navigation.ToolboxCard
+import com.arthur.roottools.app.navigation.ToolboxRoute
+import com.arthur.roottools.app.navigation.routeFor
+import com.arthur.roottools.core.presentation.formatGHz
+import com.arthur.roottools.core.presentation.formatMemoryKb
+import com.arthur.roottools.core.presentation.formatRelativeTime
+import com.arthur.roottools.core.presentation.formatStartupSeconds
+import com.arthur.roottools.core.presentation.formatUptime
+import com.arthur.roottools.feature.dashboard.presentation.categoryOrder
+import com.arthur.roottools.feature.dashboard.presentation.frequencyBins
+import com.arthur.roottools.feature.dashboard.presentation.rangeText
+import com.arthur.roottools.feature.dashboard.presentation.thermalStageLabel
+import com.arthur.roottools.feature.dashboard.ui.DailyHealthHistoryCard
+import com.arthur.roottools.feature.dashboard.ui.HealthDashboardScreen
+import com.arthur.roottools.feature.dashboard.ui.SamplingIntervalCard
+import com.arthur.roottools.feature.performance.ui.PerformanceScreen as FeaturePerformanceScreen
 import com.arthur.roottools.model.AppPolicyCategory
 import com.arthur.roottools.model.AppComponentRecord
+import com.arthur.roottools.model.AppOpRecord
 import com.arthur.roottools.model.ComponentKind
+import com.arthur.roottools.model.AdbEndpoint
+import com.arthur.roottools.model.AdbEndpointType
 import com.arthur.roottools.model.DeviceHealthSnapshot
 import com.arthur.roottools.model.DeviceSnapshot
 import com.arthur.roottools.model.HealthHistoryPoint
@@ -97,76 +127,67 @@ import com.arthur.roottools.model.PerformanceMode
 import com.arthur.roottools.model.ProcessHealth
 import com.arthur.roottools.model.RootShellRecord
 import com.arthur.roottools.model.StartupAppRecord
-import com.arthur.roottools.model.StartupDataSource
 import com.arthur.roottools.model.StorageSnapshot
 import com.arthur.roottools.model.StorageStatus
 import com.arthur.roottools.model.SystemActionId
 import com.arthur.roottools.model.ThermalStage
 import com.arthur.roottools.model.VectorModuleInfo
-import com.arthur.roottools.policy.ComponentSafetyPolicy
+import com.arthur.roottools.core.ui.component.RootToolsErrorCard as ErrorCard
+import com.arthur.roottools.core.ui.component.RootToolsDetailHeader as DetailHeader
+import com.arthur.roottools.core.ui.component.RootToolsKeyValueRow as SummaryRow
+import com.arthur.roottools.core.ui.component.RootToolsMetricTile as HealthMetric
+import com.arthur.roottools.core.ui.component.RootToolsSectionHeader as SectionLabel
+import com.arthur.roottools.core.ui.action.copyToClipboard
+import com.arthur.roottools.core.ui.action.openPackage
+import com.arthur.roottools.core.ui.action.shareDiagnosticFile
+import com.arthur.roottools.core.ui.action.shareText
+import com.arthur.roottools.feature.dashboard.presentation.categoryOrder
+import com.arthur.roottools.core.presentation.formatClockTime
+import com.arthur.roottools.core.presentation.formatGHz
+import com.arthur.roottools.core.presentation.formatMemoryKb
+import com.arthur.roottools.core.presentation.formatRelativeTime
+import com.arthur.roottools.core.presentation.formatStartupSeconds
+import com.arthur.roottools.core.presentation.formatUptime
+import com.arthur.roottools.feature.dashboard.presentation.frequencyBins
+import com.arthur.roottools.feature.dashboard.presentation.rangeText
+import com.arthur.roottools.feature.dashboard.presentation.thermalStageLabel
+import com.arthur.roottools.feature.integrity.ui.EnvironmentIntegrityRoute
 import java.io.File
 import kotlin.math.roundToInt
 
-private enum class ToolboxRoute {
-    HOME,
-    DASHBOARD,
-    PERFORMANCE,
-    ADB,
-    PERMISSIONS,
-    STARTUP,
-    APPS,
-    DIAGNOSTICS,
-    MODULES,
-    ACTIONS,
-    NETWORK,
-    STORAGE,
-    BATTERY,
-    SHIZUKU,
-    COMPONENTS,
-}
-
-private enum class ComponentViewFilter(val displayName: String) {
-    ALL("全部"),
-    BOOT("BOOT"),
-    EXPORTED("Exported"),
-    FGS("FGS"),
-    DISABLED("已停用"),
-}
-
-private data class ToolboxCard(
-    val title: String,
-    val subtitle: String,
-    val icon: ImageVector,
-    val accent: Color,
-    val route: ToolboxRoute?,
-    val badge: String? = null,
-)
-
 @Composable
-fun DashboardRoute(viewModel: DashboardViewModel) {
+fun DashboardRoute(
+    viewModel: DashboardViewModel,
+    openAdbOnStart: Boolean = false,
+    openIntegrityOnStart: Boolean = false,
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var route by rememberSaveable { mutableStateOf(ToolboxRoute.HOME) }
+    var route by rememberSaveable {
+        mutableStateOf(
+            when {
+                openAdbOnStart -> ToolboxRoute.ADB
+                openIntegrityOnStart -> ToolboxRoute.INTEGRITY
+                else -> ToolboxRoute.HOME
+            }
+        )
+    }
 
     LaunchedEffect(route) {
         viewModel.setDashboardSampling(route == ToolboxRoute.DASHBOARD || route == ToolboxRoute.BATTERY)
         if (route == ToolboxRoute.PERFORMANCE) viewModel.loadPerformanceExplain()
+        if (route == ToolboxRoute.ADB) viewModel.loadAdb()
         if (route == ToolboxRoute.PERMISSIONS) viewModel.loadModules()
         if (route == ToolboxRoute.STARTUP) viewModel.loadStartup()
-        if (route == ToolboxRoute.APPS) viewModel.loadApps()
+        if (route == ToolboxRoute.APPS) viewModel.loadAppControl()
         if (route == ToolboxRoute.DIAGNOSTICS) viewModel.loadDiagnostics()
         if (route == ToolboxRoute.MODULES) viewModel.loadModules()
         if (route == ToolboxRoute.ACTIONS) viewModel.loadAudit()
         if (route == ToolboxRoute.NETWORK) viewModel.loadNetwork()
         if (route == ToolboxRoute.STORAGE) viewModel.loadStorage()
-        if (route == ToolboxRoute.COMPONENTS) viewModel.loadComponentCatalog()
     }
 
     BackHandler(enabled = route != ToolboxRoute.HOME) {
-        if (route == ToolboxRoute.COMPONENTS && state.componentSnapshot != null) {
-            viewModel.closeComponents()
-        } else {
-            route = ToolboxRoute.HOME
-        }
+        route = ToolboxRoute.HOME
     }
 
     when (route) {
@@ -176,13 +197,13 @@ fun DashboardRoute(viewModel: DashboardViewModel) {
             onNavigate = { route = it },
         )
         ToolboxRoute.DASHBOARD -> HealthDashboardScreen(
-            state = state,
+            state = state.toHealthDashboardUiState(),
             onBack = { route = ToolboxRoute.HOME },
             onRefresh = viewModel::refresh,
             onSamplingSeconds = viewModel::setDetailSamplingSeconds,
         )
-        ToolboxRoute.PERFORMANCE -> PerformanceScreen(
-            state = state,
+        ToolboxRoute.PERFORMANCE -> FeaturePerformanceScreen(
+            state = state.toPerformanceUiState(),
             onBack = { route = ToolboxRoute.HOME },
             onRefresh = viewModel::refresh,
             onModeSelected = viewModel::setMode,
@@ -191,8 +212,11 @@ fun DashboardRoute(viewModel: DashboardViewModel) {
         ToolboxRoute.ADB -> AdbScreen(
             state = state,
             onBack = { route = ToolboxRoute.HOME },
-            onRefresh = viewModel::refresh,
+            onRefresh = viewModel::loadAdb,
             onAdbToggle = viewModel::toggleAdb,
+            onNativeWirelessToggle = viewModel::setNativeWireless,
+            onRootBootRestore = { viewModel.setAdbBootPolicy(restoreRootTcp = it) },
+            onNativeBootRestore = { viewModel.setAdbBootPolicy(restoreNativeWireless = it) },
         )
         ToolboxRoute.PERMISSIONS -> PermissionScreen(
             state = state,
@@ -206,16 +230,24 @@ fun DashboardRoute(viewModel: DashboardViewModel) {
             onBack = { route = ToolboxRoute.HOME },
             onRefresh = viewModel::loadStartup,
         )
-        ToolboxRoute.APPS -> AppsGovernanceScreen(
+        ToolboxRoute.APPS -> AppControlCenterScreen(
             state = state,
             onBack = { route = ToolboxRoute.HOME },
-            onRefresh = viewModel::loadApps,
+            onRefresh = viewModel::loadAppControl,
+            onSelectApp = viewModel::loadAppControlDetail,
+            onCloseDetail = viewModel::clearAppControlDetail,
             onFreeze = viewModel::freezePackage,
             onEnable = viewModel::enablePackage,
             onForceStop = viewModel::forceStopPackage,
             onBucket = viewModel::setPackageBucket,
             onBackground = viewModel::setPackageBackground,
-            onAppiumMode = viewModel::setAppiumTestMode,
+            onSetComponentEnabled = viewModel::setComponentEnabled,
+            onLaunchComponent = viewModel::launchComponent,
+            onSetRuntimePermission = viewModel::setRuntimePermission,
+            onSetAppOpMode = viewModel::setAppOpMode,
+            onLoadAppOps = viewModel::loadPermissionAppOps,
+            onLoadRuntime = viewModel::loadAppRuntime,
+            onExportDiagnostic = viewModel::exportAppControlDiagnostic,
         )
         ToolboxRoute.DIAGNOSTICS -> DiagnosticsScreen(
             state = state,
@@ -266,10 +298,17 @@ fun DashboardRoute(viewModel: DashboardViewModel) {
         ToolboxRoute.COMPONENTS -> ComponentManagerScreen(
             state = state,
             onBack = { route = ToolboxRoute.HOME },
-            onRefreshCatalog = viewModel::loadComponentCatalog,
-            onSelectPackage = viewModel::loadComponents,
-            onClosePackage = viewModel::closeComponents,
+            onLoad = viewModel::loadComponents,
             onSetEnabled = viewModel::setComponentEnabled,
+        )
+        ToolboxRoute.PERMISSION_OPS -> PermissionAppOpsScreen(
+            state = state,
+            onBack = { route = ToolboxRoute.HOME },
+            onLoad = viewModel::loadPermissionAppOps,
+            onSetMode = viewModel::setAppOpMode,
+        )
+        ToolboxRoute.INTEGRITY -> EnvironmentIntegrityRoute(
+            onBack = { route = ToolboxRoute.HOME },
         )
     }
 }
@@ -282,7 +321,9 @@ private fun ToolboxHomeScreen(
 ) {
     val snapshot = state.snapshot
     val health = state.health
-    val cards = ToolRegistry.tools.map { definition -> buildToolboxCard(definition, state) }
+    val cards = ToolRegistry.tools.map { definition ->
+        buildToolboxCard(definition, stringResource(definition.titleRes), state)
+    }
 
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         LazyColumn(
@@ -322,7 +363,7 @@ private fun ToolboxHomeScreen(
     }
 }
 
-private fun buildToolboxCard(definition: ToolDefinition, state: DashboardUiState): ToolboxCard {
+private fun buildToolboxCard(definition: ToolDefinition, title: String, state: DashboardUiState): ToolboxCard {
     val snapshot = state.snapshot
     val health = state.health
     val missingCapabilities = definition.requiredCapabilities.filterNot { capabilityAvailable(it, state) }
@@ -333,8 +374,16 @@ private fun buildToolboxCard(definition: ToolDefinition, state: DashboardUiState
         ) to (health.thermal.apC?.let { "%.0f°C".format(it) } ?: "LIVE")
         ToolId.PERFORMANCE -> "${state.mode.displayName} · ${snapshot.thermalStage().displayName}" to (snapshot.apTempC?.let { "%.0f°C".format(it) } ?: "CPU")
         ToolId.ROOT_ADB -> (
-            if (snapshot.adbEnabled) "${snapshot.tailscaleIpv4 ?: "TCP"}:${snapshot.adbPort ?: 5555}" else "一键开启 5555"
-        ) to if (snapshot.adbEnabled) "ON" else "OFF"
+            when {
+                state.adb.rootTcpEnabled -> "${state.adb.tailscaleIpv4 ?: state.adb.localIpv4 ?: "TCP"}:${state.adb.rootTcpPort ?: 5555}"
+                state.adb.nativeWirelessEnabled -> "Android Wireless Debugging 已开启"
+                else -> "Root TCP · Wireless · USB"
+            }
+        ) to when {
+            state.adb.rootTcpEnabled -> "TCP"
+            state.adb.nativeWirelessEnabled -> "WIFI"
+            else -> "OFF"
+        }
         ToolId.PERMISSIONS -> when {
             snapshot.rootAvailable && state.notificationsGranted -> "所需权限已就绪" to "ROOT"
             snapshot.rootAvailable -> "Root 已授权" to "CHECK"
@@ -345,9 +394,9 @@ private fun buildToolboxCard(definition: ToolDefinition, state: DashboardUiState
             else "开机时间线 · Receiver · 启动排名"
         ) to if (state.startup.apps.isNotEmpty()) state.startup.startedApps.toString() else "SCAN"
         ToolId.APPS -> (
-            if (state.startup.apps.isNotEmpty()) "${state.startup.frozenApps} frozen · ${state.startup.runningApps} running"
-            else "Freeze · Standby · AppOps · Shizuku"
-        ) to if (state.startup.dataSource == StartupDataSource.FRAMEWORK_CATALOG) "SHIZUKU" else if (state.startup.apps.isNotEmpty()) "LIVE" else "MANAGE"
+            if (state.appInventory.apps.isNotEmpty()) "${state.appInventory.apps.size} apps · ${state.appInventory.runningApps} running · ${state.appInventory.frozenApps} frozen"
+            else "Inventory · Components · Permissions · AppOps"
+        ) to if (state.appInventory.apps.isNotEmpty()) "${state.appInventory.apps.size}" else "MANAGE"
         ToolId.DIAGNOSTICS -> (
             if (state.diagnostics.topProcesses.isNotEmpty()) "Root shell ${state.diagnostics.abnormalRootShells} abnormal · ${state.diagnostics.services.size} services"
             else "Top CPU · Root Shell · WakeLock"
@@ -383,45 +432,29 @@ private fun buildToolboxCard(definition: ToolDefinition, state: DashboardUiState
             state.shizuku.managerInstalled || state.shizuku.suiAvailable -> "服务未连接 · 打开 Shizuku / Sui" to "OFF"
             else -> "未检测到 Shizuku / Sui" to "OFF"
         }
-        ToolId.COMPONENTS -> (
-            state.componentSnapshot?.let { "${it.label} · ${it.components.size} components · ${it.disabledCount} disabled" }
-                ?: if (state.componentCatalog.isNotEmpty()) "${state.componentCatalog.size} user apps · Activity / Service / Receiver / Provider"
-                else "BOOT · Exported · FGS · enable/disable"
-        ) to if (state.shizuku.ready) state.shizuku.backend.displayName.replace("Shizuku ", "") else "TOOLS"
+        ToolId.COMPONENTS -> state.componentSnapshot?.let { component ->
+            "${component.label} · ${component.components.size} components · ${component.disabledCount} disabled" to
+                if (component.systemApp) "READ" else "EDIT"
+        } ?: ("Activity · Service · Receiver · Provider" to "COMP")
+        ToolId.PERMISSION_OPS -> state.permissionOpsSnapshot?.let { info ->
+            "${info.label} · ${info.grantedPermissions}/${info.permissions.size} permissions · ${info.appOps.count { it.supported }} AppOps" to
+                if (info.appOpsBackendAvailable) "EDIT" else "READ"
+        } ?: ("Runtime Permission · AppOps · Special Access" to "PERM")
+        ToolId.INTEGRITY -> "Fast · Deep · Native · Attestation" to "SCAN"
     }
-    val subtitle = if (missingCapabilities.isNotEmpty()) {
-        "需要 ${missingCapabilities.joinToString(" / ") { capabilityLabel(it) }} · ${status.first}"
+    val setupTool = definition.id == ToolId.PERMISSIONS || definition.id == ToolId.SHIZUKU
+    val subtitle = if (missingCapabilities.isNotEmpty() && !setupTool) {
+        "缺 ${missingCapabilities.joinToString { it.name }} · ${status.first}"
     } else status.first
-    val badge = if (missingCapabilities.isNotEmpty()) "SETUP" else status.second
+    val badge = if (missingCapabilities.isNotEmpty() && !setupTool) "SETUP" else status.second
     return ToolboxCard(
-        title = definition.title,
+        title = title,
         subtitle = subtitle,
         icon = definition.icon,
         accent = definition.accent,
-        route = if (
-            missingCapabilities.isEmpty() ||
-            definition.id == ToolId.SHIZUKU ||
-            definition.id == ToolId.PERMISSIONS
-        ) routeFor(definition.id) else null,
+        route = routeFor(definition.id),
         badge = badge,
     )
-}
-
-private fun routeFor(id: ToolId): ToolboxRoute = when (id) {
-    ToolId.DASHBOARD -> ToolboxRoute.DASHBOARD
-    ToolId.PERFORMANCE -> ToolboxRoute.PERFORMANCE
-    ToolId.ROOT_ADB -> ToolboxRoute.ADB
-    ToolId.PERMISSIONS -> ToolboxRoute.PERMISSIONS
-    ToolId.STARTUP -> ToolboxRoute.STARTUP
-    ToolId.APPS -> ToolboxRoute.APPS
-    ToolId.DIAGNOSTICS -> ToolboxRoute.DIAGNOSTICS
-    ToolId.MODULES -> ToolboxRoute.MODULES
-    ToolId.ACTIONS -> ToolboxRoute.ACTIONS
-    ToolId.NETWORK -> ToolboxRoute.NETWORK
-    ToolId.STORAGE -> ToolboxRoute.STORAGE
-    ToolId.BATTERY -> ToolboxRoute.BATTERY
-    ToolId.SHIZUKU -> ToolboxRoute.SHIZUKU
-    ToolId.COMPONENTS -> ToolboxRoute.COMPONENTS
 }
 
 @Composable
@@ -552,541 +585,24 @@ private fun QuickSummaryCard(snapshot: DeviceSnapshot, health: DeviceHealthSnaps
 }
 
 @Composable
-private fun HealthDashboardScreen(
-    state: DashboardUiState,
-    onBack: () -> Unit,
-    onRefresh: () -> Unit,
-    onSamplingSeconds: (Int) -> Unit,
-) {
-    val health = state.health
-    val history = state.healthHistory
-    val dailyHistory = state.dailyHealthHistory
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 36.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            item {
-                DetailHeader(
-                    title = "设备看板",
-                    subtitle = "${state.detailSamplingSeconds} 秒轻量采样 · Top Process 每 10 秒",
-                    onBack = onBack,
-                    loading = state.loading,
-                    onRefresh = onRefresh,
-                )
-            }
-            item { SamplingIntervalCard(state.detailSamplingSeconds, onSamplingSeconds) }
-            item { HealthOverviewCard(health, history) }
-            item { DailyHealthHistoryCard(dailyHistory) }
-            item { SectionLabel("CPU / Load", "WALT 调度状态与每簇实时频率") }
-            item { CpuHealthCard(health) }
-            item { SchedulerHealthCard(health) }
-            item { FrequencyDistributionCard(health, history) }
-            item { SectionLabel("Memory / ZRAM", "以 MemAvailable + PSI 判断真实压力") }
-            item { MemoryHealthCard(health) }
-            item { TopMemoryCard(health) }
-            item { LmkHealthCard(health) }
-            item { SectionLabel("Thermal / Battery", "不关闭 Samsung Thermal，只观测状态") }
-            item { ThermalBatteryCard(health) }
-            item { SectionLabel("Process / System", "Top CPU 每 10 秒低频采样") }
-            item { ProcessHealthCard(health) }
-            if (!health.rootAvailable) {
-                item { ErrorCard("看板等待 Root 数据。请先在权限中心完成 Magisk 授权。") }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HealthOverviewCard(health: DeviceHealthSnapshot, history: List<HealthHistoryPoint>) {
-    Card(
-        shape = RoundedCornerShape(26.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-    ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                HealthMetric("CPU", "%.0f%%".format(health.cpuUsagePercent), "idle %.0f%%".format(health.cpuIdlePercent), Modifier.weight(1f))
-                HealthMetric("Memory", "%.1f GB".format(health.memory.availableKb / 1_048_576f), "available", Modifier.weight(1f))
-                HealthMetric("AP", health.thermal.apC?.let { "%.1f°".format(it) } ?: "—", "Thermal ${health.thermal.status}", Modifier.weight(1f))
-            }
-            if (history.size >= 2) {
-                Text("最近状态", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                HistorySparkline(history)
-            }
-            val abnormal = health.abnormalRootShell
-            if (abnormal != null) {
-                Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(16.dp)) {
-                    Text(
-                        "检测到 Root Shell 高 CPU：PID ${abnormal.pid} · %.0f%%".format(abnormal.cpuPercent),
-                        modifier = Modifier.padding(12.dp),
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HealthMetric(label: String, value: String, note: String, modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(18.dp)) {
-        Column(Modifier.padding(12.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(4.dp))
-            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(note, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
-private fun HistorySparkline(history: List<HealthHistoryPoint>, maxPoints: Int = 90) {
-    val points = history.takeLast(maxPoints)
-    val tint = MaterialTheme.colorScheme.primary
-    Canvas(modifier = Modifier.fillMaxWidth().height(72.dp)) {
-        if (points.size < 2) return@Canvas
-        val max = 100f
-        val step = size.width / (points.size - 1).coerceAtLeast(1)
-        for (index in 0 until points.lastIndex) {
-            val start = points[index]
-            val end = points[index + 1]
-            drawLine(
-                color = tint,
-                start = androidx.compose.ui.geometry.Offset(index * step, size.height * (1f - start.cpuUsagePercent / max)),
-                end = androidx.compose.ui.geometry.Offset((index + 1) * step, size.height * (1f - end.cpuUsagePercent / max)),
-                strokeWidth = 5f,
-                cap = StrokeCap.Round,
-            )
-        }
-    }
-}
-
-@Composable
-private fun SamplingIntervalCard(selectedSeconds: Int, onSelected: (Int) -> Unit) {
-    Card(
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("详情采样间隔", fontWeight = FontWeight.Bold)
-                    Text("首页固定 30 秒；Top Process 最快仍为 10 秒", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text("${selectedSeconds}s", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(1, 2, 5).forEach { seconds ->
-                    FilterChip(
-                        modifier = Modifier.weight(1f),
-                        selected = selectedSeconds == seconds,
-                        onClick = { onSelected(seconds) },
-                        label = { Text(if (seconds == 1) "1s 实验" else "${seconds}s") },
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DailyHealthHistoryCard(history: List<HealthHistoryPoint>) {
-    val ap = history.mapNotNull { it.apTempC }
-    val skin = history.mapNotNull { it.skinTempC }
-    val batteries = history.mapNotNull { it.batteryLevel }
-    val minMem = history.minOfOrNull { it.memoryAvailableKb }
-    val peakCpu = history.maxOfOrNull { it.cpuUsagePercent }
-    Card(
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column {
-                    Text("24h 轻量历史", fontWeight = FontWeight.Bold)
-                    Text("每 5 分钟最多 1 点 · 最多 288 点", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text("${history.size}/288", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-            }
-            if (history.size >= 2) {
-                HistorySparkline(history, maxPoints = 288)
-                SummaryRow("CPU peak", peakCpu?.let { "%.0f%%".format(it) } ?: "—")
-                SummaryRow("MemAvailable min", minMem?.let { "%.1f GB".format(it / 1_048_576f) } ?: "—")
-                SummaryRow("AP min / max", rangeText(ap))
-                SummaryRow("Skin min / max", rangeText(skin))
-                SummaryRow(
-                    "Battery min / max",
-                    if (batteries.isEmpty()) "—" else "${batteries.minOrNull()}% / ${batteries.maxOrNull()}%",
-                )
-            } else {
-                Text("持久历史将在采样满 5 分钟后开始累积；应用升级不会清空该文件。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}
-
-@Composable
-private fun TemperatureSparkline(history: List<HealthHistoryPoint>) {
-    val cutoff = System.currentTimeMillis() - 30 * 60_000L
-    val points = history.filter { it.timestampMs >= cutoff && (it.apTempC != null || it.skinTempC != null) }
-    val apColor = MaterialTheme.colorScheme.tertiary
-    val skinColor = MaterialTheme.colorScheme.primary
-    val values = points.flatMap { listOfNotNull(it.apTempC, it.skinTempC) }
-    val minValue = (values.minOrNull() ?: 25f) - 1f
-    val maxValue = (values.maxOrNull() ?: 45f) + 1f
-    val range = (maxValue - minValue).coerceAtLeast(1f)
-    Canvas(modifier = Modifier.fillMaxWidth().height(88.dp)) {
-        if (points.size < 2) return@Canvas
-        val step = size.width / (points.size - 1).coerceAtLeast(1)
-        fun y(value: Float) = size.height * (1f - (value - minValue) / range)
-        for (index in 0 until points.lastIndex) {
-            val start = points[index]
-            val end = points[index + 1]
-            if (start.apTempC != null && end.apTempC != null) {
-                drawLine(
-                    color = apColor,
-                    start = androidx.compose.ui.geometry.Offset(index * step, y(start.apTempC)),
-                    end = androidx.compose.ui.geometry.Offset((index + 1) * step, y(end.apTempC)),
-                    strokeWidth = 4f,
-                    cap = StrokeCap.Round,
-                )
-            }
-            if (start.skinTempC != null && end.skinTempC != null) {
-                drawLine(
-                    color = skinColor,
-                    start = androidx.compose.ui.geometry.Offset(index * step, y(start.skinTempC)),
-                    end = androidx.compose.ui.geometry.Offset((index + 1) * step, y(end.skinTempC)),
-                    strokeWidth = 4f,
-                    cap = StrokeCap.Round,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CpuHealthCard(health: DeviceHealthSnapshot) {
-    Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("CPU %.0f%%".format(health.cpuUsagePercent), fontWeight = FontWeight.Bold)
-                Text("Load %.2f / %.2f / %.2f".format(health.load1, health.load5, health.load15), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            health.cpuClusters.forEachIndexed { index, cluster ->
-                if (index > 0) HorizontalDivider()
-                val title = when {
-                    index == 0 -> "能效核"
-                    index == health.cpuClusters.lastIndex && index >= 2 -> "超大核"
-                    else -> "性能核"
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column {
-                        Text("$title · CPU ${cluster.relatedCpus}", fontWeight = FontWeight.SemiBold)
-                        Text(
-                            "${cluster.governor.ifBlank { "—" }} · util ${"%.0f".format(cluster.utilizationPercent)}%",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(formatGHz(cluster.currentKHz), fontWeight = FontWeight.Bold)
-                        Text("max ${formatGHz(cluster.scalingMaxKHz)} / hw ${formatGHz(cluster.hardwareMaxKHz)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SchedulerHealthCard(health: DeviceHealthSnapshot) {
-    Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Text("Scheduler / uclamp", fontWeight = FontWeight.Bold)
-            if (health.scheduler.groups.isEmpty()) {
-                Text("等待 scheduler 快照…", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                health.scheduler.groups.forEachIndexed { index, group ->
-                    if (index > 0) HorizontalDivider()
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(group.name, fontWeight = FontWeight.SemiBold)
-                            Text("CPU ${group.cpus.ifBlank { "—" }}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Text(
-                            when {
-                                group.uclampMin != null || group.uclampMax != null -> "${group.uclampMin ?: "—"} → ${group.uclampMax ?: "—"}"
-                                else -> "cpuset"
-                            },
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-            Text(
-                "这里只读系统调度状态；Root Tools 不在看板页修改 cpuset / uclamp。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun FrequencyDistributionCard(health: DeviceHealthSnapshot, history: List<HealthHistoryPoint>) {
-    Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
-            Text("Frequency distribution", fontWeight = FontWeight.Bold)
-            Text("相对 hardware max：<35% / 35~60% / 60~80% / >80%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (history.none { it.clusterCurrentKHz.isNotEmpty() }) {
-                Text("等待频率历史…", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                health.cpuClusters.forEachIndexed { index, cluster ->
-                    val name = when {
-                        index == 0 -> "Efficiency"
-                        index == health.cpuClusters.lastIndex && index >= 2 -> "Prime"
-                        else -> "Big"
-                    }
-                    val five = frequencyBins(history, cluster.policyId, cluster.hardwareMaxKHz, 5 * 60_000L)
-                    val thirty = frequencyBins(history, cluster.policyId, cluster.hardwareMaxKHz, 30 * 60_000L)
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("$name · CPU ${cluster.relatedCpus}", fontWeight = FontWeight.SemiBold)
-                        Text("5m   ${five.asLabel()}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("30m ${thirty.asLabel()}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MemoryHealthCard(health: DeviceHealthSnapshot) {
-    val memory = health.memory
-    val statusColor = when (memory.status) {
-        MemoryPressureStatus.HEALTHY -> MaterialTheme.colorScheme.primary
-        MemoryPressureStatus.WATCH -> Color(0xFFFFB74D)
-        MemoryPressureStatus.PRESSURE -> MaterialTheme.colorScheme.error
-    }
-    Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("${memory.status.displayName} · %.1f GB available".format(memory.availableKb / 1_048_576f), fontWeight = FontWeight.Bold)
-                Box(Modifier.size(9.dp).clip(CircleShape).background(statusColor))
-            }
-            SummaryRow("MemTotal", "%.1f GB".format(memory.totalKb / 1_048_576f))
-            SummaryRow("Cached / Anon", "%.1f / %.1f GB".format(memory.cachedKb / 1_048_576f, memory.anonKb / 1_048_576f))
-            SummaryRow("Swap", "%.1f / %.1f GB".format(memory.swapUsedKb / 1_048_576f, memory.swapTotalKb / 1_048_576f))
-            SummaryRow("ZRAM compression", if (memory.compressionRatio > 0f) "%.2fx".format(memory.compressionRatio) else "—")
-            SummaryRow("Memory PSI", "some %.2f · full %.2f".format(memory.pressure.someAvg10, memory.pressure.fullAvg10))
-            SummaryRow("IO PSI", "some %.2f · full %.2f".format(health.ioPressure.someAvg10, health.ioPressure.fullAvg10))
-            if (memory.swapUsedRatio >= 0.8f && memory.status == MemoryPressureStatus.HEALTHY) {
-                Text(
-                    "Swap 使用率高，但 MemAvailable 与 PSI 正常：当前不属于真实内存压力。",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TopMemoryCard(health: DeviceHealthSnapshot) {
-    Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Top RSS / PSS", fontWeight = FontWeight.Bold)
-            Text("只对 RSS Top 6 读取 smaps_rollup", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (health.topMemoryProcesses.isEmpty()) {
-                Text("等待下一次 10 秒内存进程采样…", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                health.topMemoryProcesses.forEach { process ->
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(process.processName, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
-                            Text("PID ${process.pid} · ${process.user}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("RSS ${formatMemoryKb(process.rssKb)}", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                            Text("PSS ${formatMemoryKb(process.pssKb)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LmkHealthCard(health: DeviceHealthSnapshot) {
-    Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("LMKD / low memory", fontWeight = FontWeight.Bold)
-                Text("${health.lmk.chimeraKillCount} LMKD", color = if (health.lmk.chimeraKillCount > 0) Color(0xFFFFB74D) else MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-            }
-            SummaryRow("Recent am_kill", health.lmk.recentKillCount.toString())
-            if (health.lmk.config.isNotEmpty()) {
-                health.lmk.config.entries.take(6).forEach { (key, value) -> SummaryRow(key, value) }
-            } else {
-                Text("设备未暴露 ro.lmk.* 静态参数；以 MemAvailable + PSI + kill 事件判断压力。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            health.lmk.recentReasons.takeLast(3).forEach { reason ->
-                Text(reason, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ThermalBatteryCard(health: DeviceHealthSnapshot) {
-    val thermal = health.thermal
-    val battery = health.battery
-    Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                HealthMetric("AP", thermal.apC?.let { "%.1f°".format(it) } ?: "—", "status ${thermal.status}", Modifier.weight(1f))
-                HealthMetric("Skin", thermal.skinC?.let { "%.1f°".format(it) } ?: "—", "surface", Modifier.weight(1f))
-                HealthMetric("Battery", thermal.batteryC?.let { "%.1f°".format(it) } ?: "—", "${battery.level ?: 0}%", Modifier.weight(1f))
-            }
-            SummaryRow("USB / PATHM", "${thermal.usbC?.let { "%.1f°".format(it) } ?: "—"} / ${thermal.pathmC?.let { "%.1f°".format(it) } ?: "—"}")
-            SummaryRow("Charging", if (battery.charging) "正在充电" else "未充电")
-            SummaryRow("Voltage / Current", "${battery.voltageMv ?: 0} mV / ${battery.currentMa ?: 0} mA")
-            SummaryRow("Battery protection", if (battery.protectionEnabled) "ON · ${battery.protectionThreshold ?: 80}%" else "OFF")
-        }
-    }
-}
-
-@Composable
-private fun ProcessHealthCard(health: DeviceHealthSnapshot) {
-    Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SummaryRow("Uptime", formatUptime(health.uptimeSeconds))
-            SummaryRow("Processes", health.processCount.toString())
-            HorizontalDivider()
-            if (health.topProcesses.isEmpty()) {
-                Text("等待下一次 Top Process 采样…", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                health.topProcesses.take(6).forEach { process -> ProcessRow(process) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProcessRow(process: ProcessHealth) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(process.processName, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
-            Text("PID ${process.pid} · ${process.user} · RSS ${process.rss}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Text("%.1f%%".format(process.cpuPercent), fontWeight = FontWeight.Bold, color = if (process.isRootShell && process.cpuPercent >= 50f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
-    }
-}
-
-@Composable
-private fun SummaryRow(label: String, value: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
-    }
-}
-
-@Composable
-private fun PerformanceScreen(
-    state: DashboardUiState,
-    onBack: () -> Unit,
-    onRefresh: () -> Unit,
-    onModeSelected: (PerformanceMode) -> Unit,
-    onReleaseCaps: () -> Unit,
-) {
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(18.dp, 14.dp, 18.dp, 34.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            item { DetailHeader("性能控制", "温度驱动 · 不关闭 Samsung Thermal", onBack, state.loading, onRefresh) }
-            item { HeroCard(state.snapshot, state.mode) }
-            item {
-                PerformanceModeCard(
-                    mode = state.mode,
-                    stage = state.snapshot.thermalStage(),
-                    busy = state.actionInProgress,
-                    onModeSelected = onModeSelected,
-                )
-            }
-            item { SectionLabel("CPU 实时状态", "WALT 继续负责调度，Root Tools 只做安全限峰") }
-            itemsIndexed(state.snapshot.cpuClusters) { index, cluster ->
-                val capState = state.cpuCapStates.firstOrNull { it.policyId == cluster.policyId }
-                CpuClusterCard(
-                    cluster,
-                    when {
-                        index == 0 -> "能效核"
-                        index == state.snapshot.cpuClusters.lastIndex && index >= 2 -> "超大核"
-                        else -> "性能核"
-                    },
-                    capState,
-                )
-            }
-            item {
-                OutlinedButton(
-                    onClick = onReleaseCaps,
-                    enabled = !state.actionInProgress && state.cpuCapStates.any { it.source == com.arthur.roottools.model.CpuCapSource.ROOT_TOOLS },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("释放 Root Tools 自己拥有的 CPU cap")
-                }
-            }
-            item { SectionLabel("策略历史", "只记录模式变化与真实 cap 写入，不记录轮询") }
-            item { CpuPolicyHistoryCard(state) }
-            state.actionMessage?.let { item { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
-            state.error?.let { item { ErrorCard(it) } }
-            item { SafetyCard() }
-        }
-    }
-}
-
-@Composable
-private fun CpuPolicyHistoryCard(state: DashboardUiState) {
-    Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (state.cpuPolicyEvents.isEmpty()) {
-                Text("暂无策略变化记录。", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                state.cpuPolicyEvents.take(12).forEachIndexed { index, event ->
-                    if (index > 0) HorizontalDivider()
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                        Column(Modifier.weight(1f)) {
-                            Text(event.type.name, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                            Text(event.message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Text(formatRelativeTime(event.timestampMs), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun AdbScreen(
     state: DashboardUiState,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onAdbToggle: () -> Unit,
+    onNativeWirelessToggle: (Boolean) -> Unit,
+    onRootBootRestore: (Boolean) -> Unit,
+    onNativeBootRestore: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
+    val adb = state.adb
     var confirmDisable by remember { mutableStateOf(false) }
     if (confirmDisable) {
         AlertDialog(
             onDismissRequest = { confirmDisable = false },
             title = { Text("关闭 Root ADB？") },
             text = {
-                Text("当前管理链路可能正通过 Tailscale + ADB 5555 连接。关闭后这次远程会话可能立即失联，且重启后 5555 尚未保证自动恢复。")
+                Text("当前管理链路可能正通过 ${adb.tailscaleIpv4 ?: "网络"}:${adb.rootTcpPort ?: 5555} 连接。关闭 Root TCP 后，这次远程 ADB 会话可能立即失联。")
             },
             confirmButton = {
                 TextButton(onClick = { confirmDisable = false; onAdbToggle() }) { Text("仍然关闭") }
@@ -1100,21 +616,258 @@ private fun AdbScreen(
             contentPadding = PaddingValues(18.dp, 14.dp, 18.dp, 34.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item { DetailHeader("Root ADB", "移动网络也可配合 Tailscale 使用", onBack, state.loading, onRefresh) }
+            item { DetailHeader("ADB Control Center", "Root TCP · Android Wireless · USB", onBack, state.adbLoading, onRefresh) }
             item {
-                AdbCard(
-                    snapshot = state.snapshot,
-                    busy = state.actionInProgress,
-                    onToggle = {
-                        if (state.snapshot.adbEnabled) confirmDisable = true else onAdbToggle()
-                    },
-                    onCopy = { copyToClipboard(context, it) },
-                    onDeveloperSettings = {
-                        runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)) }
-                    },
-                )
+                Card(
+                    shape = RoundedCornerShape(26.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                Modifier.size(48.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.13f),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Rounded.WifiTethering, null, tint = MaterialTheme.colorScheme.secondary)
+                                }
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("连接总览", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    when {
+                                        !adb.rootAvailable -> "等待 Root 权限"
+                                        adb.rootTcpEnabled && adb.nativeWirelessEnabled -> "Root TCP 与 Wireless Debugging 均在线"
+                                        adb.rootTcpEnabled -> "Root TCP 在线"
+                                        adb.nativeWirelessEnabled -> "Wireless Debugging 在线"
+                                        else -> "当前无线 ADB 未开启"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (adb.rootTcpEnabled || adb.nativeWirelessEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.13f) else MaterialTheme.colorScheme.surfaceVariant,
+                            ) {
+                                Text(
+                                    if (adb.rootTcpEnabled || adb.nativeWirelessEnabled) "ONLINE" else "OFF",
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (adb.rootTcpEnabled || adb.nativeWirelessEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
+                        AdbToggleRow(
+                            title = "Root TCP ADB",
+                            subtitle = if (adb.rootTcpEnabled) "监听 ${adb.rootTcpPort ?: 5555} · 适合 Tailscale / 远程管理" else "固定 5555 · 不依赖同一 Wi‑Fi",
+                            checked = adb.rootTcpEnabled,
+                            enabled = adb.rootAvailable && !state.actionInProgress,
+                            onCheckedChange = {
+                                if (adb.rootTcpEnabled) confirmDisable = true else onAdbToggle()
+                            },
+                        )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                        AdbToggleRow(
+                            title = "Android Wireless Debugging",
+                            subtitle = when {
+                                !adb.nativeWirelessSupported -> "系统未报告支持"
+                                adb.nativeWirelessEnabled && adb.nativeTlsPort != null -> "TLS 动态端口 ${adb.nativeTlsPort}"
+                                adb.nativeWirelessEnabled -> "已开启 · 等待 Wi‑Fi / TLS listener"
+                                else -> "Android 11+ 原生无线调试与配对体系"
+                            },
+                            checked = adb.nativeWirelessEnabled,
+                            enabled = adb.rootAvailable && adb.nativeWirelessSupported && !state.actionInProgress,
+                            onCheckedChange = onNativeWirelessToggle,
+                        )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Terminal, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("USB Debugging", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    if (adb.usbTransportActive) "USB ADB transport 当前可用" else if (adb.usbDebuggingEnabled) "ADB 已允许，当前未检测到 USB ADB transport" else "系统 ADB Debugging 未开启",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Text(if (adb.usbTransportActive) "ACTIVE" else if (adb.usbDebuggingEnabled) "READY" else "OFF", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
+
+            item { SectionLabel("Connection Endpoints", "优先使用 Tailscale；局域网和 Native TLS 作为补充") }
+            if (adb.endpoints.isEmpty()) {
+                item {
+                    Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("暂无可连接 Endpoint", fontWeight = FontWeight.SemiBold)
+                            Text("开启 Root TCP 或 Android Wireless Debugging 后，这里会显示可以复制和分享的连接地址。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            } else {
+                itemsIndexed(adb.endpoints) { index, endpoint ->
+                    AdbEndpointCard(
+                        endpoint = endpoint,
+                        onCopy = { copyToClipboard(context, endpoint.connectCommand) },
+                        onShare = { shareText(context, "Root Tools ADB", endpoint.connectCommand) },
+                    )
+                }
+            }
+
+            item { SectionLabel("Pairing & Trusted Devices", "只展示受信任主机名称，不在 UI 暴露 ADB 公钥") }
+            item {
+                Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Security, null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("系统配对", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "Wireless ${if (adb.nativeWirelessSupported) "supported" else "unsupported"} · QR ${if (adb.nativeWirelessQrSupported) "supported" else "unsupported"}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            OutlinedButton(onClick = {
+                                runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)) }
+                            }) { Text("开发者选项") }
+                        }
+                        HorizontalDivider()
+                        if (adb.trustedHosts.isEmpty()) {
+                            Text("暂未读取到已授权主机。新设备配对仍建议在系统 Wireless Debugging 页面完成。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            adb.trustedHosts.forEach { host ->
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Rounded.CheckCircle, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(host, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                                    Text("TRUSTED", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            item { SectionLabel("Startup & Persistence", "只在你显式开启时恢复；不做常驻 1 秒轮询") }
+            item {
+                Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        AdbToggleRow(
+                            title = "重启后恢复 Root TCP 5555",
+                            subtitle = "BOOT_COMPLETED / USER_UNLOCKED 触发；失败只做有限次数重试",
+                            checked = adb.bootPolicy.restoreRootTcp,
+                            enabled = adb.rootAvailable,
+                            onCheckedChange = onRootBootRestore,
+                        )
+                        HorizontalDivider()
+                        AdbToggleRow(
+                            title = "重启后恢复 Wireless Debugging",
+                            subtitle = "恢复 adb_wifi_enabled；实际 TLS listener 仍取决于系统和 Wi‑Fi",
+                            checked = adb.bootPolicy.restoreNativeWireless,
+                            enabled = adb.rootAvailable && adb.nativeWirelessSupported,
+                            onCheckedChange = onNativeBootRestore,
+                        )
+                    }
+                }
+            }
+
+            item { SectionLabel("Quick Entry", "通知栏 Tile + 桌面 Widget，共用同一 AdbController") }
             item { QuickTileCard() }
+            item {
+                Surface(color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.07f), shape = RoundedCornerShape(20.dp)) {
+                    Row(Modifier.padding(15.dp), verticalAlignment = Alignment.Top) {
+                        Icon(Icons.Rounded.Bolt, null, tint = MaterialTheme.colorScheme.secondary)
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text("Launcher Widget", fontWeight = FontWeight.SemiBold)
+                            Text("桌面添加 Root Tools 的 2×1 ADB Widget：关闭时可一键开启 Root TCP；已开启时点击进入 Control Center。状态按事件刷新，不做高频 Root polling。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+            state.actionMessage?.let { item { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+            state.error?.let { item { ErrorCard(it) } }
+            item {
+                Surface(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.055f), shape = RoundedCornerShape(18.dp)) {
+                    Row(Modifier.padding(15.dp), verticalAlignment = Alignment.Top) {
+                        Icon(Icons.Rounded.Security, null, modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(9.dp))
+                        Text("Root TCP 默认不做公网暴露；远程连接优先走 Tailscale。Quick Tile、Widget 与 Automation 只允许“确保开启”，关闭动作只保留在本页并要求确认。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdbToggleRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.width(10.dp))
+        Switch(checked = checked, enabled = enabled, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun AdbEndpointCard(
+    endpoint: AdbEndpoint,
+    onCopy: () -> Unit,
+    onShare: () -> Unit,
+) {
+    Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+        Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    if (endpoint.type == AdbEndpointType.TAILSCALE) Icons.Rounded.Security else Icons.Rounded.SettingsEthernet,
+                    null,
+                    tint = if (endpoint.recommended) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(endpoint.type.displayName, fontWeight = FontWeight.SemiBold)
+                        if (endpoint.recommended) {
+                            Spacer(Modifier.width(8.dp))
+                            Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)) {
+                                Text("推荐", modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                    Text(endpoint.address, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                OutlinedButton(onClick = onCopy, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Rounded.ContentCopy, null, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("复制 adb connect")
+                }
+                OutlinedButton(onClick = onShare) {
+                    Icon(Icons.Rounded.Share, null, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("分享")
+                }
+            }
         }
     }
 }
@@ -1221,15 +974,11 @@ private fun AppsGovernanceScreen(
     onAppiumMode: (Boolean) -> Unit,
 ) {
     var pendingFreeze by remember { mutableStateOf<StartupAppRecord?>(null) }
-    val frameworkCatalog = state.startup.dataSource == StartupDataSource.FRAMEWORK_CATALOG
-    val candidates = if (frameworkCatalog) {
-        state.startup.apps.sortedBy { it.label.lowercase() }.take(80)
-    } else {
-        state.startup.apps
-            .filter { it.category != AppPolicyCategory.NORMAL || it.disabled || it.running || it.bootReceiverCount > 0 }
-            .sortedWith(compareBy<StartupAppRecord> { categoryOrder(it.category) }.thenByDescending { it.startupRiskScore })
-            .take(40)
-    }
+    val writeAvailable = state.snapshot.rootAvailable || state.shizuku.ready
+    val candidates = state.startup.apps
+        .filter { state.startup.degradedMode || it.category != AppPolicyCategory.NORMAL || it.disabled || it.running || it.bootReceiverCount > 0 }
+        .sortedWith(compareBy<StartupAppRecord> { categoryOrder(it.category) }.thenByDescending { it.startupRiskScore })
+        .take(if (state.startup.degradedMode) 100 else 40)
 
     pendingFreeze?.let { app ->
         AlertDialog(
@@ -1252,36 +1001,32 @@ private fun AppsGovernanceScreen(
             item {
                 DetailHeader(
                     title = "应用治理",
-                    subtitle = "Freeze · Standby · AppOps · Test Mode",
+                    subtitle = "${state.startup.source} · Freeze · Standby · AppOps",
                     onBack = onBack,
                     loading = state.startupLoading || state.actionInProgress,
                     onRefresh = onRefresh,
                 )
+            }
+            if (state.startup.degradedMode) {
+                item {
+                    Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = RoundedCornerShape(16.dp)) {
+                        Text(
+                            "当前是 Framework/Shizuku 治理模式：应用目录、运行/禁用、Bucket、BOOT Receiver 可用；没有 Root 的 am_proc_start 时间线不会伪造。",
+                            Modifier.padding(12.dp),
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
             }
             item {
                 Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
                     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Appium 测试模式", fontWeight = FontWeight.Bold)
-                            Text(
-                                if (frameworkCatalog) "Framework catalog 模式不推断当前 Appium 状态" else "Notification Listener + Doze whitelist 按需启用",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            Text("Notification Listener + Doze whitelist 按需启用", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Switch(checked = state.startup.appiumTestMode, onCheckedChange = onAppiumMode, enabled = !state.actionInProgress && !frameworkCatalog)
-                    }
-                }
-            }
-            if (frameworkCatalog) {
-                item {
-                    Surface(color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f), shape = RoundedCornerShape(16.dp)) {
-                        Text(
-                            "当前没有 Root boot trace，因此使用本地 PackageManager + Shizuku/Sui 的降级模式。Freeze / Enable / Force stop / Standby / AppOps 仍通过 typed privilege backend 执行；运行中状态不做猜测。",
-                            Modifier.padding(13.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        )
+                        Switch(checked = state.startup.appiumTestMode, onCheckedChange = onAppiumMode, enabled = writeAvailable && !state.actionInProgress)
                     }
                 }
             }
@@ -1299,7 +1044,7 @@ private fun AppsGovernanceScreen(
                 itemsIndexed(candidates) { _, app ->
                     AppPolicyCard(
                         app = app,
-                        busy = state.actionInProgress,
+                        busy = state.actionInProgress || !writeAvailable,
                         onFreeze = { pendingFreeze = app },
                         onEnable = { onEnable(app.packageName) },
                         onForceStop = { onForceStop(app.packageName) },
@@ -1307,7 +1052,6 @@ private fun AppsGovernanceScreen(
                         onRestricted = { onBucket(app.packageName, 45) },
                         onAllowBackground = { onBackground(app.packageName, true) },
                         onIgnoreBackground = { onBackground(app.packageName, false) },
-                        runtimeKnown = !frameworkCatalog,
                     )
                 }
             }
@@ -1327,7 +1071,6 @@ private fun AppPolicyCard(
     onRestricted: () -> Unit,
     onAllowBackground: () -> Unit,
     onIgnoreBackground: () -> Unit,
-    runtimeKnown: Boolean,
 ) {
     Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -1339,7 +1082,7 @@ private fun AppPolicyCard(
                 PolicyBadge(app.category)
             }
             Text(
-                "${if (runtimeKnown) if (app.running) "Running" else "Stopped" else "Runtime —"} · ${if (app.disabled) "Frozen" else "Enabled"} · Bucket ${app.standbyBucket ?: "—"} · Boot ${app.bootReceiverCount}",
+                "${if (app.running) "Running" else "Stopped"} · ${if (app.disabled) "Frozen" else "Enabled"} · Bucket ${app.standbyBucket ?: "—"} · Boot ${app.bootReceiverCount}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1824,7 +1567,7 @@ private fun CommonActionsScreen(
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         OutlinedButton(onClick = { copyToClipboard(context, state.automationToken) }) { Text("复制 token") }
-                        Text("允许：SET_MODE / SET_ADB / RUN_DIAGNOSTIC / FREEZE / UNFREEZE", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("允许：SET_MODE / SET_ADB / SET_NATIVE_ADB / RUN_DIAGNOSTIC / FREEZE / UNFREEZE", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         val performanceCommand = "adb shell am broadcast -n com.arthur.roottools/.automation.ActionRouterReceiver -a com.arthur.roottools.ACTION --es token ${state.automationToken} --es command SET_MODE --es mode PERFORMANCE"
                         val autoCommand = "adb shell am broadcast -n com.arthur.roottools/.automation.ActionRouterReceiver -a com.arthur.roottools.ACTION --es token ${state.automationToken} --es command SET_MODE --es mode AUTO"
                         Text("App 白名单：MacroDroid 在应用进入时切 Performance，退出时切 Auto；Root Tools 不长期监听前台 App。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -2146,7 +1889,7 @@ private fun BatteryThermalScreen(
                         }
                         if (history.size >= 2) {
                             Text("30m thermal trend · AP / Skin", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            TemperatureSparkline(history)
+                            RootToolsTemperatureSparkline(history)
                         }
                     }
                 }
@@ -2289,12 +2032,12 @@ private fun PermissionScreen(
                         }
                         Spacer(Modifier.width(11.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(definition.title, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(definition.titleRes), fontWeight = FontWeight.SemiBold)
                             Text(
                                 if (definition.requiredCapabilities.isEmpty()) {
                                     "无需额外能力"
                                 } else {
-                                    definition.requiredCapabilities.joinToString(" · ") { capabilityLabel(it) }
+                                    definition.requiredCapabilities.joinToString(" · ") { it.name }
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2305,7 +2048,7 @@ private fun PermissionScreen(
                             shape = RoundedCornerShape(50),
                         ) {
                             Text(
-                                if (missing.isEmpty()) "READY" else "缺 ${missing.joinToString { capabilityLabel(it) }}",
+                                if (missing.isEmpty()) "READY" else "缺 ${missing.joinToString { it.name }}",
                                 Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = if (missing.isEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
@@ -2326,228 +2069,328 @@ private fun capabilityAvailable(capability: ToolCapability, state: DashboardUiSt
     ToolCapability.VECTOR -> state.modules.vectorActive
     ToolCapability.NETWORK -> true // Network diagnostics can open offline and explain missing links.
     ToolCapability.SHIZUKU -> state.shizuku.ready
-    ToolCapability.FRAMEWORK_PRIVILEGE -> state.shizuku.ready || state.snapshot.rootAvailable
-}
-
-private fun capabilityLabel(capability: ToolCapability): String = when (capability) {
-    ToolCapability.ROOT -> "Root"
-    ToolCapability.NOTIFICATION -> "通知"
-    ToolCapability.MAGISK -> "Magisk"
-    ToolCapability.VECTOR -> "Vector"
-    ToolCapability.NETWORK -> "网络"
-    ToolCapability.SHIZUKU -> "Shizuku / Sui"
-    ToolCapability.FRAMEWORK_PRIVILEGE -> "Root / Shizuku"
+    ToolCapability.PACKAGE_CONTROL -> state.snapshot.rootAvailable || state.shizuku.ready
 }
 
 @Composable
 private fun ComponentManagerScreen(
     state: DashboardUiState,
     onBack: () -> Unit,
-    onRefreshCatalog: () -> Unit,
-    onSelectPackage: (String) -> Unit,
-    onClosePackage: () -> Unit,
+    onLoad: (String) -> Unit,
     onSetEnabled: (AppComponentRecord, Boolean) -> Unit,
 ) {
-    val snapshot = state.componentSnapshot
-    if (snapshot != null) {
-        ComponentPackageScreen(
-            state = state,
-            onBack = onClosePackage,
-            onRefresh = { onSelectPackage(snapshot.packageName) },
-            onSetEnabled = onSetEnabled,
-        )
-        return
+    var packageName by rememberSaveable(state.componentSnapshot?.packageName) {
+        mutableStateOf(state.componentSnapshot?.packageName.orEmpty())
     }
-
-    var query by rememberSaveable { mutableStateOf("") }
-    val apps = remember(state.componentCatalog, query) {
-        val needle = query.trim().lowercase()
-        if (needle.isBlank()) state.componentCatalog else state.componentCatalog.filter {
-            it.label.lowercase().contains(needle) || it.packageName.lowercase().contains(needle)
+    var filter by rememberSaveable { mutableStateOf("ALL") }
+    var pendingDisable by remember { mutableStateOf<AppComponentRecord?>(null) }
+    val snapshot = state.componentSnapshot
+    val editable = snapshot != null && !snapshot.systemApp && snapshot.packageName !in com.arthur.roottools.policy.ComponentPolicyController.PROTECTED_PACKAGES
+    val filtered = snapshot?.components.orEmpty().filter { component ->
+        when (filter) {
+            "BOOT" -> component.bootReceiver
+            "EXPORTED" -> component.exported
+            "FGS" -> component.foregroundService
+            "DISABLED" -> !component.enabled
+            else -> true
         }
     }
+
+    pendingDisable?.let { component ->
+        AlertDialog(
+            onDismissRequest = { pendingDisable = null },
+            title = { Text("禁用 ${component.kind.displayName}？") },
+            text = {
+                Text("${component.className}\n\n禁用组件可能改变应用启动、推送或后台行为。操作会写入 Root 审计，可重新启用恢复。")
+            },
+            confirmButton = {
+                TextButton(onClick = { pendingDisable = null; onSetEnabled(component, false) }) { Text("禁用") }
+            },
+            dismissButton = { TextButton(onClick = { pendingDisable = null }) { Text("取消") } },
+        )
+    }
+
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(18.dp, 14.dp, 18.dp, 36.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
                 DetailHeader(
-                    "组件管理",
-                    "Activity · Service · Receiver · Provider",
-                    onBack,
-                    state.componentCatalogLoading,
-                    onRefreshCatalog,
+                    title = "组件管理",
+                    subtitle = "PackageManager 读取 · Shizuku/RootShell 写入",
+                    onBack = onBack,
+                    loading = state.componentLoading || state.actionInProgress,
+                    onRefresh = { if (packageName.isNotBlank()) onLoad(packageName) },
                 )
             }
             item {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(20.dp),
-                ) {
-                    Text(
-                        "读取使用本地 PackageManager；修改统一经过 PrivilegeRouter。Shizuku / Sui Ready 时优先 Binder，RootShell 仅作为安全 fallback。系统 App 第一版保持只读。",
-                        Modifier.padding(15.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            item {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text("搜索应用 / package") },
-                )
-            }
-            item { SectionLabel("用户应用", "${apps.size} / ${state.componentCatalog.size} · 按需加载组件，不后台轮询") }
-            if (state.componentCatalogLoading && state.componentCatalog.isEmpty()) {
-                item { Box(Modifier.fillMaxWidth().padding(28.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
-            } else {
-                itemsIndexed(apps, key = { _, app -> app.packageName }) { _, app ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth().clickable { onSelectPackage(app.packageName) },
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                    ) {
-                        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(app.label, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(app.packageName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = packageName,
+                            onValueChange = { packageName = it.take(180) },
+                            label = { Text("Package name") },
+                            placeholder = { Text("com.example.app") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Button(
+                            onClick = { onLoad(packageName) },
+                            enabled = packageName.isNotBlank() && !state.componentLoading,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("读取组件") }
+                        if (state.componentCatalog.isNotEmpty()) {
+                            Text("常用已安装应用", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            state.componentCatalog.take(6).forEach { (pkg, label) ->
+                                TextButton(onClick = { packageName = pkg; onLoad(pkg) }) {
+                                    Text("$label · $pkg", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
                             }
-                            Text(if (app.enabled) "ENABLED" else "DISABLED", style = MaterialTheme.typography.labelSmall, color = if (app.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
-                            Spacer(Modifier.width(8.dp))
-                            Icon(Icons.Rounded.ChevronRight, contentDescription = null)
                         }
                     }
                 }
             }
+            snapshot?.let { app ->
+                item {
+                    Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(app.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Text(app.packageName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Surface(
+                                    color = (if (editable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant).copy(alpha = 0.12f),
+                                    shape = RoundedCornerShape(50),
+                                ) {
+                                    Text(if (editable) "EDITABLE" else "READ ONLY", Modifier.padding(horizontal = 10.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                            SummaryRow("Components", app.components.size.toString())
+                            SummaryRow("BOOT receivers", app.bootReceiverCount.toString())
+                            SummaryRow("Exported", app.exportedCount.toString())
+                            SummaryRow("Foreground services", app.foregroundServiceCount.toString())
+                            SummaryRow("Disabled", app.disabledCount.toString())
+                            if (app.systemApp) {
+                                Text("系统应用仅允许检查，不提供组件写操作。", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+                item {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    ) {
+                        items(5) { index ->
+                            val value = listOf("ALL", "BOOT", "EXPORTED", "FGS", "DISABLED")[index]
+                            FilterChip(
+                                selected = filter == value,
+                                onClick = { filter = value },
+                                label = { Text(value) },
+                            )
+                        }
+                    }
+                }
+                if (filtered.isEmpty()) {
+                    item { Text("当前筛选没有组件。", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                } else {
+                    itemsIndexed(filtered.take(160)) { _, component ->
+                        ComponentManagerRow(
+                            component = component,
+                            editable = editable && component.protectedReason == null && !state.actionInProgress,
+                            onEnable = { onSetEnabled(component, true) },
+                            onDisable = { pendingDisable = component },
+                        )
+                    }
+                }
+            }
+            state.actionMessage?.let { item { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
             state.error?.let { item { ErrorCard(it) } }
         }
     }
 }
 
 @Composable
-private fun ComponentPackageScreen(
-    state: DashboardUiState,
-    onBack: () -> Unit,
-    onRefresh: () -> Unit,
-    onSetEnabled: (AppComponentRecord, Boolean) -> Unit,
+private fun ComponentManagerRow(
+    component: AppComponentRecord,
+    editable: Boolean,
+    onEnable: () -> Unit,
+    onDisable: () -> Unit,
 ) {
-    val snapshot = state.componentSnapshot ?: return
-    var selectedKind by rememberSaveable(snapshot.packageName) { mutableStateOf<ComponentKind?>(null) }
-    var filter by rememberSaveable(snapshot.packageName) { mutableStateOf(ComponentViewFilter.ALL) }
-    var pending by remember { mutableStateOf<Pair<AppComponentRecord, Boolean>?>(null) }
-
-    pending?.let { (component, enabled) ->
-        AlertDialog(
-            onDismissRequest = { pending = null },
-            title = { Text("${if (enabled) "启用" else "停用"} ${component.kind.displayName}？") },
-            text = {
-                Text(
-                    if (enabled) {
-                        "将恢复 ${component.className}。操作会记录 before / after 与实际 Backend。"
-                    } else {
-                        "停用组件可能改变应用启动、推送或后台行为。关键 Launcher、受保护应用和系统 App 已由安全策略禁止修改。"
-                    }
+    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+        Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(component.kind.displayName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Text(component.className, maxLines = 2, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
+                }
+                Switch(
+                    checked = component.enabled,
+                    enabled = editable,
+                    onCheckedChange = { enabled -> if (enabled) onEnable() else onDisable() },
                 )
-            },
-            confirmButton = {
-                TextButton(onClick = { pending = null; onSetEnabled(component, enabled) }) { Text("确认") }
-            },
-            dismissButton = { TextButton(onClick = { pending = null }) { Text("取消") } },
-        )
-    }
-
-    val components = remember(snapshot, selectedKind, filter) {
-        snapshot.components.filter { component ->
-            (selectedKind == null || component.kind == selectedKind) && when (filter) {
-                ComponentViewFilter.ALL -> true
-                ComponentViewFilter.BOOT -> component.bootReceiver
-                ComponentViewFilter.EXPORTED -> component.exported
-                ComponentViewFilter.FGS -> component.foregroundService
-                ComponentViewFilter.DISABLED -> !component.enabled
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (component.bootReceiver) SmallStatusPill("BOOT", Color(0xFFFFC56F))
+                if (component.exported) SmallStatusPill("EXPORTED", Color(0xFFAFC2FF))
+                if (component.foregroundService) SmallStatusPill("FGS", Color(0xFFA9F5D0))
+                if (component.directBootAware) SmallStatusPill("DIRECT BOOT", Color(0xFF9ED8C8))
+                component.protectedReason?.let { SmallStatusPill("CORE", Color(0xFFFFC56F)) }
+                if (!component.enabled) SmallStatusPill("DISABLED", MaterialTheme.colorScheme.error)
+            }
+            component.protectedReason?.let {
+                Text("protected: $it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
+            }
+            component.permission?.takeIf { it.isNotBlank() }?.let {
+                Text("permission: $it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
+}
+
+@Composable
+private fun SmallStatusPill(label: String, tint: Color) {
+    Surface(color = tint.copy(alpha = 0.12f), shape = RoundedCornerShape(50)) {
+        Text(label, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = tint, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun PermissionAppOpsScreen(
+    state: DashboardUiState,
+    onBack: () -> Unit,
+    onLoad: (String) -> Unit,
+    onSetMode: (String, String) -> Unit,
+) {
+    var packageName by rememberSaveable(state.permissionOpsSnapshot?.packageName) {
+        mutableStateOf(state.permissionOpsSnapshot?.packageName.orEmpty())
+    }
+    val snapshot = state.permissionOpsSnapshot
+    val canWrite = state.snapshot.rootAvailable || state.shizuku.ready
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(18.dp, 14.dp, 18.dp, 36.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item { DetailHeader(snapshot.label, snapshot.packageName, onBack, state.componentLoading, onRefresh) }
             item {
-                Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
-                    Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            HealthMetric("Components", snapshot.components.size.toString(), "total", Modifier.weight(1f))
-                            HealthMetric("BOOT", snapshot.bootReceiverCount.toString(), "receivers", Modifier.weight(1f))
-                            HealthMetric("Disabled", snapshot.disabledCount.toString(), "overrides", Modifier.weight(1f))
+                DetailHeader(
+                    title = "权限 / AppOps",
+                    subtitle = "PackageManager 读取 · 固定 AppOps 白名单写入",
+                    onBack = onBack,
+                    loading = state.permissionOpsLoading || state.actionInProgress,
+                    onRefresh = { if (packageName.isNotBlank()) onLoad(packageName) },
+                )
+            }
+            item {
+                Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = packageName,
+                            onValueChange = { packageName = it.take(180) },
+                            label = { Text("Package name") },
+                            placeholder = { Text("com.example.app") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Button(
+                            onClick = { onLoad(packageName) },
+                            enabled = packageName.isNotBlank() && !state.permissionOpsLoading,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("读取权限 / AppOps") }
+                        state.componentCatalog.take(6).forEach { (pkg, label) ->
+                            TextButton(onClick = { packageName = pkg; onLoad(pkg) }) {
+                                Text("$label · $pkg", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
                         }
-                        SummaryRow("Exported", snapshot.exportedCount.toString())
-                        SummaryRow("Foreground service", snapshot.foregroundServiceCount.toString())
-                        SummaryRow("Write backend", if (state.shizuku.ready) state.shizuku.backend.displayName else if (state.snapshot.rootAvailable) "RootShell fallback" else "Unavailable")
-                        if (snapshot.systemApp) {
-                            Text("系统 App 第一版只读。", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+            snapshot?.let { info ->
+                item {
+                    Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(info.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(info.packageName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            SummaryRow("Runtime permissions", "${info.grantedPermissions} granted / ${info.deniedPermissions} denied")
+                            SummaryRow("AppOps backend", if (canWrite) {
+                                if (state.shizuku.ready) state.shizuku.backend.displayName else "RootShell"
+                            } else "Unavailable · read-only")
+                            if (!canWrite) {
+                                Text("当前没有 Root 或 Shizuku/Sui backend；Runtime Permission 仍可查看，AppOps 不执行。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
+                            }
                         }
                     }
                 }
-            }
-            item {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    item { FilterChip(selected = selectedKind == null, onClick = { selectedKind = null }, label = { Text("ALL") }) }
-                    items(ComponentKind.entries.size) { index ->
-                        val kind = ComponentKind.entries[index]
-                        FilterChip(selected = selectedKind == kind, onClick = { selectedKind = kind }, label = { Text(kind.displayName) })
-                    }
-                }
-            }
-            item {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    items(ComponentViewFilter.entries.size) { index ->
-                        val option = ComponentViewFilter.entries[index]
-                        FilterChip(selected = filter == option, onClick = { filter = option }, label = { Text(option.displayName) })
-                    }
-                }
-            }
-            item { SectionLabel("组件", "${components.size} / ${snapshot.components.size} · 仅显式操作才写系统") }
-            if (components.isEmpty()) {
-                item { Text("当前筛选没有组件", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            } else {
-                itemsIndexed(components, key = { _, component -> component.componentName }) { _, component ->
-                    val safety = ComponentSafetyPolicy.evaluate(snapshot, component)
-                    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-                        Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(component.className.substringAfterLast('.'), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(component.kind.displayName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                                Text(
-                                    buildList {
-                                        if (component.bootReceiver) add("BOOT")
-                                        if (component.exported) add("EXPORTED")
-                                        if (component.foregroundService) add("FGS")
-                                        if (component.directBootAware) add("DIRECT_BOOT")
-                                        component.protectedReason?.let(::add)
-                                    }.joinToString(" · ").ifBlank { component.permission ?: "manifest component" },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                item { SectionLabel("Runtime Permissions", "requested permissions · 只读") }
+                if (info.permissions.isEmpty()) {
+                    item { Text("该应用没有声明 runtime permission。", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                } else {
+                    itemsIndexed(info.permissions.take(120)) { _, permission ->
+                        Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                            Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(permission.name, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall)
+                                    Text(permission.protection, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                SmallStatusPill(
+                                    if (permission.granted) "GRANTED" else "DENIED",
+                                    if (permission.granted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                                 )
                             }
-                            Switch(
-                                checked = component.enabled,
-                                onCheckedChange = { enabled -> pending = component to enabled },
-                                enabled = safety.allowed && !state.actionInProgress,
-                            )
                         }
                     }
                 }
+                item { SectionLabel("AppOps", "固定白名单；unsupported 会明确显示") }
+                if (!info.appOpsBackendAvailable) {
+                    item { Text("无可用特权 backend，因此本次没有读取 AppOps。", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                } else {
+                    itemsIndexed(info.appOps) { _, op ->
+                        AppOpCard(op, editable = canWrite && !state.actionInProgress, onSetMode = { mode -> onSetMode(op.name, mode) })
+                    }
+                }
             }
-            state.actionMessage?.let { item { Text(it, color = MaterialTheme.colorScheme.primary) } }
+            state.actionMessage?.let { item { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
             state.error?.let { item { ErrorCard(it) } }
+        }
+    }
+}
+
+@Composable
+private fun AppOpCard(op: AppOpRecord, editable: Boolean, onSetMode: (String) -> Unit) {
+    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+        Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(op.name, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        if (op.supported) "${op.backend.displayName} · ${op.mode ?: "mode unknown"}" else "Unsupported / unavailable",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                SmallStatusPill(op.mode?.uppercase() ?: "N/A", if (op.supported) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+            }
+            if (op.raw.isNotBlank()) {
+                Text(op.raw, maxLines = 3, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (op.supported) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val modes = listOf("allow", "ignore", "default", "deny", "foreground")
+                    items(modes.size) { index ->
+                        val mode = modes[index]
+                        FilterChip(
+                            selected = op.mode == mode,
+                            enabled = editable,
+                            onClick = { onSetMode(mode) },
+                            label = { Text(mode) },
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -2607,46 +2450,6 @@ private fun ShizukuSuiScreen(
                     ) { Text(if (bridge.permissionDeniedPermanently) "需要在 Manager 中重新授权" else "授权 Root Tools 使用 Shizuku") }
                 }
             }
-            item { SectionLabel("Capability self-test", "只读验证 UserService / Package / Activity / AppOps，不修改系统状态") }
-            item {
-                OutlinedButton(
-                    onClick = onSelfTest,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = bridge.ready && !state.shizukuSelfTestRunning,
-                ) {
-                    if (state.shizukuSelfTestRunning) {
-                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp))
-                    }
-                    Text(if (state.shizukuProbes.isEmpty()) "运行只读 Self-test" else "重新运行 Self-test")
-                }
-            }
-            if (state.shizukuProbes.isNotEmpty()) {
-                item {
-                    Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            state.shizukuProbes.forEach { probe ->
-                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    Column(Modifier.weight(1f)) {
-                                        Text(probe.capability.name, fontWeight = FontWeight.SemiBold)
-                                        Text(
-                                            "${probe.backend.displayName} · ${probe.detail} · ${probe.latencyMs?.let { "%.1f ms".format(it) } ?: "—"}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                    Text(
-                                        if (probe.available) "PASS" else "FAIL",
-                                        color = if (probe.available) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
             item { SectionLabel("快速入口", "Shizuku Manager 负责服务本身，Root Tools 只消费 API") }
             item {
                 Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
@@ -2673,6 +2476,45 @@ private fun ShizukuSuiScreen(
                     }
                 }
             }
+            item { SectionLabel("Capability Self-test", "固定只读测试 · 不执行任意命令或状态修改") }
+            item {
+                Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Button(
+                            onClick = onSelfTest,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = bridge.ready && !state.shizukuSelfTestLoading,
+                        ) {
+                            if (state.shizukuSelfTestLoading) {
+                                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Text("运行 Self-test")
+                        }
+                        if (state.shizukuSelfTest.isEmpty()) {
+                            Text("验证 Binder / UserService UID / Package / Activity / AppOps 与调用延迟。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            state.shizukuSelfTest.forEachIndexed { index, probe ->
+                                if (index > 0) HorizontalDivider()
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                                    Box(
+                                        Modifier.padding(top = 5.dp).size(8.dp).clip(CircleShape)
+                                            .background(if (probe.available) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                                    )
+                                    Spacer(Modifier.width(10.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(probe.capability.name, fontWeight = FontWeight.SemiBold)
+                                        Text("${probe.backend.displayName} · ${probe.detail}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    probe.latencyMs?.let { Text("%.1f ms".format(it), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            state.actionMessage?.let { item { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+            state.error?.let { item { ErrorCard(it) } }
         }
     }
 }
@@ -2715,27 +2557,6 @@ private fun PermissionItem(
                     fontWeight = FontWeight.Bold,
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun DetailHeader(
-    title: String,
-    subtitle: String,
-    onBack: () -> Unit,
-    loading: Boolean,
-    onRefresh: () -> Unit,
-) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "返回") }
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        IconButton(onClick = onRefresh, enabled = !loading) {
-            if (loading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-            else Icon(Icons.Rounded.Refresh, contentDescription = "刷新")
         }
     }
 }
@@ -2973,7 +2794,7 @@ private fun QuickTileCard() {
             Spacer(Modifier.width(12.dp))
             Column {
                 Text("通知栏快捷入口", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text("编辑快捷面板，添加“CPU 档位”和“Root ADB”。CPU 磁贴单击循环 Auto / Cool / Performance。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("编辑快捷面板，可添加“CPU 档位”“Root ADB”和“Wireless ADB”。Root ADB 只负责确保 5555 已开启；Wireless ADB 可切换 Android 原生无线调试。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -2988,145 +2809,4 @@ private fun SafetyCard() {
             Text("不关闭 Samsung Thermal、不绑核、不替换 governor；Thermal > 0 时 Root Tools 只允许继续削峰，不会抬高系统当前限制。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
-}
-
-@Composable
-private fun SectionLabel(title: String, subtitle: String) {
-    Column(Modifier.padding(top = 4.dp, bottom = 1.dp)) {
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun ErrorCard(message: String) {
-    Surface(color = MaterialTheme.colorScheme.error.copy(alpha = 0.11f), shape = RoundedCornerShape(18.dp)) {
-        Text(message, Modifier.padding(15.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-    }
-}
-
-private fun formatGHz(khz: Long): String = if (khz <= 0L) "—" else "%.2f GHz".format(khz / 1_000_000.0)
-
-private fun formatUptime(seconds: Long): String {
-    if (seconds <= 0) return "—"
-    val days = seconds / 86_400
-    val hours = (seconds % 86_400) / 3_600
-    val minutes = (seconds % 3_600) / 60
-    return when {
-        days > 0 -> "${days}d ${hours}h"
-        hours > 0 -> "${hours}h ${minutes}m"
-        else -> "${minutes}m"
-    }
-}
-
-private fun formatRelativeTime(timestampMs: Long): String {
-    val delta = (System.currentTimeMillis() - timestampMs).coerceAtLeast(0L)
-    return when {
-        delta < 60_000L -> "${delta / 1_000L}s ago"
-        delta < 60 * 60_000L -> "${delta / 60_000L}m ago"
-        delta < 24 * 60 * 60_000L -> "${delta / (60 * 60_000L)}h ago"
-        else -> "${delta / (24 * 60 * 60_000L)}d ago"
-    }
-}
-
-private fun formatStartupSeconds(seconds: Long?): String = when {
-    seconds == null -> "—"
-    seconds < 60 -> "${seconds}s"
-    seconds < 3_600 -> "${seconds / 60}m ${seconds % 60}s"
-    else -> "${seconds / 3_600}h ${(seconds % 3_600) / 60}m"
-}
-
-private fun categoryOrder(category: AppPolicyCategory): Int = when (category) {
-    AppPolicyCategory.FREEZE -> 0
-    AppPolicyCategory.ON_DEMAND -> 1
-    AppPolicyCategory.RARE -> 2
-    AppPolicyCategory.PROTECTED -> 3
-    AppPolicyCategory.NORMAL -> 4
-}
-
-private fun DeviceHealthSnapshot.thermalStageLabel(): String = when {
-    thermal.status >= 3 -> "Severe"
-    thermal.status >= 2 -> "Moderate"
-    thermal.status >= 1 -> "Warm"
-    (thermal.skinC ?: 0f) >= 39f -> "Moderate"
-    (thermal.skinC ?: 0f) >= 36.5f -> "Warm"
-    else -> "Normal"
-}
-
-private fun rangeText(values: List<Float>): String = if (values.isEmpty()) {
-    "—"
-} else {
-    "%.1f°C / %.1f°C".format(values.minOrNull() ?: 0f, values.maxOrNull() ?: 0f)
-}
-
-private data class FrequencyBins(
-    val low: Int = 0,
-    val mid: Int = 0,
-    val high: Int = 0,
-    val peak: Int = 0,
-    val total: Int = 0,
-) {
-    fun asLabel(): String {
-        if (total <= 0) return "—"
-        fun pct(value: Int) = (value * 100f / total).roundToInt()
-        return "${pct(low)}% · ${pct(mid)}% · ${pct(high)}% · ${pct(peak)}%"
-    }
-}
-
-private fun frequencyBins(
-    history: List<HealthHistoryPoint>,
-    policyId: Int,
-    hardwareMaxKHz: Long,
-    windowMs: Long,
-): FrequencyBins {
-    if (hardwareMaxKHz <= 0) return FrequencyBins()
-    val cutoff = System.currentTimeMillis() - windowMs
-    var low = 0
-    var mid = 0
-    var high = 0
-    var peak = 0
-    var total = 0
-    history.asSequence().filter { it.timestampMs >= cutoff }.forEach { point ->
-        val current = point.clusterCurrentKHz[policyId] ?: return@forEach
-        val ratio = current.toDouble() / hardwareMaxKHz
-        when {
-            ratio < 0.35 -> low++
-            ratio < 0.60 -> mid++
-            ratio < 0.80 -> high++
-            else -> peak++
-        }
-        total++
-    }
-    return FrequencyBins(low, mid, high, peak, total)
-}
-
-private fun formatMemoryKb(kb: Long): String = when {
-    kb >= 1024 * 1024 -> "%.2f GB".format(kb / 1_048_576.0)
-    kb >= 1024 -> "%.0f MB".format(kb / 1024.0)
-    else -> "$kb KB"
-}
-
-private fun formatClockTime(timestampMs: Long): String =
-    java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(timestampMs))
-
-private fun copyToClipboard(context: Context, text: String) {
-    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    clipboard.setPrimaryClip(ClipData.newPlainText("Root Tools", text))
-}
-
-private fun openPackage(context: Context, packageName: String) {
-    val intent = context.packageManager.getLaunchIntentForPackage(packageName) ?: return
-    runCatching { context.startActivity(intent) }
-}
-
-private fun shareDiagnosticFile(context: Context, path: String) {
-    val file = File(path)
-    if (!file.exists()) return
-    val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_STREAM, uri)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-    runCatching { context.startActivity(Intent.createChooser(intent, "分享诊断报告")) }
 }

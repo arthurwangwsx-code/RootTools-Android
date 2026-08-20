@@ -41,6 +41,20 @@ class PrivilegeInputValidatorTest {
     }
 
     @Test
+    fun permissionName_acceptsNamespacedPermissionAndRejectsInjection() {
+        assertEquals(
+            "android.permission.POST_NOTIFICATIONS",
+            PrivilegeInputValidator.permissionName("android.permission.POST_NOTIFICATIONS"),
+        )
+        assertEquals(
+            "com.example.permission.SYNC_DATA",
+            PrivilegeInputValidator.permissionName("com.example.permission.SYNC_DATA"),
+        )
+        assertNull(PrivilegeInputValidator.permissionName("android.permission.CAMERA;id"))
+        assertNull(PrivilegeInputValidator.permissionName("CAMERA"))
+    }
+
+    @Test
     fun standbyBucket_isExplicitlyAllowListed() {
         assertEquals(30, PrivilegeInputValidator.standbyBucket(30))
         assertNull(PrivilegeInputValidator.standbyBucket(99))

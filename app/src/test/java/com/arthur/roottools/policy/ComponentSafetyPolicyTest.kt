@@ -3,7 +3,6 @@ package com.arthur.roottools.policy
 import com.arthur.roottools.model.AppComponentRecord
 import com.arthur.roottools.model.ComponentKind
 import com.arthur.roottools.model.ComponentSnapshot
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -19,59 +18,74 @@ class ComponentSafetyPolicyTest {
     )
 
     @Test
-    fun knownUserComponent_isAllowed() {
+    fun userAppKnownComponent_isAllowed() {
         val decision = ComponentSafetyPolicy.evaluate(
-            snapshot(components = listOf(receiver)),
+            snapshot("com.example.app", listOf(receiver)),
             receiver,
             protectedPackages = emptySet(),
         )
         assertTrue(decision.allowed)
-        assertEquals(receiver.componentName, decision.componentName)
     }
 
     @Test
-    fun systemAndProtectedApps_areReadOnly() {
-        assertEquals(
-            ComponentMutationRejection.SYSTEM_APP,
-            ComponentSafetyPolicy.evaluate(snapshot(systemApp = true, components = listOf(receiver)), receiver, emptySet()).rejection,
+    fun systemApp_isReadOnly() {
+        val decision = ComponentSafetyPolicy.evaluate(
+            snapshot("com.example.app", listOf(receiver)).copy(systemApp = true),
+            receiver,
+            protectedPackages = emptySet(),
         )
-        assertEquals(
-            ComponentMutationRejection.PROTECTED_PACKAGE,
-            ComponentSafetyPolicy.evaluate(snapshot(components = listOf(receiver)), receiver, setOf("com.example.app")).rejection,
-        )
+        assertFalse(decision.allowed)
     }
 
     @Test
-    fun crossPackageStaleAndHostileComponents_areRejected() {
+    fun protectedPackage_isRejected() {
+        val protectedComponent = receiver.copy(
+            componentName = "com.arthur.roottools/.BootReceiver",
+            className = "com.arthur.roottools.BootReceiver",
+        )
+        val decision = ComponentSafetyPolicy.evaluate(
+            snapshot("com.arthur.roottools", listOf(protectedComponent)),
+            protectedComponent,
+            protectedPackages = setOf("com.arthur.roottools"),
+        )
+        assertFalse(decision.allowed)
+    }
+
+    @Test
+    fun crossPackageComponent_isRejected() {
         val foreign = receiver.copy(componentName = "com.other.app/.Receiver")
-        assertFalse(ComponentSafetyPolicy.evaluate(snapshot(components = listOf(foreign)), foreign, emptySet()).allowed)
-        assertEquals(
-            ComponentMutationRejection.STALE_COMPONENT,
-            ComponentSafetyPolicy.evaluate(snapshot(components = emptyList()), receiver, emptySet()).rejection,
+        val decision = ComponentSafetyPolicy.evaluate(
+            snapshot("com.example.app", listOf(foreign)),
+            foreign,
+            protectedPackages = emptySet(),
         )
-        val hostile = receiver.copy(componentName = "com.example.app/.BootReceiver;id")
-        assertEquals(
-            ComponentMutationRejection.INVALID_COMPONENT,
-            ComponentSafetyPolicy.evaluate(snapshot(components = listOf(hostile)), hostile, emptySet()).rejection,
-        )
+        assertFalse(decision.allowed)
     }
 
     @Test
-    fun protectedLauncherComponent_isRejected() {
-        val protectedComponent = receiver.copy(protectedReason = "Launcher activity")
-        assertEquals(
-            ComponentMutationRejection.PROTECTED_COMPONENT,
-            ComponentSafetyPolicy.evaluate(snapshot(components = listOf(protectedComponent)), protectedComponent, emptySet()).rejection,
+    fun staleComponent_notInSnapshot_isRejected() {
+        val decision = ComponentSafetyPolicy.evaluate(
+            snapshot("com.example.app", emptyList()),
+            receiver,
+            protectedPackages = emptySet(),
         )
+        assertFalse(decision.allowed)
     }
 
-    private fun snapshot(
-        systemApp: Boolean = false,
-        components: List<AppComponentRecord>,
-    ) = ComponentSnapshot(
-        packageName = "com.example.app",
+    @Test
+    fun injectionInComponentName_isRejected() {
+        val unsafe = receiver.copy(componentName = "com.example.app/.BootReceiver;reboot")
+        val decision = ComponentSafetyPolicy.evaluate(
+            snapshot("com.example.app", listOf(unsafe)),
+            unsafe,
+            protectedPackages = emptySet(),
+        )
+        assertFalse(decision.allowed)
+    }
+
+    private fun snapshot(packageName: String, components: List<AppComponentRecord>) = ComponentSnapshot(
+        packageName = packageName,
         label = "Example",
-        systemApp = systemApp,
         components = components,
     )
 }

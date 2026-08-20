@@ -3,7 +3,6 @@ package com.arthur.roottools.privilege
 import android.content.ComponentName
 import android.content.Context
 import android.content.ServiceConnection
-import android.os.DeadObjectException
 import android.os.IBinder
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -13,7 +12,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import rikka.shizuku.Shizuku
 
-/** Lifecycle owner for the typed Shizuku UserService Binder. */
 class ShizukuUserServiceClient(context: Context) {
     private val appContext = context.applicationContext
     private val mutex = Mutex()
@@ -35,7 +33,8 @@ class ShizukuUserServiceClient(context: Context) {
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
-            resetConnection()
+            service = null
+            pending = CompletableDeferred()
         }
     }
 
@@ -43,20 +42,19 @@ class ShizukuUserServiceClient(context: Context) {
         val remote = ensureConnected() ?: error("Shizuku UserService unavailable")
         withContext(Dispatchers.IO) { block(remote) }
     }.onFailure {
-        if (it is DeadObjectException) resetConnection()
+        if (it is android.os.DeadObjectException) resetConnection()
     }
 
     suspend fun selfTest(): Result<String> = call { it.frameworkSelfTest(appContext.packageName) }
 
     fun close() {
         runCatching { Shizuku.unbindUserService(args, connection, true) }
-        resetConnection()
+        service = null
     }
 
     private suspend fun ensureConnected(): IPrivilegeUserService? = mutex.withLock {
         service?.let { return it }
-        if (!Shizuku.pingBinder()) return null
-        if (Shizuku.checkSelfPermission() != android.content.pm.PackageManager.PERMISSION_GRANTED) return null
+        if (!Shizuku.pingBinder() || Shizuku.checkSelfPermission() != android.content.pm.PackageManager.PERMISSION_GRANTED) return null
         if (pending.isCompleted) pending = CompletableDeferred()
         withContext(Dispatchers.Main.immediate) {
             Shizuku.bindUserService(args, connection)

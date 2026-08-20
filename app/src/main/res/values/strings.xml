@@ -1,4 +1,615 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Root Tools</string>
+    <string name="app_name" translatable="false">Root Tools</string>
+    <string name="adb_widget_description">Quickly view and enable Root ADB</string>
+
+    <!-- Toolbox registry -->
+    <string name="tool_dashboard_title">Device dashboard</string>
+    <string name="tool_performance_title">Performance</string>
+    <string name="tool_adb_title">ADB control</string>
+    <string name="tool_permissions_title">Permissions</string>
+    <string name="tool_startup_title">Startup control</string>
+    <string name="tool_apps_title">App control</string>
+    <string name="tool_diagnostics_title">Process diagnostics</string>
+    <string name="tool_integrity_title">Environment integrity</string>
+    <string name="tool_modules_title">Root modules</string>
+    <string name="tool_actions_title">Common actions</string>
+    <string name="tool_network_title">Network diagnostics</string>
+    <string name="tool_storage_title">Storage &amp; IO</string>
+    <string name="tool_battery_title">Battery &amp; thermal</string>
+    <string name="tool_shizuku_title" translatable="false">Shizuku / Sui</string>
+    <string name="integrity_dismiss_symbol" translatable="false">×</string>
+    <string name="share_diagnostic_title">Share diagnostic report</string>
+
+    <!-- System surfaces: Quick Settings, widget, foreground service -->
+    <string name="common_enable">Enable</string>
+    <string name="common_enabled">Enabled</string>
+    <string name="common_requires_root">Root required</string>
+    <string name="common_not_supported">Not supported</string>
+    <string name="common_tap_to_enable">Tap to enable</string>
+    <string name="common_back">Back</string>
+    <string name="common_refresh">Refresh</string>
+    <string name="common_dash" translatable="false">—</string>
+    <string name="adb_tile_label_root" translatable="false">Root ADB</string>
+    <string name="adb_tile_label_port" translatable="false">ADB · %1$d</string>
+    <string name="wireless_adb_tile_label" translatable="false">Wireless ADB</string>
+    <string name="performance_tile_label">CPU mode</string>
+    <string name="performance_mode_auto" translatable="false">Auto</string>
+    <string name="performance_mode_cool" translatable="false">Cool</string>
+    <string name="performance_mode_performance" translatable="false">Performance</string>
+    <string name="thermal_stage_normal">Normal</string>
+    <string name="thermal_stage_warm">Warm</string>
+    <string name="thermal_stage_moderate">Moderate</string>
+    <string name="thermal_stage_severe">Severe</string>
+    <string name="cpu_cap_source_full">Full</string>
+    <string name="cpu_cap_source_root_tools" translatable="false">Root Tools</string>
+    <string name="cpu_cap_source_samsung_thermal" translatable="false">Samsung Thermal</string>
+    <string name="cpu_cap_source_other_system">Other system</string>
+    <string name="wireless_adb_tile_tls_port" translatable="false">TLS %1$d</string>
+    <string name="adb_widget_wireless_on" translatable="false">Wireless Debugging ON</string>
+    <string name="cpu_notification_reading">Reading device status…</string>
+    <string name="cpu_notification_cool">Cool · %1$s</string>
+    <string name="cpu_temperature_ap" translatable="false">AP %1$.1f°C</string>
+    <string name="cpu_peak_limited">Peak limited</string>
+    <string name="cpu_notification_apply_failed">Could not apply Cool mode. Check Root authorization.</string>
+    <string name="cpu_temperature_loading">Reading temperature</string>
+    <string name="cpu_notification_auto">Auto · %1$s · %2$s</string>
+    <string name="cpu_notification_performance_thermal">Performance · thermal protection %1$s · %2$s</string>
+    <string name="cpu_notification_performance_remaining">Performance · %1$d min remaining · %2$s</string>
+    <string name="cpu_notification_channel_name">CPU policy guard</string>
+    <string name="cpu_notification_channel_description">Adjusts CPU peak frequency from low-rate thermal sampling without disabling system thermal protection.</string>
+    <string name="cpu_notification_title">Root Tools · CPU policy</string>
+
+    <!-- Legacy hardware-attestation screen. Kept localized while Environment Integrity replaces it. -->
+    <string name="legacy_integrity_loading_title">Generating hardware attestation certificates</string>
+    <string name="legacy_integrity_loading_subtitle" translatable="false">TEE / StrongBox · Verified Boot · Google roots / revocation</string>
+    <string name="legacy_integrity_export_title">Evidence export</string>
+    <string name="legacy_integrity_export_body">Exports only the public X.509 certificate chain, never the AndroidKeyStore private key. Re-verify trust decisions on a trusted Mac or server.</string>
+    <string name="legacy_integrity_export_pem" translatable="false">Export PEM</string>
+    <string name="legacy_integrity_share">Share</string>
+    <string name="legacy_integrity_header_subtitle" translatable="false">Hardware Attestation · Verified Boot · StrongBox</string>
+    <string name="legacy_integrity_rescan">Scan again</string>
+    <string name="legacy_integrity_summary_critical">Strong integrity anomaly detected</string>
+    <string name="legacy_integrity_summary_warn">Differences require review</string>
+    <string name="legacy_integrity_summary_pass">Local hardware attestation check completed</string>
+    <string name="legacy_integrity_summary_meta" translatable="false">%1$s · %2$s · %3$s</string>
+    <string name="legacy_integrity_scan_time">Scanned %1$s · Local diagnostics do not replace a remote verifier.</string>
+    <string name="legacy_integrity_certificate_index" translatable="false">#%1$d</string>
+    <string name="legacy_integrity_certificate_issuer">Issuer · %1$s</string>
+    <string name="legacy_integrity_certificate_serial" translatable="false">Serial · %1$s</string>
+    <string name="legacy_integrity_certificate_validity" translatable="false">%1$s → %2$s</string>
+    <string name="legacy_integrity_certificate_revocation">Revocation · %1$s</string>
+
+    <!-- Device dashboard feature -->
+    <string name="dashboard_sampling_subtitle">%1$d-second lightweight sampling · Top Process every 10 seconds</string>
+    <string name="dashboard_section_cpu_load" translatable="false">CPU / Load</string>
+    <string name="dashboard_section_cpu_load_subtitle">WALT scheduler state and real-time frequency by cluster</string>
+    <string name="dashboard_section_memory_zram" translatable="false">Memory / ZRAM</string>
+    <string name="dashboard_section_memory_zram_subtitle">Use MemAvailable and PSI to identify real memory pressure</string>
+    <string name="dashboard_section_thermal_battery" translatable="false">Thermal / Battery</string>
+    <string name="dashboard_section_thermal_battery_subtitle">Observe Samsung thermal state without disabling the thermal engine</string>
+    <string name="dashboard_section_process_system" translatable="false">Process / System</string>
+    <string name="dashboard_section_process_system_subtitle">Low-frequency Top CPU sampling every 10 seconds</string>
+    <string name="dashboard_root_required">Dashboard is waiting for Root data. Grant Magisk access in Permissions first.</string>
+    <string name="dashboard_metric_cpu" translatable="false">CPU</string>
+    <string name="dashboard_percent_integer" translatable="false">%1$.0f%%</string>
+    <string name="dashboard_cpu_idle" translatable="false">idle %1$.0f%%</string>
+    <string name="dashboard_metric_memory">Memory</string>
+    <string name="dashboard_gb_one_decimal" translatable="false">%1$.1f GB</string>
+    <string name="dashboard_available">available</string>
+    <string name="dashboard_metric_ap" translatable="false">AP</string>
+    <string name="dashboard_temperature_one_decimal" translatable="false">%1$.1f°</string>
+    <string name="dashboard_thermal_status" translatable="false">Thermal %1$d</string>
+    <string name="dashboard_recent_status">Recent status</string>
+    <string name="dashboard_abnormal_root_shell">Root shell high CPU detected: PID %1$d · %2$.0f%%</string>
+    <string name="dashboard_sampling_title">Detail sampling interval</string>
+    <string name="dashboard_sampling_note">Home stays at 30 seconds; Top Process stays at 10 seconds or slower.</string>
+    <string name="dashboard_seconds_short" translatable="false">%1$ds</string>
+    <string name="dashboard_one_second_experimental">1s experimental</string>
+    <string name="dashboard_history_24h_title">24h lightweight history</string>
+    <string name="dashboard_history_24h_subtitle">At most one point every 5 minutes · maximum 288 points</string>
+    <string name="dashboard_history_count" translatable="false">%1$d/288</string>
+    <string name="dashboard_cpu_peak" translatable="false">CPU peak</string>
+    <string name="dashboard_mem_available_min" translatable="false">MemAvailable min</string>
+    <string name="dashboard_ap_min_max" translatable="false">AP min / max</string>
+    <string name="dashboard_skin_min_max">Skin min / max</string>
+    <string name="dashboard_battery_min_max">Battery min / max</string>
+    <string name="dashboard_battery_range" translatable="false">%1$d%% / %2$d%%</string>
+    <string name="dashboard_history_empty">Persistent history starts after the first 5-minute sampling window and is retained across app upgrades.</string>
+    <string name="dashboard_cpu_usage" translatable="false">CPU %1$.0f%%</string>
+    <string name="dashboard_load" translatable="false">Load %1$.2f / %2$.2f / %3$.2f</string>
+    <string name="dashboard_core_efficiency">Efficiency cores</string>
+    <string name="dashboard_core_prime">Prime core</string>
+    <string name="dashboard_core_performance">Performance cores</string>
+    <string name="dashboard_cluster_cpu" translatable="false">%1$s · CPU %2$s</string>
+    <string name="dashboard_governor_util" translatable="false">%1$s · util %2$.0f%%</string>
+    <string name="dashboard_max_hw" translatable="false">max %1$s / hw %2$s</string>
+    <string name="dashboard_scheduler_title" translatable="false">Scheduler / uclamp</string>
+    <string name="dashboard_scheduler_waiting">Waiting for scheduler snapshot…</string>
+    <string name="dashboard_cpu_group" translatable="false">CPU %1$s</string>
+    <string name="dashboard_uclamp_range" translatable="false">%1$s → %2$s</string>
+    <string name="dashboard_cpuset" translatable="false">cpuset</string>
+    <string name="dashboard_scheduler_read_only">This page only reads scheduler state; Root Tools does not change cpuset or uclamp from the dashboard.</string>
+    <string name="dashboard_frequency_title">Frequency distribution</string>
+    <string name="dashboard_frequency_subtitle" translatable="false" formatted="false">Relative to hardware max: &lt;35% / 35~60% / 60~80% / &gt;80%</string>
+    <string name="dashboard_frequency_waiting">Waiting for frequency history…</string>
+    <string name="dashboard_cluster_efficiency" translatable="false">Efficiency</string>
+    <string name="dashboard_cluster_prime" translatable="false">Prime</string>
+    <string name="dashboard_cluster_big" translatable="false">Big</string>
+    <string name="dashboard_frequency_window" translatable="false">%1$s   %2$s</string>
+    <string name="dashboard_window_5m" translatable="false">5m</string>
+    <string name="dashboard_window_30m" translatable="false">30m</string>
+    <string name="dashboard_memory_status_available">%1$s · %2$.1f GB available</string>
+    <string name="dashboard_mem_total" translatable="false">MemTotal</string>
+    <string name="dashboard_cached_anon" translatable="false">Cached / Anon</string>
+    <string name="dashboard_gb_pair" translatable="false">%1$.1f / %2$.1f GB</string>
+    <string name="dashboard_swap" translatable="false">Swap</string>
+    <string name="dashboard_zram_compression" translatable="false">ZRAM compression</string>
+    <string name="dashboard_compression_ratio" translatable="false">%1$.2fx</string>
+    <string name="dashboard_memory_psi" translatable="false">Memory PSI</string>
+    <string name="dashboard_io_psi" translatable="false">IO PSI</string>
+    <string name="dashboard_psi_pair" translatable="false">some %1$.2f · full %2$.2f</string>
+    <string name="dashboard_swap_not_pressure">Swap usage is high, but MemAvailable and PSI are healthy; this is not real memory pressure.</string>
+    <string name="dashboard_top_memory_title" translatable="false">Top RSS / PSS</string>
+    <string name="dashboard_top_memory_subtitle">Read smaps_rollup only for the top 6 RSS processes.</string>
+    <string name="dashboard_top_memory_waiting">Waiting for the next 10-second memory process sample…</string>
+    <string name="dashboard_pid_user" translatable="false">PID %1$d · %2$s</string>
+    <string name="dashboard_rss" translatable="false">RSS %1$s</string>
+    <string name="dashboard_pss" translatable="false">PSS %1$s</string>
+    <string name="dashboard_lmk_title" translatable="false">LMKD / low memory</string>
+    <string name="dashboard_lmk_count" translatable="false">%1$d LMKD</string>
+    <string name="dashboard_recent_am_kill" translatable="false">Recent am_kill</string>
+    <string name="dashboard_lmk_no_static_config">This device does not expose static ro.lmk.* parameters; use MemAvailable, PSI, and kill events to judge pressure.</string>
+    <string name="dashboard_metric_skin">Skin</string>
+    <string name="dashboard_metric_battery">Battery</string>
+    <string name="dashboard_status_value" translatable="false">status %1$d</string>
+    <string name="dashboard_surface">surface</string>
+    <string name="dashboard_battery_percent" translatable="false">%1$d%%</string>
+    <string name="dashboard_usb_pathm" translatable="false">USB / PATHM</string>
+    <string name="dashboard_temperature_pair" translatable="false">%1$s / %2$s</string>
+    <string name="dashboard_charging">Charging</string>
+    <string name="dashboard_charging_yes">Charging</string>
+    <string name="dashboard_charging_no">Not charging</string>
+    <string name="dashboard_voltage_current">Voltage / Current</string>
+    <string name="dashboard_voltage_current_value" translatable="false">%1$d mV / %2$d mA</string>
+    <string name="dashboard_battery_protection">Battery protection</string>
+    <string name="dashboard_battery_protection_on" translatable="false">ON · %1$d%%</string>
+    <string name="dashboard_off" translatable="false">OFF</string>
+    <string name="dashboard_uptime">Uptime</string>
+    <string name="dashboard_processes">Processes</string>
+    <string name="dashboard_top_process_waiting">Waiting for the next Top Process sample…</string>
+    <string name="dashboard_process_meta" translatable="false">PID %1$d · %2$s · RSS %3$s</string>
+    <string name="dashboard_percent_one_decimal" translatable="false">%1$.1f%%</string>
+
+    <!-- Performance feature -->
+    <string name="performance_detail_subtitle">Temperature-driven policy · keeps Samsung Thermal enabled</string>
+    <string name="performance_section_cpu_title">Real-time CPU limits</string>
+    <string name="performance_section_cpu_subtitle">Shows scaling max against hardware max and attributes the current cap source</string>
+    <string name="performance_release_owned_caps">Release CPU caps owned by Root Tools</string>
+    <string name="performance_history_title">Policy history</string>
+    <string name="performance_history_subtitle">Mode changes, cap writes/releases, and ownership decisions</string>
+    <string name="performance_safety_title">Safety boundary</string>
+    <string name="performance_safety_body">Root Tools keeps the stock WALT governor, cpuset/uclamp, and Samsung Thermal. If Thermal is already limiting frequency, Root Tools only allows additional peak reduction and never raises the system cap.</string>
+    <string name="performance_hero_mode_stage">%1$s · %2$s</string>
+    <string name="performance_thermal_status" translatable="false">Thermal status %1$d</string>
+    <string name="common_root" translatable="false">ROOT</string>
+    <string name="common_no_root" translatable="false">NO ROOT</string>
+    <string name="performance_system_thermal_kept" translatable="false">Samsung Thermal kept</string>
+    <string name="performance_mode_title">Performance mode</string>
+    <string name="performance_mode_subtitle">Choose a policy; system thermal protection always has priority.</string>
+    <string name="performance_mode_auto_description">Automatically changes internal thermal stages. Current: %1$s.</string>
+    <string name="performance_mode_cool_description">Long-term cool mode: only lowers CPU peaks and never forces frequency or disables Thermal.</string>
+    <string name="performance_mode_performance_description">Temporary performance mode: defaults to 15 minutes and immediately yields to system thermal limiting.</string>
+    <string name="performance_cluster_efficiency">Efficiency cluster</string>
+    <string name="performance_cluster_prime">Prime cluster</string>
+    <string name="performance_cluster_performance">Performance cluster</string>
+    <string name="performance_cluster_cpu" translatable="false">CPU %1$s · policy%2$d</string>
+    <string name="performance_limit_source">Limit source · %1$s</string>
+    <string name="performance_limit_source_full">Limit source · Full</string>
+    <string name="performance_upper_limit">Upper limit %1$s</string>
+    <string name="performance_history_empty">No policy changes have been recorded yet.</string>
+    <string name="performance_history_event_meta" translatable="false">%1$s · %2$s</string>
+    <string name="time_seconds_ago">%1$d seconds ago</string>
+    <string name="time_minutes_ago">%1$d minutes ago</string>
+    <string name="time_hours_ago">%1$d hours ago</string>
+    <string name="time_days_ago">%1$d days ago</string>
+
+    <!-- App Control Center -->
+    <string name="app_control_title">App Control</string>
+    <string name="app_control_subtitle" translatable="false">Inventory · Components · Permissions · AppOps</string>
+    <string name="app_control_back">Back</string>
+    <string name="app_control_refresh">Refresh</string>
+    <string name="app_control_search_label">Search app / package</string>
+    <string name="app_control_search_placeholder" translatable="false">e.g. com.qiyi.video</string>
+    <string name="app_control_filter_all">All</string>
+    <string name="app_control_filter_user">User</string>
+    <string name="app_control_filter_system">System</string>
+    <string name="app_control_filter_running">Running</string>
+    <string name="app_control_filter_frozen">Frozen</string>
+    <string name="app_control_filter_debuggable">Debuggable</string>
+    <string name="app_control_sort_label">Name</string>
+    <string name="app_control_sort_package">Package</string>
+    <string name="app_control_sort_update">Last update</string>
+    <string name="app_control_sort_target_sdk" translatable="false">Target SDK</string>
+    <string name="app_control_apps_metric">Apps</string>
+    <string name="app_control_running_metric">Running</string>
+    <string name="app_control_frozen_metric">Frozen</string>
+    <string name="app_control_installed_hint">installed</string>
+    <string name="app_control_live_probe_hint">live probe</string>
+    <string name="app_control_limited_hint">limited</string>
+    <string name="app_control_disabled_hint">disabled</string>
+    <string name="app_control_filtered_count">%1$d / %2$d apps</string>
+    <string name="app_control_empty_filter">No apps match the current filters.</string>
+    <string name="app_control_badge_system">SYSTEM</string>
+    <string name="app_control_badge_user">USER</string>
+    <string name="app_control_badge_debug" translatable="false">DEBUG</string>
+    <string name="app_control_badge_splits" translatable="false">%1$d SPLITS</string>
+    <string name="app_control_badge_updated_system">UPDATED SYSTEM</string>
+    <string name="app_control_inventory_meta">v%1$s · UID %2$d · SDK %3$d · %4$s%5$s</string>
+    <string name="app_control_state_enabled">Enabled</string>
+    <string name="app_control_state_frozen">Frozen</string>
+    <string name="app_control_state_running"> · Running</string>
+
+    <string name="app_control_section_overview">Overview</string>
+    <string name="app_control_section_components">Components</string>
+    <string name="app_control_section_permissions">Permissions</string>
+    <string name="app_control_section_appops" translatable="false">AppOps</string>
+    <string name="app_control_section_runtime">Runtime</string>
+    <string name="app_control_section_storage">Storage</string>
+    <string name="app_control_section_code">Code &amp; Signing</string>
+    <string name="app_control_section_policy">Policy &amp; Backup</string>
+    <string name="app_control_type_user">User</string>
+    <string name="app_control_type_system">System</string>
+    <string name="app_control_app_identity">%1$s app · UID %2$d</string>
+    <string name="app_control_version_sdk">%1$s (%2$d) · SDK %3$d → %4$d</string>
+    <string name="app_control_badge_enabled">ENABLED</string>
+    <string name="app_control_badge_frozen">FROZEN</string>
+    <string name="app_control_action_freeze">Freeze</string>
+    <string name="app_control_action_enable">Enable</string>
+    <string name="app_control_action_stop">Stop</string>
+    <string name="app_control_badge_protected">PROTECTED</string>
+    <string name="app_control_action_rare" translatable="false">Rare</string>
+    <string name="app_control_action_restricted" translatable="false">Restricted</string>
+    <string name="app_control_action_bg_allow" translatable="false">BG allow</string>
+    <string name="app_control_action_bg_ignore" translatable="false">BG ignore</string>
+    <string name="app_control_action_export_diagnostic">Export diagnostic</string>
+    <string name="app_control_freeze_confirm_title">Freeze %1$s?</string>
+    <string name="app_control_freeze_confirm_body">This runs disable-user. The app, background services, and broadcast receivers will stop. You can enable it again from this page.</string>
+    <string name="app_control_action_cancel">Cancel</string>
+    <string name="app_control_component_disable_title">Disable %1$s?</string>
+    <string name="app_control_component_disable_action">Disable</string>
+
+    <string name="app_control_info_title">App information</string>
+    <string name="app_control_info_subtitle">PackageManager base metadata</string>
+    <string name="app_control_label_package" translatable="false">Package</string>
+    <string name="app_control_label_uid" translatable="false">UID</string>
+    <string name="app_control_label_version">Version</string>
+    <string name="app_control_label_sdk" translatable="false">SDK</string>
+    <string name="app_control_sdk_value">min %1$d · target %2$d%3$s</string>
+    <string name="app_control_compile_sdk_suffix" translatable="false"> · compile %1$d</string>
+    <string name="app_control_label_installed">Installed</string>
+    <string name="app_control_label_updated">Updated</string>
+    <string name="app_control_label_installer">Installer</string>
+    <string name="app_control_label_state">State</string>
+    <string name="app_control_label_flags">Flags</string>
+    <string name="app_control_none">none</string>
+    <string name="app_control_component_summary_title">Component summary</string>
+    <string name="app_control_component_summary_subtitle">Structured counts first; use the Components tab for detailed control.</string>
+    <string name="app_control_component_activity" translatable="false">Activity</string>
+    <string name="app_control_component_service" translatable="false">Service</string>
+    <string name="app_control_component_receiver" translatable="false">Receiver</string>
+    <string name="app_control_component_provider" translatable="false">Provider</string>
+    <string name="app_control_components_hint">components</string>
+    <string name="app_control_paths_title">Paths &amp; code</string>
+    <string name="app_control_paths_subtitle">Read-only. App Control does not edit private data directories from this page.</string>
+    <string name="app_control_label_apk" translatable="false">APK</string>
+    <string name="app_control_label_splits" translatable="false">Splits</string>
+    <string name="app_control_label_data">Data</string>
+    <string name="app_control_label_device_protected">Device protected</string>
+    <string name="app_control_label_credential_protected">Credential protected</string>
+    <string name="app_control_label_native_libs">Native libs</string>
+    <string name="app_control_signature_title">Signing / shared libraries</string>
+    <string name="app_control_signature_subtitle">Useful for source, ABI, and dependency diagnostics.</string>
+    <string name="app_control_label_sha256" translatable="false">SHA-256</string>
+    <string name="app_control_label_shared_libraries">Shared libraries</string>
+
+    <string name="app_control_components_title">Components</string>
+    <string name="app_control_components_subtitle">Activity / Service / Receiver / Provider · writes are audited</string>
+    <string name="app_control_component_count">%1$d · %2$d disabled</string>
+    <string name="app_control_component_empty">No %1$s components.</string>
+    <string name="app_control_components_loading">Loading components…</string>
+    <string name="app_control_component_search_label">Search components</string>
+    <string name="app_control_component_search_placeholder" translatable="false">class / component</string>
+    <string name="app_control_filter_all_caps">ALL</string>
+    <string name="app_control_filter_boot" translatable="false">BOOT</string>
+    <string name="app_control_filter_exported" translatable="false">EXPORTED</string>
+    <string name="app_control_filter_fgs" translatable="false">FGS</string>
+    <string name="app_control_filter_disabled_caps">DISABLED</string>
+    <string name="app_control_badge_exported" translatable="false">EXPORTED</string>
+    <string name="app_control_badge_boot" translatable="false">BOOT</string>
+    <string name="app_control_badge_fgs" translatable="false">FGS</string>
+    <string name="app_control_badge_direct_boot" translatable="false">DIRECT BOOT</string>
+    <string name="app_control_badge_core" translatable="false">CORE</string>
+    <string name="app_control_action_launch">Launch</string>
+
+    <string name="app_control_permissions_title">Runtime Permissions</string>
+    <string name="app_control_permissions_subtitle">Accurate read-only state first; permission writes will be enabled later by risk level.</string>
+    <string name="app_control_permissions_loading">Loading permissions…</string>
+    <string name="app_control_metric_granted">Granted</string>
+    <string name="app_control_metric_denied">Denied</string>
+    <string name="app_control_metric_total">Total</string>
+    <string name="app_control_permissions_hint">permissions</string>
+    <string name="app_control_requested_hint">requested</string>
+    <string name="app_control_badge_granted">GRANTED</string>
+    <string name="app_control_badge_denied">DENIED</string>
+    <string name="app_control_action_grant">Grant</string>
+    <string name="app_control_action_revoke">Revoke</string>
+    <string name="app_control_special_access_title">Special Access</string>
+    <string name="app_control_special_access_subtitle">System Settings deep links · user confirmation is never bypassed</string>
+    <string name="app_control_special_app_details">App details</string>
+    <string name="app_control_special_overlay">Overlay</string>
+    <string name="app_control_special_usage">Usage access</string>
+    <string name="app_control_special_notification">Notification access</string>
+
+    <string name="app_control_appops_title" translatable="false">AppOps</string>
+    <string name="app_control_appops_subtitle">Typed allowlist operations · Shizuku/Sui first, RootShell fallback</string>
+    <string name="app_control_appops_loading">Loading AppOps…</string>
+    <string name="app_control_appops_unavailable">AppOps requires Root or an authorized Shizuku/Sui backend.</string>
+    <string name="app_control_appops_no_explicit_state">No explicit state</string>
+    <string name="app_control_badge_default">DEFAULT</string>
+    <string name="app_control_badge_na" translatable="false">N/A</string>
+
+    <string name="app_control_error_inventory_empty">No installed apps were returned.</string>
+    <string name="app_control_error_package_not_found">App not found or invalid package name.</string>
+
+    <!-- App Control runtime / storage / code / policy -->
+    <string name="app_control_runtime_title" translatable="false">Runtime</string>
+    <string name="app_control_runtime_subtitle">Processes, startup, standby, and background state shared with Startup Control.</string>
+    <string name="app_control_runtime_running">Running</string>
+    <string name="app_control_runtime_stopped_flag">Stopped flag</string>
+    <string name="app_control_runtime_persistent">Persistent</string>
+    <string name="app_control_runtime_process_name">Process name</string>
+    <string name="app_control_runtime_backend">Backend</string>
+    <string name="app_control_runtime_startup_source">Startup source</string>
+    <string name="app_control_runtime_startup_count">Startup count</string>
+    <string name="app_control_runtime_startup_reasons">Startup reasons</string>
+    <string name="app_control_runtime_boot_receivers" translatable="false">BOOT receivers</string>
+    <string name="app_control_runtime_standby_bucket">Standby bucket</string>
+    <string name="app_control_runtime_doze_whitelist">Doze whitelist</string>
+    <string name="app_control_runtime_active_services">Active services</string>
+    <string name="app_control_runtime_foreground_services">Foreground services</string>
+    <string name="app_control_processes_title">Processes</string>
+    <string name="app_control_processes_subtitle">On-demand snapshot; no continuous top polling.</string>
+    <string name="app_control_runtime_loading">Reading runtime snapshot…</string>
+    <string name="app_control_runtime_no_processes">No matching process is running.</string>
+    <string name="app_control_process_meta" translatable="false">PID %1$d · PPID %2$d · %3$s · %4$s</string>
+    <string name="app_control_process_memory_meta" translatable="false">RSS %1$s · MEM %2$.1f%%</string>
+    <string name="app_control_percent" translatable="false">%1$.1f%%</string>
+    <string name="app_control_services_title">Services</string>
+    <string name="app_control_services_subtitle" translatable="false">Active Service / Foreground Service</string>
+    <string name="app_control_runtime_no_services">No active service was found.</string>
+    <string name="app_control_default_process">default process</string>
+    <string name="app_control_wakelock_title" translatable="false">WakeLock clues</string>
+    <string name="app_control_wakelock_subtitle">Read-only package matches from dumpsys power.</string>
+    <string name="app_control_runtime_actions_title">Runtime actions</string>
+    <string name="app_control_runtime_actions_subtitle">Fixed semantic controls; protected apps are rejected by the Controller.</string>
+    <string name="app_control_action_force_stop">Force stop</string>
+    <string name="app_control_appop_status" translatable="false">%1$s: %2$s · %3$s</string>
+    <string name="app_control_battery_optimization_title">Battery optimization</string>
+    <string name="app_control_battery_optimization_subtitle">Android owns the exemption list; Root Tools does not fake an exempt state.</string>
+    <string name="app_control_open_battery_optimization">Open battery optimization settings</string>
+    <string name="app_control_storage_title">Storage</string>
+    <string name="app_control_storage_subtitle">Read-only code and data paths. Full backup and restore belong to Backup Center.</string>
+    <string name="app_control_storage_base_apk" translatable="false">Base APK</string>
+    <string name="app_control_storage_split_apks" translatable="false">Split APKs</string>
+    <string name="app_control_storage_total_code">Total code</string>
+    <string name="app_control_storage_source_readable">Source readable</string>
+    <string name="app_control_storage_data_dir">Data dir</string>
+    <string name="app_control_storage_credential_protected">Credential protected</string>
+    <string name="app_control_storage_device_protected">Device protected</string>
+    <string name="app_control_storage_native_library">Native library</string>
+    <string name="app_control_code_title">Code &amp; Signing</string>
+    <string name="app_control_code_subtitle">APK, splits, shared libraries, and signing certificate.</string>
+    <string name="app_control_code_source_status">Source status</string>
+    <string name="app_control_policy_title">Policy &amp; Backup</string>
+    <string name="app_control_policy_subtitle">Enabled state, risk boundary, and recent audit. Batch profiles and backups remain separate capabilities.</string>
+    <string name="app_control_policy_enabled">Enabled</string>
+    <string name="app_control_policy_enabled_state">Enabled state</string>
+    <string name="app_control_policy_system_app">System app</string>
+    <string name="app_control_policy_updated_system">Updated system</string>
+    <string name="app_control_policy_protected_lifeline">Protected lifeline</string>
+    <string name="app_control_policy_allow_backup" translatable="false">allowBackup</string>
+    <string name="app_control_policy_cleartext" translatable="false">cleartext</string>
+    <string name="app_control_policy_debuggable" translatable="false">debuggable</string>
+    <string name="app_control_audit_title">Recent audit</string>
+    <string name="app_control_audit_subtitle">Only system mutations associated with this package.</string>
+    <string name="app_control_audit_empty">No Root or privileged write is associated with this app yet.</string>
+    <string name="app_control_audit_feature_action">%1$s · %2$s</string>
+    <string name="app_control_audit_transition">%1$s → %2$s</string>
+    <string name="app_control_audit_source_rollback">%1$s · rollback: %2$s</string>
+    <string name="app_control_diagnostic_title" translatable="false">Package Diagnostic</string>
+    <string name="app_control_diagnostic_subtitle" translatable="false">Metadata · Signing · Components · Permissions · AppOps</string>
+    <string name="app_control_diagnostic_export">Export Markdown + JSON</string>
+    <string name="app_control_diagnostic_share_markdown">Share Markdown</string>
+    <string name="app_control_diagnostic_share_json">Share JSON</string>
+    <string name="app_control_diagnostic_share_title">Share App Diagnostic</string>
+    <string name="app_control_placeholder_dash" translatable="false">—</string>
+
+    <!-- Environment Integrity Center -->
+    <string name="integrity_title">Environment Integrity</string>
+    <string name="integrity_subtitle">Runtime · Boot · Root · Surface · Attestation</string>
+    <string name="integrity_back">Back</string>
+    <string name="integrity_refresh">Run fast scan</string>
+    <string name="integrity_scan_fast">Fast</string>
+    <string name="integrity_scan_deep">Deep</string>
+    <string name="integrity_scan_native">Native</string>
+    <string name="integrity_scan_attestation">Attestation</string>
+    <string name="integrity_scanning">Scanning %1$s…</string>
+    <string name="integrity_summary_clean">No unreviewed integrity warnings</string>
+    <string name="integrity_summary_warning">Integrity differences need review</string>
+    <string name="integrity_summary_critical">Strong integrity evidence detected</string>
+    <string name="integrity_summary_unavailable">Integrity scan is partially unavailable</string>
+    <string name="integrity_summary_meta">%1$s · %2$d ms · %3$d drift</string>
+    <string name="integrity_metric_critical">Critical</string>
+    <string name="integrity_metric_warning">Warning</string>
+    <string name="integrity_metric_expected">Expected</string>
+    <string name="integrity_metric_unavailable">Unavailable</string>
+    <string name="integrity_level_pass">Pass</string>
+    <string name="integrity_level_info">Info</string>
+    <string name="integrity_level_expected">Expected</string>
+    <string name="integrity_level_warning">Warning</string>
+    <string name="integrity_level_critical">Critical</string>
+    <string name="integrity_level_unavailable">Unavailable</string>
+    <string name="integrity_baseline_title">Trusted baseline</string>
+    <string name="integrity_baseline_none">No trusted baseline. Root, unlocked bootloader, ADB, VPN, and hook frameworks are shown as context until you explicitly trust the current device state.</string>
+    <string name="integrity_baseline_active">%1$s · trusted %2$s</string>
+    <string name="integrity_baseline_save">Trust current state</string>
+    <string name="integrity_baseline_replace">Replace baseline</string>
+    <string name="integrity_baseline_clear">Clear baseline</string>
+    <string name="integrity_baseline_confirm_title">Trust current device state?</string>
+    <string name="integrity_baseline_confirm_body">This will mark the current Root runtime, modules, hook frameworks, ADB/VPN context, boot state, and available device-surface hashes as expected. It never suppresses signing changes, same-version APK changes, Frida-like strong markers, or native runtime/file code mismatches.</string>
+    <string name="integrity_baseline_confirm">Save trusted baseline</string>
+    <string name="integrity_baseline_cancel">Cancel</string>
+    <string name="integrity_default_baseline_profile">%1$s · Daily Rooted</string>
+    <string name="integrity_findings_title">Findings</string>
+    <string name="integrity_findings_subtitle">Evidence first. Expected modifications are separated from unknown drift.</string>
+    <string name="integrity_no_findings">No findings were produced by the current scan.</string>
+    <string name="integrity_observed">Observed: %1$s</string>
+    <string name="integrity_expected">Expected: %1$s</string>
+    <string name="integrity_confidence_sources">%1$s confidence · %2$s</string>
+    <string name="integrity_runtime_title">Runtime integrity</string>
+    <string name="integrity_runtime_subtitle">TracerPid, process maps, executable mappings, and optional native self-code verification.</string>
+    <string name="integrity_boot_title">Boot &amp; OS</string>
+    <string name="integrity_boot_subtitle">Framework and root property cross-checks.</string>
+    <string name="integrity_root_title">Root &amp; frameworks</string>
+    <string name="integrity_root_subtitle">Root provider, modules, Zygisk, and installed hook frameworks.</string>
+    <string name="integrity_environment_title">Automation &amp; network</string>
+    <string name="integrity_environment_subtitle">Developer options, ADB, VPN, proxy, mock-location, automation, and virtualization context.</string>
+    <string name="integrity_surface_title">Device surface</string>
+    <string name="integrity_surface_subtitle">Privacy-preserving capability hashes for CPU, thermal, GPU, Vulkan, sensors, audio, and battery topology.</string>
+    <string name="integrity_surface_not_scanned">Run Deep scan to build device-surface and sandbox consistency evidence.</string>
+    <string name="integrity_attestation_title">Hardware attestation</string>
+    <string name="integrity_attestation_subtitle">Ephemeral Android Keystore keys; local chain validation plus Google trust/revocation metadata when online.</string>
+    <string name="integrity_attestation_not_scanned">Run Attestation to request standard hardware-backed and StrongBox evidence.</string>
+    <string name="integrity_reports_title">Reports &amp; evidence</string>
+    <string name="integrity_reports_subtitle">Text/JSON reports exclude IMEI, serial, MAC address, Android ID, and other stable device identifiers.</string>
+    <string name="integrity_export_text">Export text</string>
+    <string name="integrity_export_json">Export JSON</string>
+    <string name="integrity_export_pem">Export PEM</string>
+    <string name="integrity_share_last">Share latest</string>
+    <string name="integrity_action_baseline_saved">Trusted baseline saved.</string>
+    <string name="integrity_action_baseline_cleared">Trusted baseline cleared.</string>
+    <string name="integrity_action_report_exported">Integrity report exported.</string>
+    <string name="integrity_action_pem_exported">Attestation certificate chain exported.</string>
+    <string name="integrity_error_scan">Integrity operation failed.</string>
+    <string name="integrity_share_chooser">Share integrity evidence</string>
+    <string name="integrity_value_none">None</string>
+    <string name="integrity_value_unknown">Unknown</string>
+    <string name="integrity_value_yes">Yes</string>
+    <string name="integrity_value_no">No</string>
+    <string name="integrity_value_not_scanned">Not scanned</string>
+    <string name="integrity_label_package">Package</string>
+    <string name="integrity_label_version">Version</string>
+    <string name="integrity_label_signing" translatable="false">Signing SHA-256</string>
+    <string name="integrity_label_apk" translatable="false">APK SHA-256</string>
+    <string name="integrity_label_debuggable">Debuggable</string>
+    <string name="integrity_label_model">Model</string>
+    <string name="integrity_label_verified_boot" translatable="false">Verified Boot</string>
+    <string name="integrity_label_vbmeta" translatable="false">VBMeta</string>
+    <string name="integrity_label_flash_locked">Flash locked</string>
+    <string name="integrity_label_security_patch">Security patch</string>
+    <string name="integrity_label_selinux" translatable="false">SELinux</string>
+    <string name="integrity_label_root_provider">Root provider</string>
+    <string name="integrity_label_zygisk" translatable="false">Zygisk</string>
+    <string name="integrity_label_modules">Modules</string>
+    <string name="integrity_label_hook_frameworks">Hook frameworks</string>
+    <string name="integrity_label_tracer_pid" translatable="false">TracerPid</string>
+    <string name="integrity_label_maps">Mappings</string>
+    <string name="integrity_label_rwx" translatable="false">RWX mappings</string>
+    <string name="integrity_label_deleted_exec">Deleted executable</string>
+    <string name="integrity_label_markers">Runtime markers</string>
+    <string name="integrity_label_native_self">Native self-code</string>
+    <string name="integrity_native_self_value">%1$d segments · %2$d mismatch</string>
+    <string name="integrity_label_developer_options">Developer options</string>
+    <string name="integrity_label_adb" translatable="false">ADB</string>
+    <string name="integrity_label_wireless_adb">Wireless ADB</string>
+    <string name="integrity_label_vpn" translatable="false">VPN</string>
+    <string name="integrity_label_proxy">Global proxy</string>
+    <string name="integrity_label_mock_location">Mock-location packages</string>
+    <string name="integrity_label_environment_packages">Detected tool context</string>
+    <string name="integrity_label_cpu_hash" translatable="false">CPU topology</string>
+    <string name="integrity_label_thermal_hash">Thermal zones</string>
+    <string name="integrity_label_gpu_hash" translatable="false">GPU surface</string>
+    <string name="integrity_label_vulkan_hash" translatable="false">Vulkan capability</string>
+    <string name="integrity_label_sensor_hash">Sensor shape</string>
+    <string name="integrity_label_audio_hash">Audio capability</string>
+    <string name="integrity_label_battery_hash">Battery topology</string>
+    <string name="integrity_label_sandbox">Sandbox consistency</string>
+    <string name="integrity_surface_counts">%1$d sensors · %2$d audio devices · %3$d thermal zones</string>
+    <string name="integrity_label_attestation_security">Attestation security</string>
+    <string name="integrity_label_keymint_security" translatable="false">KeyMint security</string>
+    <string name="integrity_label_challenge">Challenge</string>
+    <string name="integrity_label_chain">Certificate chain</string>
+    <string name="integrity_label_trust_anchor">Trust anchor</string>
+    <string name="integrity_label_revocation">Revocation status</string>
+    <string name="integrity_label_rkp" translatable="false">RKP</string>
+    <string name="integrity_label_attested_locked">Attested deviceLocked</string>
+    <string name="integrity_chain_value">%1$d certs · signature %2$s · validity %3$s</string>
+    <string name="integrity_status_match">Match</string>
+    <string name="integrity_status_mismatch">Mismatch</string>
+    <string name="integrity_status_online_checked">Online checked</string>
+    <string name="integrity_status_offline">Offline / unavailable</string>
+    <string name="integrity_status_coherent">Coherent</string>
+    <string name="integrity_status_incoherent">Incoherent</string>
+    <string name="integrity_hash_short" translatable="false">%1$s…</string>
+    <string name="integrity_native_unavailable_detail">Native probe unavailable: %1$s</string>
+    <string name="integrity_unavailable_probes">Unavailable probes: %1$s</string>
+
+    <string name="integrity_finding_no_baseline">No trusted baseline</string>
+    <string name="integrity_finding_self_ok">App identity verified</string>
+    <string name="integrity_finding_self_identity_mismatch">Compiled app identity mismatch</string>
+    <string name="integrity_finding_signing_mismatch">Signing certificate changed</string>
+    <string name="integrity_finding_apk_mismatch">Same-version APK content changed</string>
+    <string name="integrity_finding_version_changed">App version changed</string>
+    <string name="integrity_finding_path_mismatch">Package path cross-check mismatch</string>
+    <string name="integrity_finding_debuggable">Debuggable build</string>
+    <string name="integrity_finding_bootloader_unlocked">Bootloader unlocked</string>
+    <string name="integrity_finding_verified_boot_changed">Verified Boot state changed</string>
+    <string name="integrity_finding_selinux">SELinux is not enforcing</string>
+    <string name="integrity_finding_patch_changed">Security patch changed</string>
+    <string name="integrity_finding_root">Root available</string>
+    <string name="integrity_finding_root_provider">Root provider changed</string>
+    <string name="integrity_finding_root_modules">Root module set changed</string>
+    <string name="integrity_finding_hook_framework">Hook framework present</string>
+    <string name="integrity_finding_traced">Process is being traced</string>
+    <string name="integrity_finding_runtime_marker">Runtime injection/hook marker</string>
+    <string name="integrity_finding_rwx">Writable executable mapping</string>
+    <string name="integrity_finding_deleted_exec">Deleted executable mapping</string>
+    <string name="integrity_finding_maps_mismatch">Process maps cross-check mismatch</string>
+    <string name="integrity_finding_dev_options">Developer options enabled</string>
+    <string name="integrity_finding_adb">ADB enabled</string>
+    <string name="integrity_finding_vpn">VPN active</string>
+    <string name="integrity_finding_proxy">Global proxy configured</string>
+    <string name="integrity_finding_automation">Automation / remote-control tool present</string>
+    <string name="integrity_finding_virtualization">Virtualization tool present</string>
+    <string name="integrity_finding_spoofing">Device-spoofing tool present</string>
+    <string name="integrity_finding_root_hiding">Root-hiding tool present</string>
+    <string name="integrity_finding_model_mismatch">Device model cross-check mismatch</string>
+    <string name="integrity_finding_surface_drift">Device surface changed</string>
+    <string name="integrity_finding_sandbox">Sandbox path consistency failed</string>
+    <string name="integrity_finding_native_unavailable">Native integrity probe unavailable</string>
+    <string name="integrity_finding_native_mismatch">Native runtime/file code mismatch</string>
+    <string name="integrity_finding_native_marker">Native injection/hook marker</string>
+    <string name="integrity_finding_attestation_unavailable">Key Attestation unavailable</string>
+    <string name="integrity_finding_attestation_challenge">Attestation challenge mismatch</string>
+    <string name="integrity_finding_attestation_chain">Attestation certificate chain invalid</string>
+    <string name="integrity_finding_attestation_revoked">Attestation certificate revoked</string>
+    <string name="integrity_finding_attestation_root">Unknown attestation trust anchor</string>
+    <string name="integrity_finding_attestation_software">Software-only attestation</string>
+    <string name="integrity_finding_attestation_ready">Hardware attestation ready</string>
+    <string name="integrity_finding_strongbox_unavailable">StrongBox unavailable</string>
+    <string name="integrity_finding_strongbox_ready">StrongBox attestation ready</string>
+    <string name="integrity_finding_attestation_boot_mismatch">Attested boot state disagrees with root properties</string>
+    <string name="integrity_finding_attestation_online">Online attestation metadata unavailable</string>
+    <string name="integrity_finding_rkp">Remote key provisioning evidence present</string>
 </resources>

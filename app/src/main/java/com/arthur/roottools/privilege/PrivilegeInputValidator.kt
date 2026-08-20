@@ -12,6 +12,7 @@ object PrivilegeInputValidator {
         "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+/[A-Za-z0-9_.$]+$"
     )
     private val appOpRegex = Regex("^[A-Z0-9_]{2,64}$")
+    private val permissionRegex = Regex("^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+$")
     private val appOpModes = setOf("allow", "ignore", "deny", "default", "foreground")
     private val standbyBuckets = setOf(5, 10, 20, 30, 40, 45)
 
@@ -20,6 +21,8 @@ object PrivilegeInputValidator {
     fun componentName(value: String?): String? = value?.takeIf(componentRegex::matches)
 
     fun appOpName(value: String?): String? = value?.uppercase()?.takeIf(appOpRegex::matches)
+
+    fun permissionName(value: String?): String? = value?.takeIf(permissionRegex::matches)
 
     fun appOpMode(value: String?): String? = value?.lowercase()?.takeIf { it in appOpModes }
 

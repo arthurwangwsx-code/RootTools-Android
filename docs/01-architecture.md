@@ -22,7 +22,7 @@ com.arthur.roottools
 │   ├── performance
 │   ├── adb
 │   ├── startup
-│   ├── apps
+│   ├── apps                # App Control Center
 │   ├── diagnostics
 │   ├── battery
 │   ├── network
@@ -34,6 +34,9 @@ com.arthur.roottools
 ```
 
 目前已有代码可以逐步迁移，不需要一次性重构。
+
+`apps` 领域后续会明显变大，但仍坚持**单 app Gradle module + package 分层**。应用清单、组件、权限、AppOps、Profile、Debloat
+分别拆 Repository / Controller 即可，不创建 `:feature-app-manager`、`:feature-component-manager` 等额外 Android library module。
 
 ---
 
@@ -154,6 +157,21 @@ Feature 不直接持有 Shizuku Binder；统一由 `ShizukuBridge` 管理 Binder
 2. UserService AIDL 只包含固定语义方法；package/component/AppOp 等动态参数都通过 `PrivilegeInputValidator`，不接受外部 shell command 文本。
 
 组件写操作额外经过 `ComponentSafetyPolicy`，Package 写操作经过 `PackageMutationPolicy`；这些 Android-free 规则由 JVM unit test 覆盖。详细设计见 `13-shizuku-sui-bridge.md` 与 `14-core-logic-testing-standard.md`。
+
+### App Control Center 接入后的复用边界
+
+应用控制领域必须复用现有真值源：
+
+```text
+App Control UI
+   ├── package/component/appops → PrivilegeRouter
+   ├── freeze/standby/background → PackagePolicyController
+   ├── startup reason → StartupRepository
+   ├── process/service → DiagnosticsRepository
+   └── audit → RootActionAuditStore
+```
+
+禁止为了应用详情页再实现第二份 `pm/am/appops/dumpsys` 命令集合。详细设计见 `15-app-control-center.md`。
 
 ---
 
@@ -303,6 +321,19 @@ Capability 建议定义：
 - `MAGISK_AVAILABLE`
 - `VECTOR_AVAILABLE`
 - `TAILSCALE_AVAILABLE`
+
+随着 App Control / Backup / Firewall 落地，Capability 需要继续向语义级扩展，例如：
+
+- `PACKAGE_READ / PACKAGE_CONTROL`
+- `COMPONENT_CONTROL`
+- `APP_OPS_READ / APP_OPS_WRITE`
+- `PERMISSION_CONTROL`
+- `APP_DATA_READ / APP_DATA_WRITE`
+- `NETFILTER / NETWORK_POLICY`
+- `MODULE_MAGISK / MODULE_KERNELSU / MODULE_APATCH`
+- `CHARGE_CONTROL`
+
+Feature 应依赖“能力”，而不是直接判断 `Magisk`、`Shizuku` 或某个 OEM。完整演进见 `16-industry-root-capability-map.md`。
 
 规则：
 
