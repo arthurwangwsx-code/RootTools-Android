@@ -35,6 +35,7 @@ enum class ToolId {
     COMPONENTS,
     PERMISSION_OPS,
     INTEGRITY,
+    DEVELOPER_RUNTIME,
 }
 
 enum class ToolCategory {
@@ -80,5 +81,6 @@ object ToolRegistry {
         ToolDefinition(ToolId.STORAGE, ToolCategory.DIAGNOSTICS, R.string.tool_storage_title, Icons.Rounded.Memory, Color(0xFFB7D7A8), setOf(ToolCapability.ROOT)),
         ToolDefinition(ToolId.BATTERY, ToolCategory.DAILY, R.string.tool_battery_title, Icons.Rounded.Thermostat, Color(0xFFFFC98B), setOf(ToolCapability.ROOT)),
         ToolDefinition(ToolId.SHIZUKU, ToolCategory.SYSTEM, R.string.tool_shizuku_title, Icons.Rounded.Share, Color(0xFF8FD8FF), setOf(ToolCapability.SHIZUKU)),
+        ToolDefinition(ToolId.DEVELOPER_RUNTIME, ToolCategory.SYSTEM, R.string.developer_runtime_title, Icons.Rounded.Terminal, Color(0xFF9BD9C7)),
     )
 }

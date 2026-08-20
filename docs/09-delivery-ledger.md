@@ -216,6 +216,32 @@
 - [x] FileProvider share
 - [x] reboot / recovery / bootloader 当前版本主动不开放，等待 post-boot reconnect 验收
 
+## O — Developer Runtime / Termux / Agent
+
+- [x] 建立 `docs/20-termux-developer-runtime.md` 分阶段方案与 `docs/adr/0001-termux-mcp-relay.md`
+- [x] Samsung 当前 Google Play Termux capability probe：package/version/distribution + `RUN_COMMAND` service absence
+- [x] `TermuxRuntimeSnapshot` / `TermuxCapabilityPolicy` / Developer Runtime UI
+- [x] scoped automation client：hash-only credential、scope policy、ordered JSON result、60 req/min backstop
+- [x] Termux -> RootTools generated CLI：status / performance / Root ADB ensure / diagnostic / app policy / managed workflow
+- [x] stable Termux official `RUN_COMMAND` backend：permission、allowlisted registry、PendingIntent result、timeout/output clamp
+- [x] CLI atomic install / SHA-256 verify
+- [x] optional Git / OpenSSH / Python / Node.js LTS / termux-services preset
+- [x] sshd effective config / status / start / stop / explicit autostart controls
+- [x] Termux task metadata audit；不保存 stdout/stderr/raw command/credential
+- [x] generated MCP 2026-07-28 relay：stdio + stateless HTTP POST
+- [x] MCP HTTP 只允许 loopback / RootTools-verified Tailscale IPv4，独立 bearer credential
+- [x] MCP `server/discover` / `tools/list` / `tools/call` / request-scoped `notifications/progress`
+- [x] Agent semantic tools：identity/status/performance/ADB/diagnostic/app policy/managed workflow；无 arbitrary shell
+- [x] MCP edge + RootTools scoped-client 双层 rate limit + revoke
+- [x] cross-feature managed workflows：Test Device / App Test / Diagnostic / Runtime Health
+- [x] Android Keystore HMAC signed workflow manifest + signed CLI/MCP runtime registry
+- [x] RootTools-owned backup artifact handoff：app-owned path gate、48 KiB chunks、offset + SHA-256 verify、Termux gzip archive
+- [x] host Python generated-relay syntax / stdio / HTTP bearer/header / SSE progress smoke tests
+- [ ] Samsung Play Termux reverse CLI real round-trip
+- [ ] F-Droid / GitHub stable Termux official `RUN_COMMAND` real-device round-trip
+- [ ] Mac / AiBox MCP round-trip
+- [ ] full app-private-data BackupController integration；Developer Runtime 不复制第二套 root backup shell
+
 ## Next — F Network Diagnostics
 
 - [x] `NetworkSnapshot`

@@ -151,6 +151,7 @@ import com.arthur.roottools.core.presentation.formatUptime
 import com.arthur.roottools.feature.dashboard.presentation.frequencyBins
 import com.arthur.roottools.feature.dashboard.presentation.rangeText
 import com.arthur.roottools.feature.dashboard.presentation.thermalStageLabel
+import com.arthur.roottools.feature.developer.DeveloperRuntimeRoute
 import com.arthur.roottools.feature.integrity.ui.EnvironmentIntegrityRoute
 import java.io.File
 import kotlin.math.roundToInt
@@ -310,6 +311,9 @@ fun DashboardRoute(
         ToolboxRoute.INTEGRITY -> EnvironmentIntegrityRoute(
             onBack = { route = ToolboxRoute.HOME },
         )
+        ToolboxRoute.DEVELOPER_RUNTIME -> DeveloperRuntimeRoute(
+            onBack = { route = ToolboxRoute.HOME },
+        )
     }
 }
 
@@ -441,6 +445,7 @@ private fun buildToolboxCard(definition: ToolDefinition, title: String, state: D
                 if (info.appOpsBackendAvailable) "EDIT" else "READ"
         } ?: ("Runtime Permission · AppOps · Special Access" to "PERM")
         ToolId.INTEGRITY -> "Fast · Deep · Native · Attestation" to "SCAN"
+        ToolId.DEVELOPER_RUNTIME -> "Termux · CLI · Managed Tasks" to "DEV"
     }
     val setupTool = definition.id == ToolId.PERMISSIONS || definition.id == ToolId.SHIZUKU
     val subtitle = if (missingCapabilities.isNotEmpty() && !setupTool) {

@@ -152,6 +152,7 @@ class AutomationClientStore(context: Context) {
 
     companion object {
         const val TERMUX_CLIENT_ID = "termux"
+        const val TERMUX_MCP_CLIENT_ID = "termux-mcp"
         private const val PREFS_NAME = "automation_clients"
         private const val KEY_CLIENTS = "clients_v1"
         private const val MIN_TOKEN_LENGTH = 48
