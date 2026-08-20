@@ -129,7 +129,7 @@
     <string name="developer_runtime_backup_confirm_title">Transfer RootTools artifact to Termux?</string>
     <string name="developer_runtime_backup_confirm_body">Only an app-owned RootTools export file is allowed. Each chunk is offset-checked and the final artifact must match its SHA-256 before it is accepted in Termux.</string>
     <string name="developer_runtime_backup_archive_confirm_title">Create Termux backup archive?</string>
-    <string name="developer_runtime_backup_archive_confirm_body">This creates a gzip tar archive from RootTools' dedicated Termux backup staging directory. It does not upload, encrypt, or delete source files.</string>
+    <string name="developer_runtime_backup_archive_confirm_body">This creates a gzip tar archive from the dedicated RootTools Termux backup staging directory. It does not upload, encrypt, or delete source files.</string>
     <string name="developer_runtime_backup_remote_path">Termux path</string>
     <string name="developer_runtime_backup_sha">SHA-256</string>
     <string name="developer_runtime_backup_chunks">Chunks</string>
