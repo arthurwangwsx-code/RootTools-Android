@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Dashboard
+import androidx.compose.material.icons.rounded.DesktopWindows
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.SettingsEthernet
@@ -21,6 +22,7 @@ import com.arthur.roottools.R
 enum class ToolId {
     DASHBOARD,
     PERFORMANCE,
+    SHADOW_DISPLAY,
     ROOT_ADB,
     PERMISSIONS,
     STARTUP,
@@ -69,6 +71,7 @@ object ToolRegistry {
     val tools: List<ToolDefinition> = listOf(
         ToolDefinition(ToolId.DASHBOARD, ToolCategory.DAILY, R.string.tool_dashboard_title, Icons.Rounded.Dashboard, Color(0xFF8EE3FF), setOf(ToolCapability.ROOT)),
         ToolDefinition(ToolId.PERFORMANCE, ToolCategory.DAILY, R.string.tool_performance_title, Icons.Rounded.Speed, Color(0xFFA9F5D0), setOf(ToolCapability.ROOT, ToolCapability.NOTIFICATION)),
+        ToolDefinition(ToolId.SHADOW_DISPLAY, ToolCategory.DAILY, R.string.tool_shadow_display_title, Icons.Rounded.DesktopWindows, Color(0xFF9ED7FF), setOf(ToolCapability.ROOT)),
         ToolDefinition(ToolId.ROOT_ADB, ToolCategory.DAILY, R.string.tool_adb_title, Icons.Rounded.WifiTethering, Color(0xFFB9C8FF), setOf(ToolCapability.ROOT, ToolCapability.NETWORK)),
         ToolDefinition(ToolId.PERMISSIONS, ToolCategory.DAILY, R.string.tool_permissions_title, Icons.Rounded.VerifiedUser, Color(0xFFFFC56F)),
         ToolDefinition(ToolId.STARTUP, ToolCategory.GOVERNANCE, R.string.tool_startup_title, Icons.Rounded.Tune, Color(0xFF9BD4FF), setOf(ToolCapability.ROOT)),

@@ -6,6 +6,7 @@
     <!-- Toolbox registry -->
     <string name="tool_dashboard_title">Device dashboard</string>
     <string name="tool_performance_title">Performance</string>
+    <string name="tool_shadow_display_title">Shadow display</string>
     <string name="tool_adb_title">ADB control</string>
     <string name="tool_permissions_title">Permissions</string>
     <string name="tool_startup_title">Startup control</string>
@@ -612,4 +613,70 @@
     <string name="integrity_finding_attestation_boot_mismatch">Attested boot state disagrees with root properties</string>
     <string name="integrity_finding_attestation_online">Online attestation metadata unavailable</string>
     <string name="integrity_finding_rkp">Remote key provisioning evidence present</string>
+
+    <!-- Shadow display -->
+    <string name="shadow_display_title">Shadow display</string>
+    <string name="shadow_display_subtitle">Run apps on a Root-owned virtual screen without taking over the physical display.</string>
+    <string name="shadow_display_home_subtitle">AI background screen · isolated input · Root daemon</string>
+    <string name="shadow_display_home_badge" translatable="false">VIRTUAL</string>
+    <string name="shadow_display_status_title">Runtime status</string>
+    <string name="shadow_display_status_subtitle">The daemon owns one trusted secondary display and releases it on Stop or process exit.</string>
+    <string name="shadow_display_state_running">Running</string>
+    <string name="shadow_display_state_starting">Starting</string>
+    <string name="shadow_display_state_stopped">Stopped</string>
+    <string name="shadow_display_state_error">Error</string>
+    <string name="shadow_display_display_id">Display ID</string>
+    <string name="shadow_display_daemon_pid">Daemon PID</string>
+    <string name="shadow_display_resolution">Resolution</string>
+    <string name="shadow_display_density">Density</string>
+    <string name="shadow_display_backend">Backend</string>
+    <string name="shadow_display_backend_root" translatable="false">Root app_process</string>
+    <string name="shadow_display_display_value" translatable="false">%1$dx%2$d</string>
+    <string name="shadow_display_dpi_value" translatable="false">%1$d dpi</string>
+    <string name="shadow_display_lifecycle_title">Display lifecycle</string>
+    <string name="shadow_display_lifecycle_subtitle">Balanced defaults are tuned for GUI automation. Stop destroys tasks that are still on the virtual display.</string>
+    <string name="shadow_display_width">Width</string>
+    <string name="shadow_display_height">Height</string>
+    <string name="shadow_display_dpi">DPI</string>
+    <string name="shadow_display_start">Start shadow display</string>
+    <string name="shadow_display_stop">Stop shadow display</string>
+    <string name="shadow_display_stop_confirm_title">Stop the shadow display?</string>
+    <string name="shadow_display_stop_confirm_body">Apps running on this virtual display may be destroyed. Your physical screen and ADB connection are not changed.</string>
+    <string name="shadow_display_cancel">Cancel</string>
+    <string name="shadow_display_app_title">Launch app</string>
+    <string name="shadow_display_app_subtitle">Launch a package directly on the virtual display. Existing app tasks may move to the shadow display.</string>
+    <string name="shadow_display_package">Package name</string>
+    <string name="shadow_display_launch">Launch</string>
+    <string name="shadow_display_quick_maps" translatable="false">Google Maps</string>
+    <string name="shadow_display_quick_chrome" translatable="false">Chrome</string>
+    <string name="shadow_display_quick_settings">Settings</string>
+    <string name="shadow_display_pointer_title">Pointer input</string>
+    <string name="shadow_display_pointer_subtitle">Coordinates are validated against the virtual screen before Root input is injected.</string>
+    <string name="shadow_display_x">X</string>
+    <string name="shadow_display_y">Y</string>
+    <string name="shadow_display_x1" translatable="false">X1</string>
+    <string name="shadow_display_y1" translatable="false">Y1</string>
+    <string name="shadow_display_x2" translatable="false">X2</string>
+    <string name="shadow_display_y2" translatable="false">Y2</string>
+    <string name="shadow_display_duration_ms">Duration (ms)</string>
+    <string name="shadow_display_tap">Tap</string>
+    <string name="shadow_display_swipe">Swipe</string>
+    <string name="shadow_display_text_title">Text input</string>
+    <string name="shadow_display_text_subtitle">Uses Android display-scoped input. ASCII text is the most compatible across OEM keyboards.</string>
+    <string name="shadow_display_text_hint">Text to send</string>
+    <string name="shadow_display_send_text">Send text</string>
+    <string name="shadow_display_preview_title">Virtual page preview</string>
+    <string name="shadow_display_preview_subtitle">Preview is captured only on demand; secure content remains protected by Android.</string>
+    <string name="shadow_display_refresh_preview">Refresh preview</string>
+    <string name="shadow_display_preview_empty">Start the display and launch an app, then request a preview.</string>
+    <string name="shadow_display_safety_title">Main-screen isolation</string>
+    <string name="shadow_display_safety_body">Tap, swipe, and text are sent to the shadow display. HOME and RECENTS are intentionally not exposed because HyperOS may treat those keys as global navigation.</string>
+    <string name="shadow_display_started">Shadow display started.</string>
+    <string name="shadow_display_stopped">Shadow display stopped.</string>
+    <string name="shadow_display_launched">App launched on the shadow display.</string>
+    <string name="shadow_display_input_sent">Input sent.</string>
+    <string name="shadow_display_preview_updated">Preview updated.</string>
+    <string name="shadow_display_operation_failed">Operation failed: %1$s</string>
+    <string name="shadow_display_invalid_number">Enter valid numeric values.</string>
+    <string name="shadow_display_busy">Working…</string>
 </resources>

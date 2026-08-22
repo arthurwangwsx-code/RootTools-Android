@@ -85,6 +85,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.content.FileProvider
+import com.arthur.roottools.R
 import com.arthur.roottools.model.CpuCluster
 import com.arthur.roottools.core.ui.action.copyToClipboard
 import com.arthur.roottools.core.ui.action.openPackage
@@ -153,6 +154,7 @@ import com.arthur.roottools.feature.dashboard.presentation.rangeText
 import com.arthur.roottools.feature.dashboard.presentation.thermalStageLabel
 import com.arthur.roottools.feature.developer.DeveloperRuntimeRoute
 import com.arthur.roottools.feature.integrity.ui.EnvironmentIntegrityRoute
+import com.arthur.roottools.app.shadow.ShadowDisplayRoute
 import java.io.File
 import kotlin.math.roundToInt
 
@@ -209,6 +211,9 @@ fun DashboardRoute(
             onRefresh = viewModel::refresh,
             onModeSelected = viewModel::setMode,
             onReleaseCaps = viewModel::releaseRootToolsCpuCaps,
+        )
+        ToolboxRoute.SHADOW_DISPLAY -> ShadowDisplayRoute(
+            onBack = { route = ToolboxRoute.HOME },
         )
         ToolboxRoute.ADB -> AdbScreen(
             state = state,
@@ -325,8 +330,16 @@ private fun ToolboxHomeScreen(
 ) {
     val snapshot = state.snapshot
     val health = state.health
+    val shadowDisplaySubtitle = stringResource(R.string.shadow_display_home_subtitle)
+    val shadowDisplayBadge = stringResource(R.string.shadow_display_home_badge)
     val cards = ToolRegistry.tools.map { definition ->
-        buildToolboxCard(definition, stringResource(definition.titleRes), state)
+        buildToolboxCard(
+            definition = definition,
+            title = stringResource(definition.titleRes),
+            state = state,
+            shadowDisplaySubtitle = shadowDisplaySubtitle,
+            shadowDisplayBadge = shadowDisplayBadge,
+        )
     }
 
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
@@ -367,7 +380,13 @@ private fun ToolboxHomeScreen(
     }
 }
 
-private fun buildToolboxCard(definition: ToolDefinition, title: String, state: DashboardUiState): ToolboxCard {
+private fun buildToolboxCard(
+    definition: ToolDefinition,
+    title: String,
+    state: DashboardUiState,
+    shadowDisplaySubtitle: String,
+    shadowDisplayBadge: String,
+): ToolboxCard {
     val snapshot = state.snapshot
     val health = state.health
     val missingCapabilities = definition.requiredCapabilities.filterNot { capabilityAvailable(it, state) }
@@ -377,6 +396,7 @@ private fun buildToolboxCard(definition: ToolDefinition, title: String, state: D
             else "CPU · 内存 · ZRAM · 温控"
         ) to (health.thermal.apC?.let { "%.0f°C".format(it) } ?: "LIVE")
         ToolId.PERFORMANCE -> "${state.mode.displayName} · ${snapshot.thermalStage().displayName}" to (snapshot.apTempC?.let { "%.0f°C".format(it) } ?: "CPU")
+        ToolId.SHADOW_DISPLAY -> shadowDisplaySubtitle to shadowDisplayBadge
         ToolId.ROOT_ADB -> (
             when {
                 state.adb.rootTcpEnabled -> "${state.adb.tailscaleIpv4 ?: state.adb.localIpv4 ?: "TCP"}:${state.adb.rootTcpPort ?: 5555}"

@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-更新日期：2026-08-20
+更新日期：2026-08-22
 
 ### 已完成
 
@@ -34,6 +34,26 @@
 - [x] JVM 定向测试覆盖：连续命令单 session、非零 exit 保活、timeout 后安全重建
 - [x] Activity 后台时暂停 Dashboard sampler；CPU policy 守护继续使用独立低频 Service
 - [x] Samsung 真机后台连续 2 分钟：13 次 / 10 秒采样中 App PID 始终 `29246`、唯一 `su` PID 始终 `29290`，覆盖 4+ 个 30 秒周期且无 root session churn；结合持久 session 机制关闭周期性 Magisk grant toast 根因
+
+### 2026-08-22 — Shadow Display / AI 后台虚拟页面
+
+- [x] 首页新增「影子屏」卡片与独立 Compose 页面，支持状态、分辨率/DPI、App launch、tap/swipe/text、按需 Preview 与 Stop 确认
+- [x] 生命周期通过 typed `ShadowDisplayController -> PrivilegeRouter -> RootShell`，UI 不公开任意 privileged shell
+- [x] 新增 root `app_process` `ShadowDisplayDaemon`，在手机端持有单个 Trusted Virtual Display；不依赖电脑 scrcpy 维持生命周期
+- [x] 默认 720×1600 / 320dpi；Android 15 使用 trusted / own-focus / always-unlocked 等 secondary-display flags
+- [x] `input -d <displayId>` 仅用于 display-scoped tap/swipe/text；明确不暴露 HOME / RECENTS，规避 HyperOS 全局导航行为
+- [x] Preview 使用 daemon-owned `ImageReader` 按需 JPEG；不绕过 `FLAG_SECURE` / DRM 安全限制
+- [x] start / stop / launch-package 写入 `RootActionAuditStore`，记录 before/after/backend/rollback hint
+- [x] daemon Stop 先校验 PID 与 `/proc/<pid>/cmdline` 的 ShadowDisplayDaemon 身份，避免 stale PID / PID reuse 误杀其他 root 进程
+- [x] 文本输入拒绝 NUL / newline / ISO control，package / config / coordinate / duration 全部经 typed validator/policy
+- [x] JVM pure tests 覆盖 config 边界、坐标、文本控制字符、package 注入和 stale/running status parser
+- [x] `:app:testDebugUnitTest :app:lintDebug :app:assembleDebug` 全部通过；`security_guard.py` PASS；`assembleRelease` + R8/keep rule 通过
+- [x] Xiaomi 14 `23127PN0CC` Android 15 / HyperOS 2：Root Tools 手机端成功创建 Display 44/45/46；Google Maps 在 secondary display Resumed，Display 0 同时保持 Root Tools
+- [x] Xiaomi 14：display-scoped tap 后 Display 0 仍保持 Root Tools；按需 Preview 成功生成并在页面展示
+- [x] Xiaomi 14：Root Tools App force-stop 后 Display 45 与 root daemon 仍存活，daemon `PPID=1`；重新打开 Root Tools 可识别 Display 45 并安全 Stop
+- [x] Xiaomi 14：Stop 后只剩 Display 0，审计记录确认 `start -> launch-package -> stop` 均成功
+- [x] Xiaomi 14：swipe 经 Display 0 / Display 48 前后快照确认未抢主屏；text 已完成 Root Tools 字段输入 `KLCC` 与发送触发，但期间物理主屏存在并发操作，因此不把该次结果作为严格隔离证明
+- [x] 最新 PID-reuse 安全硬化 APK 已通过标准 `adb install -r` 覆盖安装；最终版再次成功创建 Display 47，daemon `PPID=1`，随后从 Root Tools 正常 Stop，仅剩 Display 0
 
 ### Next — I Tool Registry
 

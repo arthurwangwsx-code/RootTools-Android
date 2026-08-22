@@ -59,6 +59,12 @@ class PrivilegeRoutingPolicyTest {
         )
         assertTrue(PrivilegeRoutingPolicy.supports(PrivilegeRouteBackend.ROOT_SHELL, PrivilegeCapability.SYSFS_WRITE))
         assertFalse(PrivilegeRoutingPolicy.supports(PrivilegeRouteBackend.SUI_ROOT, PrivilegeCapability.SYSFS_WRITE))
+
+        assertEquals(
+            listOf(PrivilegeRouteBackend.ROOT_SHELL),
+            PrivilegeRoutingPolicy.routesFor(PrivilegeCapability.VIRTUAL_DISPLAY_CONTROL, bridge, rootAvailable = true),
+        )
+        assertFalse(PrivilegeRoutingPolicy.supports(PrivilegeRouteBackend.SUI_ROOT, PrivilegeCapability.VIRTUAL_DISPLAY_CONTROL))
     }
 
     @Test

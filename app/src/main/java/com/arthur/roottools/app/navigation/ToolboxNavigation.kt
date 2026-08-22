@@ -7,6 +7,7 @@ internal enum class ToolboxRoute {
     HOME,
     DASHBOARD,
     PERFORMANCE,
+    SHADOW_DISPLAY,
     ADB,
     PERMISSIONS,
     STARTUP,
@@ -36,6 +37,7 @@ internal data class ToolboxCard(
 internal fun routeFor(id: ToolId): ToolboxRoute = when (id) {
     ToolId.DASHBOARD -> ToolboxRoute.DASHBOARD
     ToolId.PERFORMANCE -> ToolboxRoute.PERFORMANCE
+    ToolId.SHADOW_DISPLAY -> ToolboxRoute.SHADOW_DISPLAY
     ToolId.ROOT_ADB -> ToolboxRoute.ADB
     ToolId.PERMISSIONS -> ToolboxRoute.PERMISSIONS
     ToolId.STARTUP -> ToolboxRoute.STARTUP

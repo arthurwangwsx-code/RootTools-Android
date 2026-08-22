@@ -19,6 +19,7 @@ enum class PrivilegeCapability {
     ROOT_LINUX,
     ROOT_FS,
     SYSFS_WRITE,
+    VIRTUAL_DISPLAY_CONTROL,
     PACKAGE_CONTROL,
     COMPONENT_CONTROL,
     ACTIVITY_CONTROL,

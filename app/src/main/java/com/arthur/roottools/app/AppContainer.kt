@@ -31,6 +31,7 @@ import com.arthur.roottools.policy.PackagePolicyController
 import com.arthur.roottools.policy.PermissionPolicyController
 import com.arthur.roottools.policy.PolicyStore
 import com.arthur.roottools.policy.SystemActionController
+import com.arthur.roottools.policy.ShadowDisplayController
 import com.arthur.roottools.privilege.PrivilegeRouter
 import com.arthur.roottools.privilege.ShizukuBridge
 import com.arthur.roottools.privilege.ShizukuUserServiceClient
@@ -103,6 +104,9 @@ internal class AppContainer(private val application: Application) {
     val componentPolicyController by lazy { ComponentPolicyController(privilegeRouter, auditStore, UI_AUDIT_SOURCE) }
     val appOpsPolicyController by lazy { AppOpsPolicyController(privilegeRouter, auditStore, UI_AUDIT_SOURCE) }
     val permissionPolicyController by lazy { PermissionPolicyController(privilegeRouter, auditStore, UI_AUDIT_SOURCE) }
+    val shadowDisplayController by lazy {
+        ShadowDisplayController(privilegeRouter, auditStore, UI_AUDIT_SOURCE)
+    }
 
     val tokenStore by lazy { ActionTokenStore(application) }
     val reportStore by lazy { DiagnosticReportStore(application) }
