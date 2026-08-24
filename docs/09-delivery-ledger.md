@@ -55,6 +55,19 @@
 - [x] Xiaomi 14：swipe 经 Display 0 / Display 48 前后快照确认未抢主屏；text 已完成 Root Tools 字段输入 `KLCC` 与发送触发，但期间物理主屏存在并发操作，因此不把该次结果作为严格隔离证明
 - [x] 最新 PID-reuse 安全硬化 APK 已通过标准 `adb install -r` 覆盖安装；最终版再次成功创建 Display 47，daemon `PPID=1`，随后从 Root Tools 正常 Stop，仅剩 Display 0
 
+### 2026-08-24 — 广告治理 / GKD 真机收口
+
+- [x] 新增 `ToolId.AD_GOVERNANCE` 与独立广告治理页面；feature body 保持在 `feature/adgovernance`，旧 `DashboardScreen.kt` 只增加最小 route/status glue
+- [x] 新增 read-only `AdGovernanceRepository -> AdGovernanceProbeParser -> RootShell`，不引入任意 shell UI 入口，不修改 hosts / VPN / Magisk policy / HyperOS package
+- [x] 汇总 GKD running / automation mode / Shizuku worker / subscription、AdAway、hosts、Tailnet、HyperOS 广告组件状态
+- [x] GKD action log 解析只把实际 `addActionLog` 成功记录计入真机触发；知乎与京东分别显示最近规则类别
+- [x] Xiaomi 14 真机页面确认：GKD `正常` / `Shizuku 自动化` / 1 订阅；知乎 1 次、京东 5 次；hosts 2 行未启用；Tailnet `100.110.5.86`
+- [x] 修正 100.64/10 CGNAT 误判：不再把 `rmnet_data1=100.87.248.227` 当 Tailscale，只接受 `tun*` 上的 tailnet IPv4
+- [x] GKD 为 UI dump 临时停止后已恢复运行；`li.songe.gkd:shizuku-user-service` 与 `shizuku_server` 均在线，日志确认自动化与 Shizuku 重新连接
+- [x] AdAway VPN 继续保持关闭，避免与当前 Tailscale 远程管理链路竞争 Android VPNService；HyperOS 系统广告包保持只读不卸载
+- [x] parser 定向 JVM tests + `security_guard.py` + `testDebugUnitTest / lintDebug / assembleDebug` 通过
+- [ ] Repository `quality_guard.py` 被既有 Developer Runtime 两项 debt 阻塞，需在独立工程治理任务中修复，不混入广告治理提交
+
 ### Next — I Tool Registry
 
 - [x] `ToolId / ToolCategory / Capability`
