@@ -101,6 +101,91 @@ Root Tools
 
 当前版本通过 `WALT + cpuset/uclamp + Samsung screen-off policy + 大核高频限峰 + Thermal hysteresis + MacroDroid 外部编排` 达成主要目标。
 
+## K. Xiaomi 14 / Snapdragon 8 Gen 3：Responsive Cool（2026-08-24）
+
+### K1. 真机问题背景
+
+Xiaomi 14（houji / Android 15 / HyperOS 2.0）出现“一用就热”时，真机抓到：
+
+- root `tr` 子进程连续存活约 41 小时；
+- 单进程长期约 68% CPU、瞬时接近 100%；
+- Skin 约 40~41.5°C；
+- CPU 传感器出现 50~60°C 常态、历史缓存峰值接近 90°C；
+- 清理异常进程后，Skin 降到约 35°C，CPU 约 37~40°C，电池约 31.6°C。
+
+因此该设备的第一优先级不是继续粗暴限频，而是先保证 RootTools 自身不会制造长期 CPU 常驻任务。
+
+### K2. Responsive Cool 目标
+
+用户场景是不玩游戏，但要求 UI、键盘、应用启动继续跟手，因此 Cool 不采用：
+
+- 固定频率；
+- powersave governor；
+- 关核；
+- 禁用 Xiaomi Thermal / PowerKeeper；
+- 降充电功率或关闭快充。
+
+Cool 只削掉性能核与 Prime 核最不经济的高频尾段，同时保留效率簇完整峰值：
+
+```text
+Cool + Warm floor
+Efficiency: 100%
+Performance: 86%
+Prime:       78%
+```
+
+目标频率始终向下取当前 policy 支持的实际频点。以本次 Xiaomi 14 真机频表为例，典型目标约为：
+
+```text
+policy0: 2.2656 GHz（完整）
+policy2: 2.7072 GHz
+policy5: 2.5152 GHz
+policy7: 2.5536 GHz
+```
+
+当设备进入 Moderate / Severe 时，仍使用更严格的 Thermal stage 比例；Cool 不得降低热保护强度。
+
+### K3. 厂商 cap 优先级
+
+Xiaomi 真机确认 `com.miui.powerkeeper` / Vendor Thermal 会主动修改 `scaling_max_freq`。因此继续沿用 owned-cap 契约：
+
+```text
+Vendor 当前 cap < RootTools 目标
+→ 不写，不向上抬频
+
+RootTools 主动写得更低
+→ 记录 owned_max_<policy>
+
+释放时只有 current == owned 且 Thermal=0
+→ 才允许恢复
+```
+
+这使 Responsive Cool 只是厂商策略之上的“额外削峰层”，不会和 HyperOS 抢控制权。
+
+### K4. 测试契约
+
+纯 JVM 测试必须覆盖：
+
+- Cool 保留 efficiency cluster 完整峰值；
+- Cool 对 performance / prime 分别使用 86% / 78% 削峰；
+- Moderate / Severe 始终比 Cool-Warm 更严格；
+- Performance + Normal 保留硬件峰值；
+- Vendor 已经限得更低时 `CpuCapOwnershipDecider` 不允许向上覆盖。
+
+### K5. Cool 持续 reconcile
+
+旧版 Cool 只应用一次后停止 `CpuPolicyService`。这在 Samsung 固定 cap 场景还能工作，但 Xiaomi PowerKeeper 会持续重写 `scaling_max_freq`，因此一次性写入不能代表“长期 Cool”。
+
+现在 Cool 与 Auto / Performance 共用同一个 ownership-aware monitor：
+
+```text
+Cool + Normal/Warm    → 60s 采样
+Cool + Moderate/Severe → 30s 采样
+Auto / Performance   → 30s 采样
+```
+
+稳定状态只读不写；只有当前 vendor cap 高于 RootTools Cool 目标时才追加更严格的 owned cap。这样避免高频 root 轮询，同时允许 HyperOS 后续抬频后重新进入 Responsive Cool 目标区间。
+
 ## J. 可解释性与释放（2026-08-19）
 
 ### J1. Cap source

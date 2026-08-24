@@ -8,7 +8,6 @@ import com.arthur.roottools.model.DeviceSnapshot
 import com.arthur.roottools.model.PerformanceMode
 import com.arthur.roottools.model.ThermalStage
 import com.arthur.roottools.root.RootShell
-import kotlin.math.roundToLong
 
 class CpuPolicyController(
     private val shell: RootShell,
@@ -39,7 +38,13 @@ class CpuPolicyController(
         val writes = linkedMapOf<Int, Long>()
 
         snapshot.cpuClusters.forEachIndexed { index, cluster ->
-            val desired = targetFor(cluster, index, snapshot.cpuClusters.lastIndex, mode, stage)
+            val desired = CpuFrequencyTargetPolicy.target(
+                cluster = cluster,
+                index = index,
+                lastIndex = snapshot.cpuClusters.lastIndex,
+                mode = mode,
+                stage = stage,
+            )
             desiredByPolicy[cluster.policyId] = desired
             val decision = CpuCapOwnershipDecider.decide(
                 currentKHz = cluster.scalingMaxKHz,
@@ -163,7 +168,15 @@ class CpuPolicyController(
         var seeded = false
         snapshot.cpuClusters.forEachIndexed { index, cluster ->
             val legacyTargets = listOf(ThermalStage.WARM, ThermalStage.MODERATE, ThermalStage.SEVERE)
-                .map { stage -> targetFor(cluster, index, snapshot.cpuClusters.lastIndex, PerformanceMode.AUTO, stage) }
+                .map { stage ->
+                    CpuFrequencyTargetPolicy.target(
+                        cluster = cluster,
+                        index = index,
+                        lastIndex = snapshot.cpuClusters.lastIndex,
+                        mode = PerformanceMode.AUTO,
+                        stage = stage,
+                    )
+                }
                 .filter { it in 1 until cluster.hardwareMaxKHz }
                 .toSet()
             if (cluster.scalingMaxKHz in legacyTargets) {
@@ -177,46 +190,6 @@ class CpuPolicyController(
         }
         store.policySchemaVersion = POLICY_SCHEMA_VERSION
         return seeded
-    }
-
-    private fun targetFor(
-        cluster: CpuCluster,
-        index: Int,
-        lastIndex: Int,
-        mode: PerformanceMode,
-        stage: ThermalStage,
-    ): Long {
-        val isLittle = index == 0
-        val isPrime = index == lastIndex && lastIndex >= 2
-        val ratio = when (stage) {
-            ThermalStage.NORMAL -> 1.00
-            ThermalStage.WARM -> when {
-                isLittle -> 1.00
-                isPrime -> 0.84
-                else -> 0.89
-            }
-            ThermalStage.MODERATE -> when {
-                isLittle -> 0.95
-                isPrime -> 0.76
-                else -> 0.80
-            }
-            ThermalStage.SEVERE -> when {
-                isLittle -> 0.90
-                isPrime -> 0.68
-                else -> 0.72
-            }
-        }
-        val effectiveRatio = if (mode == PerformanceMode.PERFORMANCE && stage == ThermalStage.NORMAL) 1.0 else ratio
-        return nearestFrequency(cluster, cluster.hardwareMaxKHz * effectiveRatio)
-    }
-
-    private fun nearestFrequency(cluster: CpuCluster, target: Double): Long {
-        val candidates = (cluster.availableKHz + cluster.hardwareMaxKHz)
-            .filter { it > 0L }
-            .distinct()
-            .sorted()
-        if (candidates.isEmpty()) return target.roundToLong()
-        return candidates.lastOrNull { it <= target.roundToLong() } ?: candidates.first()
     }
 
     private companion object {

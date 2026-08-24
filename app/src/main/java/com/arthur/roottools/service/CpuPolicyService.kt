@@ -19,9 +19,9 @@ import com.arthur.roottools.model.PerformanceMode
 import com.arthur.roottools.model.ThermalStage
 import com.arthur.roottools.policy.CpuPolicyController
 import com.arthur.roottools.policy.CpuPolicyEventStore
+import com.arthur.roottools.policy.CpuPolicyPollingPolicy
 import com.arthur.roottools.policy.PolicyStore
 import com.arthur.roottools.policy.ThermalStageHysteresis
-import com.arthur.roottools.root.RootShell
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -68,12 +68,7 @@ class CpuPolicyService : Service() {
         }
 
         startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.cpu_notification_reading)))
-        when (store.mode) {
-            PerformanceMode.COOL -> applyStaticCool()
-            PerformanceMode.AUTO,
-            PerformanceMode.PERFORMANCE,
-            -> startMonitor(forceRestart = explicitMode != null)
-        }
+        startMonitor(forceRestart = explicitMode != null)
         return START_STICKY
     }
 
@@ -84,28 +79,6 @@ class CpuPolicyService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
-
-    private fun applyStaticCool() {
-        monitorJob?.cancel()
-        monitorJob = scope.launch {
-            val snapshot = repository.readSnapshot()
-            val policy = controller.apply(PerformanceMode.COOL, snapshot)
-            val summary = if (policy != null) {
-                getString(
-                    R.string.cpu_notification_cool,
-                    snapshot.apTempC?.let { getString(R.string.cpu_temperature_ap, it) }
-                        ?: getString(R.string.cpu_peak_limited),
-                )
-            } else {
-                getString(R.string.cpu_notification_apply_failed)
-            }
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.notify(NOTIFICATION_ID, buildNotification(summary))
-            delay(1_200)
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
-        }
-    }
 
     private fun startMonitor(forceRestart: Boolean = false) {
         if (forceRestart) {
@@ -155,7 +128,7 @@ class CpuPolicyService : Service() {
                 }
                 getSystemService(NotificationManager::class.java)
                     .notify(NOTIFICATION_ID, buildNotification(subtitle))
-                delay(POLL_INTERVAL_MS)
+                delay(CpuPolicyPollingPolicy.intervalMs(mode, effectiveStage))
             }
         }
     }
@@ -196,7 +169,6 @@ class CpuPolicyService : Service() {
         private const val NOTIFICATION_ID = 4101
         private const val EXTRA_MODE = "mode"
         private const val EXTRA_SOURCE = "source"
-        private const val POLL_INTERVAL_MS = 30_000L
         private const val PERFORMANCE_DURATION_MS = 15 * 60_000L
 
         fun setMode(context: Context, mode: PerformanceMode, source: String = "UI") {

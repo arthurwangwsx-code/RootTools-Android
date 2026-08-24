@@ -108,7 +108,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             val rootGranted = shell.isAvailable(timeoutSeconds = 30)
             val adb = if (rootGranted) adbRepository.read() else AdbSnapshot()
             val snapshot = if (rootGranted) mergeAdbIntoSnapshot(repository.readSnapshot(), adb) else DeviceSnapshot(rootAvailable = false)
-            if (rootGranted && (store.mode == PerformanceMode.AUTO || store.mode == PerformanceMode.PERFORMANCE)) {
+            if (rootGranted) {
                 CpuPolicyService.ensureRunning(getApplication())
             }
             if (rootGranted && appForeground) sampler.start(viewModelScope, dashboardSamplingActive)
@@ -158,7 +158,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             val rootGranted = shell.isAvailable(timeoutSeconds = 30)
             val adb = if (rootGranted) adbRepository.read() else AdbSnapshot()
             val snapshot = if (rootGranted) mergeAdbIntoSnapshot(repository.readSnapshot(), adb) else DeviceSnapshot(rootAvailable = false)
-            if (rootGranted && (store.mode == PerformanceMode.AUTO || store.mode == PerformanceMode.PERFORMANCE)) {
+            if (rootGranted) {
                 CpuPolicyService.ensureRunning(getApplication())
             }
             if (rootGranted && appForeground) sampler.start(viewModelScope, dashboardSamplingActive)
