@@ -18,6 +18,7 @@ import com.arthur.roottools.data.PermissionAppOpsRepository
 import com.arthur.roottools.data.RootActionAuditStore
 import com.arthur.roottools.data.StartupRepository
 import com.arthur.roottools.data.StorageRepository
+import com.arthur.roottools.feature.adgovernance.data.AdGovernanceRepository
 import com.arthur.roottools.policy.ActionFavoritesStore
 import com.arthur.roottools.policy.AdbController
 import com.arthur.roottools.policy.AppOpsPolicyController
@@ -79,6 +80,7 @@ internal class AppContainer(private val application: Application) {
     val diagnosticsRepository by lazy { DiagnosticsRepository(shell) }
     val moduleCenterRepository by lazy { ModuleCenterRepository(shell, auditStore, UI_AUDIT_SOURCE) }
     val networkRepository by lazy { NetworkRepository(shell) }
+    val adGovernanceRepository by lazy { AdGovernanceRepository(shell) }
     val storageRepository by lazy { StorageRepository(shell) }
     val batteryPolicyController by lazy { BatteryPolicyController(shell, auditStore, UI_AUDIT_SOURCE) }
     val systemActionController by lazy {

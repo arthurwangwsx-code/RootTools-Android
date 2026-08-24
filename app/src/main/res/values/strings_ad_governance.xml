@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tool_ad_governance_title">Ad governance</string>
+    <string name="ad_governance_home_subtitle">GKD · hosts · HyperOS ad surfaces</string>
+    <string name="ad_governance_home_badge" translatable="false">ADS</string>
+    <string name="ad_governance_title">Ad governance</string>
+    <string name="ad_governance_subtitle">Observe UI skipping, network blocking and OEM ad surfaces without weakening the remote management path.</string>
+    <string name="ad_governance_overview_title">Protection overview</string>
+    <string name="ad_governance_overview_subtitle">Read-only status collected through the existing Root Tools session</string>
+    <string name="ad_governance_metric_ui_engine">UI engine</string>
+    <string name="ad_governance_metric_actions">Recent actions</string>
+    <string name="ad_governance_metric_hosts">Hosts layer</string>
+    <string name="ad_governance_metric_tailnet">Tailnet</string>
+    <string name="ad_governance_gkd_name" translatable="false">GKD</string>
+    <string name="ad_governance_adaway_name" translatable="false">AdAway</string>
+    <string name="ad_governance_ready">Ready</string>
+    <string name="ad_governance_needs_attention">Needs attention</string>
+    <string name="ad_governance_on">On</string>
+    <string name="ad_governance_off">Off</string>
+    <string name="ad_governance_online">Online</string>
+    <string name="ad_governance_offline">Offline</string>
+    <string name="ad_governance_active">Active</string>
+    <string name="ad_governance_not_active">Not active</string>
+    <string name="ad_governance_enabled">Enabled</string>
+    <string name="ad_governance_disabled">Disabled</string>
+    <string name="ad_governance_installed">Installed</string>
+    <string name="ad_governance_not_installed">Not installed</string>
+    <string name="ad_governance_running">Running</string>
+    <string name="ad_governance_yes">Yes</string>
+    <string name="ad_governance_no">No</string>
+    <string name="ad_governance_recent_log_window">Latest GKD log window</string>
+    <string name="ad_governance_hosts_lines">%1$d lines</string>
+    <string name="ad_governance_gkd_title">GKD UI automation</string>
+    <string name="ad_governance_automator_mode">Automator mode</string>
+    <string name="ad_governance_privileged_worker">Privileged worker</string>
+    <string name="ad_governance_subscriptions">Subscriptions</string>
+    <string name="ad_governance_mode_accessibility">Accessibility</string>
+    <string name="ad_governance_mode_automation">Shizuku automation</string>
+    <string name="ad_governance_mode_unknown">Unknown / disabled</string>
+    <string name="ad_governance_open_gkd">Open GKD</string>
+    <string name="ad_governance_validation_title">Device validation</string>
+    <string name="ad_governance_validation_subtitle">Actual successful GKD actions from this device, not rule-library capability claims</string>
+    <string name="ad_governance_zhihu" translatable="false">知乎</string>
+    <string name="ad_governance_jd" translatable="false">京东</string>
+    <string name="ad_governance_action_count">%1$d actions</string>
+    <string name="ad_governance_latest_action">Latest %1$s · %2$s</string>
+    <string name="ad_governance_no_action">No action found in the current log window</string>
+    <string name="ad_governance_network_title">Network layer</string>
+    <string name="ad_governance_network_subtitle">Hosts and AdAway are observed only; Root Tools does not occupy the Android VPN slot.</string>
+    <string name="ad_governance_hosts_filter">Hosts filter</string>
+    <string name="ad_governance_systemless_hosts">Systemless hosts mount</string>
+    <string name="ad_governance_open_adaway">Open AdAway</string>
+    <string name="ad_governance_hyperos_title" translatable="false">HyperOS</string>
+    <string name="ad_governance_hyperos_subtitle">OEM advertising components detected on this build</string>
+    <string name="ad_governance_hyper_ads_package" translatable="false">com.miui.systemAdSolution</string>
+    <string name="ad_governance_miui_analytics_package" translatable="false">com.miui.analytics</string>
+    <string name="ad_governance_hyperos_read_only_note">Phase 1 is read-only. Root Tools will not disable or uninstall system packages just to suppress recommendations.</string>
+    <string name="ad_governance_root_required_title">Root probe unavailable</string>
+    <string name="ad_governance_root_required_body">Grant Root Tools through the normal Magisk prompt. This screen never changes Magisk superuser policy on its own.</string>
+    <string name="ad_governance_tailnet_safety_title">Keep the remote path recoverable</string>
+    <string name="ad_governance_tailnet_safety_body">Tailscale is active on this device. VPN-based ad blockers remain intentionally disabled so the management tunnel is not replaced or interrupted.</string>
+    <string name="ad_governance_probe_failed">Ad governance probe failed: %1$s</string>
+</resources>

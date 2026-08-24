@@ -155,6 +155,7 @@ import com.arthur.roottools.feature.dashboard.presentation.thermalStageLabel
 import com.arthur.roottools.feature.developer.DeveloperRuntimeRoute
 import com.arthur.roottools.feature.integrity.ui.EnvironmentIntegrityRoute
 import com.arthur.roottools.app.shadow.ShadowDisplayRoute
+import com.arthur.roottools.app.adgovernance.AdGovernanceRoute
 import java.io.File
 import kotlin.math.roundToInt
 
@@ -319,6 +320,9 @@ fun DashboardRoute(
         ToolboxRoute.DEVELOPER_RUNTIME -> DeveloperRuntimeRoute(
             onBack = { route = ToolboxRoute.HOME },
         )
+        ToolboxRoute.AD_GOVERNANCE -> AdGovernanceRoute(
+            onBack = { route = ToolboxRoute.HOME },
+        )
     }
 }
 
@@ -332,6 +336,8 @@ private fun ToolboxHomeScreen(
     val health = state.health
     val shadowDisplaySubtitle = stringResource(R.string.shadow_display_home_subtitle)
     val shadowDisplayBadge = stringResource(R.string.shadow_display_home_badge)
+    val adGovernanceSubtitle = stringResource(R.string.ad_governance_home_subtitle)
+    val adGovernanceBadge = stringResource(R.string.ad_governance_home_badge)
     val cards = ToolRegistry.tools.map { definition ->
         buildToolboxCard(
             definition = definition,
@@ -339,6 +345,8 @@ private fun ToolboxHomeScreen(
             state = state,
             shadowDisplaySubtitle = shadowDisplaySubtitle,
             shadowDisplayBadge = shadowDisplayBadge,
+            adGovernanceSubtitle = adGovernanceSubtitle,
+            adGovernanceBadge = adGovernanceBadge,
         )
     }
 
@@ -386,6 +394,8 @@ private fun buildToolboxCard(
     state: DashboardUiState,
     shadowDisplaySubtitle: String,
     shadowDisplayBadge: String,
+    adGovernanceSubtitle: String,
+    adGovernanceBadge: String,
 ): ToolboxCard {
     val snapshot = state.snapshot
     val health = state.health
@@ -466,6 +476,7 @@ private fun buildToolboxCard(
         } ?: ("Runtime Permission · AppOps · Special Access" to "PERM")
         ToolId.INTEGRITY -> "Fast · Deep · Native · Attestation" to "SCAN"
         ToolId.DEVELOPER_RUNTIME -> "Termux · CLI · Managed Tasks" to "DEV"
+        ToolId.AD_GOVERNANCE -> adGovernanceSubtitle to adGovernanceBadge
     }
     val setupTool = definition.id == ToolId.PERMISSIONS || definition.id == ToolId.SHIZUKU
     val subtitle = if (missingCapabilities.isNotEmpty() && !setupTool) {

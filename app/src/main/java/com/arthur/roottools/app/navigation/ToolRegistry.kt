@@ -38,6 +38,7 @@ enum class ToolId {
     PERMISSION_OPS,
     INTEGRITY,
     DEVELOPER_RUNTIME,
+    AD_GOVERNANCE,
 }
 
 enum class ToolCategory {
@@ -76,6 +77,7 @@ object ToolRegistry {
         ToolDefinition(ToolId.PERMISSIONS, ToolCategory.DAILY, R.string.tool_permissions_title, Icons.Rounded.VerifiedUser, Color(0xFFFFC56F)),
         ToolDefinition(ToolId.STARTUP, ToolCategory.GOVERNANCE, R.string.tool_startup_title, Icons.Rounded.Tune, Color(0xFF9BD4FF), setOf(ToolCapability.ROOT)),
         ToolDefinition(ToolId.APPS, ToolCategory.GOVERNANCE, R.string.tool_apps_title, Icons.Rounded.Security, Color(0xFFB7B7FF), setOf(ToolCapability.PACKAGE_CONTROL)),
+        ToolDefinition(ToolId.AD_GOVERNANCE, ToolCategory.GOVERNANCE, R.string.tool_ad_governance_title, Icons.Rounded.Security, Color(0xFFC4B5FD), setOf(ToolCapability.ROOT)),
         ToolDefinition(ToolId.DIAGNOSTICS, ToolCategory.DIAGNOSTICS, R.string.tool_diagnostics_title, Icons.Rounded.Terminal, Color(0xFFFFB58E), setOf(ToolCapability.ROOT)),
         ToolDefinition(ToolId.INTEGRITY, ToolCategory.DIAGNOSTICS, R.string.tool_integrity_title, Icons.Rounded.VerifiedUser, Color(0xFF9ED9C5)),
         ToolDefinition(ToolId.MODULES, ToolCategory.SYSTEM, R.string.tool_modules_title, Icons.Rounded.Memory, Color(0xFFD5E49C), setOf(ToolCapability.ROOT, ToolCapability.MAGISK, ToolCapability.VECTOR)),
