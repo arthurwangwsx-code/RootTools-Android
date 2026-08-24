@@ -19,9 +19,10 @@ import java.util.concurrent.atomic.AtomicLong
  * implementation used `su -c` for every collector/action, so normal dashboard sampling could
  * trigger that notification repeatedly, including while a foreground policy service was alive.
  *
- * Every RootShell instance now shares the same serialized root session. A session is recreated
- * only after process death, timeout, or transport failure. This keeps the existing typed
- * Repository/Controller boundary while removing repeated privilege acquisition from hot paths.
+ * Every RootShell instance now shares the same serialized root session. Each command is executed
+ * through the platform `timeout` utility, which creates a dedicated process group and terminates
+ * the whole group on timeout. This prevents timed-out pipelines from becoming orphan root
+ * processes while keeping privilege acquisition out of normal hot paths.
  */
 class RootShell internal constructor(
     private val session: PersistentRootSession = SHARED_SESSION,
@@ -88,19 +89,21 @@ internal class PersistentRootSession(
         val activeWriter = writer ?: error("Root shell stdin unavailable")
         val activeQueue = outputQueue ?: error("Root shell output queue unavailable")
         val marker = "__ROOTTOOLS_END_${sequence.incrementAndGet()}_${System.nanoTime()}__"
+        val effectiveTimeoutSeconds = timeoutSeconds.coerceAtLeast(1)
 
-        // Run each command in a subshell so accidental `exit`, `cd`, or temporary variables cannot
-        // poison the long-lived transport. System-side effects remain unchanged.
-        activeWriter.write("(\n")
-        activeWriter.write(command)
-        if (!command.endsWith('\n')) activeWriter.newLine()
-        activeWriter.write(")\n")
+        // Android's toybox timeout (API 30+ target) creates a separate process group unless
+        // --foreground is requested. Running the actual payload under `sh -c` preserves isolation
+        // for exit/cd/local variables, and -k guarantees a TERM-ignoring descendant cannot survive.
+        activeWriter.write(
+            "timeout -k ${TIMEOUT_KILL_GRACE_SECONDS}s ${effectiveTimeoutSeconds}s sh -c ${shellQuote(command)}\n",
+        )
         activeWriter.write("__roottools_code=\$?\n")
         activeWriter.write("printf '\\n${marker}:%s\\n' \"\$__roottools_code\"\n")
         activeWriter.flush()
 
         val outputLines = mutableListOf<String>()
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds.coerceAtLeast(1))
+        val deadline = System.nanoTime() +
+            TimeUnit.SECONDS.toNanos(effectiveTimeoutSeconds + TRANSPORT_GRACE_SECONDS)
         while (true) {
             val remaining = deadline - System.nanoTime()
             if (remaining <= 0L) {
@@ -122,7 +125,11 @@ internal class PersistentRootSession(
                     if (line.startsWith("$marker:")) {
                         val exitCode = line.substringAfter(':').trim().toIntOrNull()
                             ?: error("Root shell returned an invalid exit code")
-                        return RootShell.Result(exitCode, outputLines.joinToString("\n"))
+                        return RootShell.Result(
+                            exitCode = exitCode,
+                            output = outputLines.joinToString("\n"),
+                            timedOut = exitCode == TIMEOUT_EXIT_CODE || exitCode == TIMEOUT_KILLED_EXIT_CODE,
+                        )
                     }
                     outputLines += line
                 }
@@ -176,8 +183,18 @@ internal class PersistentRootSession(
         process = null
     }
 
+    private fun shellQuote(value: String): String =
+        "'" + value.replace("'", "'\"'\"'") + "'"
+
     private sealed interface SessionEvent {
         data class Line(val value: String) : SessionEvent
         data class Closed(val reason: String) : SessionEvent
+    }
+
+    private companion object {
+        const val TIMEOUT_EXIT_CODE = 124
+        const val TIMEOUT_KILLED_EXIT_CODE = 137
+        const val TIMEOUT_KILL_GRACE_SECONDS = "0.2"
+        const val TRANSPORT_GRACE_SECONDS = 2L
     }
 }

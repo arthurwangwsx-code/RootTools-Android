@@ -135,3 +135,37 @@ app pid 18707 fd102 -> pipe:[132875]
 - WakeLock 与 `dumpsys power` 对照
 - active services 与 `dumpsys activity services` 对照
 - 深度归属扫描必须有超时，不能长期占 CPU
+
+## 2026-08-24 Root 子进程泄漏修复
+
+### 现场证据
+
+Xiaomi 14 真机发现一个由 RootTools 诊断链路派生的 root `tr`：
+
+```text
+elapsed ≈ 41h
+average CPU ≈ 68%
+instant CPU ≈ 98%
+stdin -> /proc/<wechat-thread>/cmdline
+TMPDIR=/data/user/0/com.arthur.roottools/cache
+```
+
+旧 RootShell 在 Kotlin 侧超时时只销毁持有的 `su` transport process；Magisk 派生出的 shell / pipeline 子进程不保证跟随 transport 一起退出，因此一次超时诊断可能留下 orphan root child。
+
+### 修复契约
+
+1. 每条 RootShell payload 都通过 Android Toybox `timeout` 执行；
+2. 不使用 `--foreground`，让 payload 获得独立 process group；
+3. `-k 0.2s` 保证忽略 TERM 的任务最终被 KILL；
+4. timeout 的 124 / 137 统一映射为 `Result.timedOut=true`；
+5. shell-level timeout 正常完成后复用同一个 `su` session，不为超时反复创建 root transport；
+6. 只有 transport 自身失联时才 invalidate session；
+7. `/proc/<pid>/cmdline` 先用 `head -c` 限制读取，再交给 `tr`，避免 `tr` 直接持有 proc fd 长时间运行。
+
+### 回归要求
+
+- JVM：普通命令复用同一 shell；
+- JVM：单引号 / 多行 payload 不破坏 shell quoting；
+- JVM：忽略 TERM 的 payload 仍会 timeout，下一条命令继续复用 session；
+- Xiaomi 14：人为构造的 Toybox timeout process-group 测试后，后台 child PID 不得存活；
+- Xiaomi 14：多次进程诊断后不得出现长期高 CPU 的 `tr` / RootTools root shell。

@@ -37,16 +37,36 @@ class PersistentRootSessionTest {
     }
 
     @Test
-    fun timeoutInvalidatesSessionAndNextCommandRecreatesIt() = runBlocking {
+    fun supportsQuotesAndMultilineCommandsInsideIsolatedChildShell() = runBlocking {
         val session = PersistentRootSession(listOf("sh"))
 
-        val timedOut = session.execute("sleep 2", timeoutSeconds = 1)
+        val result = session.execute(
+            """
+                printf '%s\n' "it's safe"
+                printf '%s' 'second line'
+            """.trimIndent(),
+            timeoutSeconds = 2,
+        )
+
+        assertTrue(result.success)
+        assertEquals("it's safe\nsecond line", result.output.trim())
+        assertEquals(1, session.processLaunchCount)
+    }
+
+    @Test
+    fun timeoutKillsTermIgnoringCommandAndKeepsSharedShellReusable() = runBlocking {
+        val session = PersistentRootSession(listOf("sh"))
+
+        val timedOut = session.execute(
+            "trap '' TERM; while :; do :; done",
+            timeoutSeconds = 1,
+        )
         val recovered = session.execute("printf recovered", timeoutSeconds = 2)
 
         assertTrue(timedOut.timedOut)
         assertFalse(timedOut.success)
         assertTrue(recovered.success)
         assertEquals("recovered", recovered.output.trim())
-        assertEquals(2, session.processLaunchCount)
+        assertEquals(1, session.processLaunchCount)
     }
 }

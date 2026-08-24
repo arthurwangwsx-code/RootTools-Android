@@ -155,7 +155,7 @@ class DiagnosticsRepository(private val shell: RootShell) {
 
     private fun deepCommand(pid: Int): String = """
         echo '__DETAIL__'
-        echo CMD=${'$'}(tr '\0' ' ' < /proc/$pid/cmdline 2>/dev/null | head -c 180)
+        echo CMD=${'$'}(head -c 180 /proc/$pid/cmdline 2>/dev/null | tr '\0' ' ')
         echo FD0=${'$'}(readlink /proc/$pid/fd/0 2>/dev/null)
         echo FD1=${'$'}(readlink /proc/$pid/fd/1 2>/dev/null)
         echo FD2=${'$'}(readlink /proc/$pid/fd/2 2>/dev/null)
@@ -172,7 +172,7 @@ class DiagnosticsRepository(private val shell: RootShell) {
             opid=${'$'}(echo "${'$'}f" | cut -d/ -f3)
             [ "${'$'}opid" = "$pid" ] && continue
             ofd=${'$'}{f##*/}
-            ocmd=${'$'}(tr '\0' ' ' < /proc/${'$'}opid/cmdline 2>/dev/null | head -c 160)
+            ocmd=${'$'}(head -c 160 /proc/${'$'}opid/cmdline 2>/dev/null | tr '\0' ' ')
             [ -n "${'$'}ocmd" ] || ocmd=${'$'}(cat /proc/${'$'}opid/comm 2>/dev/null)
             echo "${'$'}pipe|${'$'}opid|${'$'}ofd|${'$'}ocmd"
             count=${'$'}((count+1))
