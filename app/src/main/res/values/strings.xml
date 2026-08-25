@@ -31,6 +31,10 @@
     <string name="common_back">Back</string>
     <string name="common_refresh">Refresh</string>
     <string name="common_dash" translatable="false">—</string>
+    <string name="common_temperature_celsius" translatable="false">%1$.1f°C</string>
+    <string name="common_percent_int" translatable="false">%1$d%%</string>
+    <string name="common_percent_float" translatable="false">%1$.0f%%</string>
+    <string name="common_endpoint" translatable="false">%1$s:%2$d</string>
     <string name="adb_tile_label_root" translatable="false">Root ADB</string>
     <string name="adb_tile_label_port" translatable="false">ADB · %1$d</string>
     <string name="wireless_adb_tile_label" translatable="false">Wireless ADB</string>
@@ -216,7 +220,7 @@
     <string name="performance_mode_title">Performance mode</string>
     <string name="performance_mode_subtitle">Choose a policy; system thermal protection always has priority.</string>
     <string name="performance_mode_auto_description">Automatically changes internal thermal stages. Current: %1$s.</string>
-    <string name="performance_mode_cool_description">Long-term cool mode: only lowers CPU peaks and never forces frequency or disables Thermal.</string>
+    <string name="performance_mode_cool_description">Responsive cool mode: keeps efficiency-core burst response, trims the high-frequency tail of performance/prime cores, and leaves charging and vendor Thermal unchanged.</string>
     <string name="performance_mode_performance_description">Temporary performance mode: defaults to 15 minutes and immediately yields to system thermal limiting.</string>
     <string name="performance_cluster_efficiency">Efficiency cluster</string>
     <string name="performance_cluster_prime">Prime cluster</string>
@@ -696,4 +700,93 @@
     <string name="shadow_display_operation_failed">Operation failed: %1$s</string>
     <string name="shadow_display_invalid_number">Enter valid numeric values.</string>
     <string name="shadow_display_busy">Working…</string>
+
+    <!-- Product navigation / home -->
+    <string name="nav_home">Home</string>
+    <string name="nav_apps">Apps</string>
+    <string name="nav_device">Device</string>
+    <string name="nav_diagnostics">Diagnostics</string>
+    <string name="nav_system">System</string>
+    <string name="home_product_title" translatable="false">RootTools</string>
+    <string name="home_product_subtitle">%1$s · %2$s</string>
+    <string name="home_verdict_loading_title">Reading device state</string>
+    <string name="home_verdict_loading_detail">Live CPU, memory and thermal metrics are being collected.</string>
+    <string name="home_verdict_good_title">Device is stable</string>
+    <string name="home_verdict_good_detail">No obvious issue is visible in the current live indicators.</string>
+    <string name="home_verdict_setup_title">Finish device setup</string>
+    <string name="home_verdict_setup_detail">Root or another required capability is not ready yet.</string>
+    <string name="home_verdict_busy_title">System load is elevated</string>
+    <string name="home_verdict_busy_detail">CPU or memory pressure is higher than the normal interactive range.</string>
+    <string name="home_verdict_warm_title">Device temperature is elevated</string>
+    <string name="home_verdict_warm_detail">Thermal or skin temperature is high enough to deserve attention.</string>
+    <string name="home_verdict_critical_title">High-CPU root process detected</string>
+    <string name="home_verdict_critical_detail">A root shell/process is consuming sustained CPU and may cause heat or battery drain.</string>
+    <string name="home_metric_skin">Skin %1$s</string>
+    <string name="home_metric_cpu">CPU %1$s</string>
+    <string name="home_metric_battery">Battery %1$s</string>
+    <string name="home_quick_title">Quick access</string>
+    <string name="home_quick_subtitle">Reach the four most common tasks in one tap.</string>
+    <string name="home_attention_title">Needs attention</string>
+    <string name="home_attention_subtitle">Only actionable signals from data RootTools already collected.</string>
+    <string name="home_attention_none_title">Nothing needs action</string>
+    <string name="home_attention_none_detail">Live CPU, memory and thermal indicators are within the current normal range.</string>
+    <string name="home_attention_root_shell_title">Abnormal root process</string>
+    <string name="home_attention_root_shell_detail">%1$d high-CPU root process found. Open process diagnostics for attribution.</string>
+    <string name="home_attention_thermal_title">Temperature is high</string>
+    <string name="home_attention_thermal_detail">Skin %1$s · Thermal status %2$d. Review performance and thermal state.</string>
+    <string name="home_attention_cpu_title">CPU load is high</string>
+    <string name="home_attention_cpu_detail">Current CPU usage is %1$.0f%%. Open the health dashboard to find the active workload.</string>
+    <string name="home_attention_memory_title">Memory pressure detected</string>
+    <string name="home_attention_memory_detail">Memory PSI or available memory crossed the pressure threshold.</string>
+    <string name="home_attention_root_title">Root is not ready</string>
+    <string name="home_attention_root_detail">Open Permissions to restore RootTools privileged capabilities.</string>
+    <string name="home_recent_title">Recent activity</string>
+    <string name="home_recent_subtitle">Performance policy and privileged actions, newest first.</string>
+    <string name="home_recent_empty">No recent RootTools actions.</string>
+    <string name="home_timeline_performance">Performance</string>
+    <string name="home_timeline_system">System</string>
+    <string name="home_view_all_tools">Browse all domains</string>
+
+    <!-- Domain landing pages -->
+    <string name="hub_apps_title">Apps</string>
+    <string name="hub_apps_subtitle">Govern apps, startup, permissions, components and background behavior.</string>
+    <string name="hub_device_title">Device</string>
+    <string name="hub_device_subtitle">Performance, thermals, ADB, shadow display, network and storage.</string>
+    <string name="hub_diagnostics_title">Diagnostics</string>
+    <string name="hub_diagnostics_subtitle">Find heat, CPU, memory, root-process and integrity problems.</string>
+    <string name="hub_system_title">System</string>
+    <string name="hub_system_subtitle">Root modules, privilege bridges, automation and developer runtime.</string>
+    <string name="hub_tools_title">Tools</string>
+    <string name="hub_tools_subtitle">Open a focused tool without losing this domain in the back stack.</string>
+    <string name="hub_apps_status_loaded">%1$d apps · %2$d running · %3$d frozen</string>
+    <string name="hub_apps_status_idle">App governance is ready when you need it.</string>
+    <string name="hub_device_status">%1$s · Skin %2$s · ADB %3$s</string>
+    <string name="hub_diagnostics_status">CPU %1$.0f%% · Skin %2$s · %3$d attention</string>
+    <string name="hub_system_status">Root %1$s · Shizuku %2$s</string>
+    <string name="hub_status_on">ON</string>
+    <string name="hub_status_off">OFF</string>
+    <string name="hub_status_ready">READY</string>
+    <string name="hub_status_unavailable">UNAVAILABLE</string>
+    <string name="hub_tool_health_desc">CPU · memory · thermal · history</string>
+    <string name="hub_tool_performance_desc">%1$s · adaptive peak control</string>
+    <string name="hub_tool_adb_desc">Root TCP · Wireless debugging · Tailscale</string>
+    <string name="hub_tool_battery_desc">Battery · charging · thermal state</string>
+    <string name="hub_tool_network_desc">Interfaces · routes · DNS · ports</string>
+    <string name="hub_tool_storage_desc">Capacity · ZRAM · IO pressure</string>
+    <string name="hub_tool_startup_desc">Boot receivers · services · startup ranking</string>
+    <string name="hub_tool_apps_desc">Inventory · runtime · policies · batch actions</string>
+    <string name="hub_tool_appops_desc">Runtime permissions · AppOps · special access</string>
+    <string name="hub_tool_diagnostics_desc">Top CPU · root shell · WakeLock · services</string>
+    <string name="hub_tool_diagnostics_abnormal">%1$d abnormal root process · open for attribution</string>
+    <string name="hub_tool_integrity_desc">Runtime · Root · boot · attestation</string>
+    <string name="hub_tool_modules_desc">Magisk · Vector · Xposed modules</string>
+    <string name="hub_tool_modules_loaded">%1$d Magisk · %2$d Vector enabled</string>
+    <string name="hub_tool_actions_desc">Favorites · automation · diagnostic reports</string>
+    <string name="hub_tool_actions_loaded">%1$d favorite actions · automation · reports</string>
+    <string name="hub_tool_shizuku_desc">Binder · permission · backend capability</string>
+    <string name="hub_tool_developer_desc">Termux · CLI · MCP · managed tasks</string>
+    <string name="hub_tool_permissions_desc">Root · notifications · privileged setup</string>
+    <string name="hub_tool_battery_live">%1$s · Skin %2$s</string>
+    <string name="hub_capability_missing">Setup required</string>
+    <string name="hub_open_tool">Open %1$s</string>
 </resources>

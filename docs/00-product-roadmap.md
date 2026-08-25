@@ -98,7 +98,26 @@ Root Tools
 
 ---
 
-## 3. 首页卡片规划
+## 3. 一级导航与首页规划
+
+2026-08-24 起，产品从“首页平铺所有工具卡片”收敛为 5 个长期稳定一级领域：
+
+```text
+首页 / 应用 / 设备 / 诊断 / 系统
+```
+
+详细导航、multiple back stacks、首页 Health Verdict / Attention / Timeline 契约见 `23-product-navigation-and-home.md`。
+
+首页不再承担全量工具目录职责，而只保留：
+
+1. 当前设备结论；
+2. 4 个高频 Quick Actions；
+3. 需要关注的问题；
+4. 最近策略/Root 操作事件。
+
+以下历史卡片规划继续作为 Feature 能力清单，不再代表首页最终视觉布局。
+
+### 历史卡片规划
 
 ### P0：必须稳定可用
 

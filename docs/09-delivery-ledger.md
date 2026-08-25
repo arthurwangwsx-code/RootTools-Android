@@ -336,6 +336,12 @@
 - [x] 旧版迁移只在 Thermal=0、Skin<35.5°C 且频点精确命中旧 RootTools 档位时认领 cap；迁移本身不抬频
 - [x] App / Quick Tile 显式切档会立即重启一次 policy loop，不再等待下一个 30 秒周期
 - [x] 当前 Samsung Thermal=0 后实测 CPU max 已恢复到硬件上限：1.785 / 2.496 / 2.995 GHz
+- [x] Xiaomi 14 Responsive Cool：效率簇 100%，performance 86%，Prime 78%，保持 WALT / Vendor Thermal / 充电策略不变
+- [x] Xiaomi Cool 从 one-shot 改为 ownership-aware 持续 reconcile；稳定 Cool 60s，热阶段 30s，避免 PowerKeeper 后续抬频导致策略失效
+- [x] RootShell 每条 payload 增加 process-group timeout + kill grace，修复 Xiaomi 14 上 41h orphan `tr` 高 CPU 泄漏
+- [x] JVM 回归覆盖 root session timeout/quoting/reuse、Cool target selection 与 polling cadence
+- [x] Xiaomi 14 更新 APK 真机验证：Cool service foreground/sticky、共享 root shell idle 0.0% CPU、无残留 `tr`、Vendor cap 更低时无新增 CAP_WRITE
+- [x] Xiaomi 14 Cool 下 Settings 5 次 cold-start 550~856ms，median 651ms，无明显 UI 启动回归
 
 ### Xiaomi 14 — Rolling Lag Forensics
 
@@ -382,3 +388,15 @@ app/build/outputs/apk/release/app-release-unsigned.apk
 5. 失败路径可解释。
 6. 没有引入持续异常 CPU / IO。
 7. 文档同步更新。
+
+## P — Product Navigation / Home UX（2026-08-24）
+
+- [x] 5 个一级领域定稿：Home / Apps / Device / Diagnostics / System
+- [x] 设计契约：`docs/23-product-navigation-and-home.md`
+- [x] Navigation Compose + Adaptive navigation shell
+- [x] multiple back stacks + ADB / Integrity typed external entry
+- [x] Home Health Verdict / Quick Actions / Attention / Recent Activity
+- [x] Apps / Device / Diagnostics / System landing pages
+- [x] JVM navigation / verdict tests
+- [x] unit + lint + assemble
+- [x] Xiaomi 14 五个一级页面真机截图与视觉回归（见 `docs/validation/navigation-2026-08-24.md`）

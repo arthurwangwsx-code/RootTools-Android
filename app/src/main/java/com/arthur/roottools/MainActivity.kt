@@ -10,7 +10,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
-import com.arthur.roottools.ui.DashboardRoute
+import com.arthur.roottools.app.navigation.RootToolsAppShell
 import com.arthur.roottools.ui.DashboardViewModel
 import com.arthur.roottools.ui.theme.RootToolsTheme
 
@@ -28,10 +28,9 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermissionIfNeeded()
         setContent {
             RootToolsTheme {
-                DashboardRoute(
+                RootToolsAppShell(
                     viewModel = dashboardViewModel,
-                    openAdbOnStart = intent?.getStringExtra(EXTRA_OPEN_SCREEN) == SCREEN_ADB,
-                    openIntegrityOnStart = intent?.getStringExtra(EXTRA_OPEN_SCREEN) == SCREEN_INTEGRITY,
+                    initialScreen = intent?.getStringExtra(EXTRA_OPEN_SCREEN),
                 )
             }
         }

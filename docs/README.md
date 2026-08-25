@@ -1,6 +1,6 @@
 # Root Tools 文档索引
 
-`RootTools` 是一个面向个人 Root Android 设备的长期工具箱工程。产品形态是 **卡片式启动台 + 独立工具详情页 + Quick Settings / ADB / 自动化入口**，而不是把所有 Root 功能堆在一个页面。
+`RootTools` 是一个面向个人 Root Android 设备的长期工具箱工程。产品形态是 **5 个稳定一级领域 + 领域 Landing Page + 独立工具详情页 + Quick Settings / ADB / 自动化入口**，而不是把所有 Root 功能堆在一个页面。
 
 ## 文档结构
 
@@ -29,33 +29,26 @@
 | [adr/](./adr/) | Architecture Decision Records：composition root、模块化边界等长期工程决策 |
 | [19-environment-integrity-center.md](./19-environment-integrity-center.md) | Environment Integrity Center：Hook/篡改、Root runtime、Boot/ROM、设备表面、Sandbox、Attestation 与可信基线 |
 | [20-termux-developer-runtime.md](./20-termux-developer-runtime.md) | Termux / Developer Runtime Bridge：双向 Intent、CLI、managed task、SSH/MCP 执行平面与安全边界 |
+| [23-product-navigation-and-home.md](./23-product-navigation-and-home.md) | 产品导航与首页：5 Tab、multiple back stacks、Health Verdict、Attention、Recent Activity 与领域 Landing Page |
 | [24-lag-forensics.md](./24-lag-forensics.md) | Xiaomi / Qualcomm 系统级卡顿的低开销滚动取证、PSI 阈值、证据预算与后台性能契约 |
 
 ## 工程原则
 
 1. **单 app 模块优先**：文档和 feature 分层不等于 Gradle 多模块化。除非后续出现明确编译、复用或发布边界，否则不新增 Android 子模块。
-2. **首页只做入口**：首页每个卡片对应一个独立工具领域；监控数据只展示摘要，不在首页塞完整控制表单。
+2. **首页只做结论与高频触达**：首页优先回答“设备现在怎么样”，再提供少量 Quick Actions；完整能力按 `首页 / 应用 / 设备 / 诊断 / 系统` 五个一级领域组织。
 3. **一个能力一个真值源**：例如 CPU sysfs 只由 `CpuPolicyController` 写；MacroDroid、Quick Tile、ADB 都只能调用统一 Controller，不能各自直接写系统节点。
 4. **读写分离**：监控采集器尽量只读；Root 修改必须通过明确的 Action / Controller。
 5. **安全优先**：不关闭 Thermal、不隐藏失败、不默认永久开放 ADB、不自动绕过 Magisk / Android 权限确认。
 6. **低开销观测**：默认 15～30 秒级采样；只有用户进入实时详情页时才提高频率，避免“监控工具成为发热源”。
 7. **可回滚**：所有系统修改都要记录前值，能通过 UI 或命令恢复。
 
-## 首页卡片目标
+## 一级导航目标
 
-### 第一屏：日常高频
-
-- 设备看板
-- 性能控制
-- Root ADB
-- 启动治理
-
-### 第二屏：诊断与系统
-
-- 应用冻结
-- 进程 / 日志
-- Root 模块
-- 电池 / 温控
+- **首页**：Health Verdict、Quick Actions、Attention、Recent Activity。
+- **应用**：App Control、Startup、Ad Governance、Permissions、Components、AppOps。
+- **设备**：Performance、Battery/Thermal、Root ADB、Shadow Display、Network、Storage/IO。
+- **诊断**：Health Dashboard、Process/Root Shell/WakeLock、Environment Integrity。
+- **系统**：Modules、Shizuku/Sui、Common Actions/Automation、Developer Runtime。
 
 ### 已扩展能力
 

@@ -71,6 +71,53 @@ adb shell top -b -n 1 -p $(adb shell pidof com.arthur.roottools)
 
 - Auto / Cool / Performance 可切换
 - Thermal > 0 时不得把系统当前 `scaling_max_freq` 向上抬高
+- Cool Responsive：效率簇保持完整峰值，性能簇/Prime 仅削高频尾段；Vendor cap 更低时不得向上覆盖
+- RootShell timeout：超时 payload 必须结束，下一条命令可继续复用共享 root session
+- Xiaomi / Toybox process-group：timeout 后后台 child PID 不得继续运行
+- 多次 Diagnostics root attribution 后不得出现长期高 CPU 的 `tr` / root shell orphan
+
+## Xiaomi 14 validation — 2026-08-24
+
+设备：`23127PN0CC / houji / Android 15 / HyperOS 2.0.207.0.VNCCNXM`
+
+### RootShell lifecycle
+
+- 新 APK `adb install -r` 成功；
+- 真机 `ps` 可观察到 RootTools payload 以 `timeout -k 0.2s <N>s sh -c ...` 运行；
+- payload 完成后 `timeout` 消失，仅保留共享 root `sh`；
+- 共享 root `sh` 稳定态 CPU=0.0%；
+- 未再次观察到长期存活的 `tr`；
+- RootTools 主进程退后台后 `top`=0.0%，`dumpsys cpuinfo` 当前窗口约 0.6%。
+
+### Cool / Vendor ownership
+
+模式已切到 `COOL` 并持久化。当前 HyperOS Vendor cap：
+
+```text
+policy0 2.0352 < Cool 2.2656 GHz
+policy2 2.3232 < Cool 2.7072 GHz
+policy5 2.3232 < Cool 2.5152 GHz
+policy7 1.9392 < Cool 2.5536 GHz
+```
+
+事件日志只有 `AUTO→COOL`，没有新增 `CAP_WRITE`，且 prefs 中没有 `owned_max_*`，证明 RootTools 没有向上覆盖当前更严格的 HyperOS cap。
+
+`CpuPolicyService` 在 Cool 下保持 `isForeground=true / startRequested=true`，用于后续 60s/30s ownership-aware reconcile。
+
+### Responsiveness smoke test
+
+Cool 模式下对 Android Settings 做 5 次 cold-start：
+
+```text
+856 / 651 / 759 / 550 / 559 ms
+median = 651 ms
+```
+
+没有出现秒级异常卡顿或启动失败。该测试主要验证持续 Cool monitor 没有引入明显 UI 启动回归；当前 Vendor cap 已经比 RootTools Cool 目标更严格，因此本轮没有人为抬频来制造 A/B 条件。
+
+### Thermal trend after validation load
+
+测试/安装活跃阶段 Skin 约 38°C；退后台后继续回落到约 37.2°C，Battery 约 33.1°C，CPU 约 45~47°C。未出现此前 41h orphan root process 对应的持续 90%+ 单核占用。
 - Performance 15 分钟后回 Auto
 - 不关闭 Samsung Thermal
 
@@ -146,3 +193,20 @@ com.arthur.roottools/.automation.ActionRouterReceiver
 ## Done
 
 只有以上全部通过，`docs/09-delivery-ledger.md` 最后一项才可以勾选。
+
+## 14. Product Navigation / Home UX — Xiaomi 14（2026-08-24）
+
+- 5 个一级 Tab：`首页 / 应用 / 设备 / 诊断 / 系统` 全部可达；
+- 1200×2670 竖屏底栏标签完整，无可见裁切；
+- Apps / Device / Diagnostics / System Landing Page 第一屏通过截图验收；
+- Multiple back stacks：App Control -> Device/Performance -> Apps 后恢复 App Control；
+- `open_screen=adb` 与 `open_screen=integrity` typed external entry 通过；
+- Integrity Back 返回 Diagnostics Landing；
+- Loading Verdict 不再用空采样误报内存压力；
+- 稳定态 Home Verdict 为“设备状态稳定”；
+- 3 次冷启动：1361 / 1522 / 1407 ms，中位数 1407 ms；
+- App 退后台 5 秒后抽样 CPU 0.0%；
+- 未发现 RootTools 残留 `tr` / `timeout` 子进程；
+- ADB 5555 / Tailscale 管理链路在安装与视觉验证后仍可达。
+
+详细截图与验证记录：`docs/validation/navigation-2026-08-24.md`。

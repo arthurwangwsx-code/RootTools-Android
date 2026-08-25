@@ -622,7 +622,7 @@ private fun QuickSummaryCard(snapshot: DeviceSnapshot, health: DeviceHealthSnaps
 }
 
 @Composable
-private fun AdbScreen(
+internal fun AdbScreen(
     state: DashboardUiState,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
@@ -910,7 +910,7 @@ private fun AdbEndpointCard(
 }
 
 @Composable
-private fun StartupScreen(
+internal fun StartupScreen(
     state: DashboardUiState,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
@@ -1162,7 +1162,7 @@ private fun PolicyBadge(category: AppPolicyCategory) {
 }
 
 @Composable
-private fun DiagnosticsScreen(
+internal fun DiagnosticsScreen(
     state: DashboardUiState,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
@@ -1315,7 +1315,7 @@ private fun RootShellCard(
 }
 
 @Composable
-private fun ModuleCenterScreen(
+internal fun ModuleCenterScreen(
     state: DashboardUiState,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
@@ -1482,7 +1482,7 @@ private fun VectorModuleCard(
 }
 
 @Composable
-private fun CommonActionsScreen(
+internal fun CommonActionsScreen(
     state: DashboardUiState,
     onBack: () -> Unit,
     onRunAction: (SystemActionId) -> Unit,
@@ -1679,7 +1679,7 @@ private fun ActionCard(
 }
 
 @Composable
-private fun NetworkDiagnosticsScreen(
+internal fun NetworkDiagnosticsScreen(
     state: DashboardUiState,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
@@ -1791,7 +1791,7 @@ private fun NetworkOverviewCard(network: NetworkSnapshot) {
 }
 
 @Composable
-private fun StorageDiagnosticsScreen(
+internal fun StorageDiagnosticsScreen(
     state: DashboardUiState,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
@@ -1891,7 +1891,7 @@ private fun storageStatusColor(status: StorageStatus): Color = when (status) {
 }
 
 @Composable
-private fun BatteryThermalScreen(
+internal fun BatteryThermalScreen(
     state: DashboardUiState,
     onBack: () -> Unit,
     onProtectionToggle: (Boolean) -> Unit,
@@ -1992,7 +1992,7 @@ private fun BatteryThermalScreen(
 }
 
 @Composable
-private fun PermissionScreen(
+internal fun PermissionScreen(
     state: DashboardUiState,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
@@ -2100,7 +2100,7 @@ private fun PermissionScreen(
     }
 }
 
-private fun capabilityAvailable(capability: ToolCapability, state: DashboardUiState): Boolean = when (capability) {
+internal fun capabilityAvailable(capability: ToolCapability, state: DashboardUiState): Boolean = when (capability) {
     ToolCapability.ROOT -> state.snapshot.rootAvailable
     ToolCapability.NOTIFICATION -> state.notificationsGranted
     ToolCapability.MAGISK -> state.modules.magiskModules.isNotEmpty()
@@ -2111,7 +2111,7 @@ private fun capabilityAvailable(capability: ToolCapability, state: DashboardUiSt
 }
 
 @Composable
-private fun ComponentManagerScreen(
+internal fun ComponentManagerScreen(
     state: DashboardUiState,
     onBack: () -> Unit,
     onLoad: (String) -> Unit,
@@ -2297,7 +2297,7 @@ private fun SmallStatusPill(label: String, tint: Color) {
 }
 
 @Composable
-private fun PermissionAppOpsScreen(
+internal fun PermissionAppOpsScreen(
     state: DashboardUiState,
     onBack: () -> Unit,
     onLoad: (String) -> Unit,
@@ -2434,7 +2434,7 @@ private fun AppOpCard(op: AppOpRecord, editable: Boolean, onSetMode: (String) ->
 }
 
 @Composable
-private fun ShizukuSuiScreen(
+internal fun ShizukuSuiScreen(
     state: DashboardUiState,
     onBack: () -> Unit,
     onRefresh: () -> Unit,

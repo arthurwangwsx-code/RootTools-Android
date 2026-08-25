@@ -164,15 +164,18 @@ com.arthur.roottools
 - Feature 自己无法声明 destination；
 - `DashboardScreen.kt` 被迫继续知道所有页面。
 
-建议 P1 迁移到 Navigation Compose，但不要为了迁移导航同时改 Feature 行为。目标是：
+2026-08-24 已接受迁移到 Navigation Compose + Material 3 Adaptive Navigation Suite。迁移仍不改变 Feature privileged 行为。目标是：
 
 ```text
 App NavHost
+  -> 5 top-level domain graphs
   -> feature destination contract
   -> feature route/screen
 ```
 
 外部 Intent / Tile / Widget 只解析成 typed destination，不直接操作页面内部状态。
+
+一级领域固定为 `Home / Apps / Device / Diagnostics / System`。Tab 切换使用 save/restore state 保留 multiple back stacks；紧凑手机使用 bottom navigation，展开窗口使用 navigation rail。完整产品契约见 `23-product-navigation-and-home.md`。
 
 ### 2.6 依赖装配 / DI
 

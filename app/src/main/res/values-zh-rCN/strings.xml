@@ -33,6 +33,10 @@
     <string name="cpu_cap_source_other_system">其他系统策略</string>
     <string name="common_back">返回</string>
     <string name="common_refresh">刷新</string>
+    <string name="common_temperature_celsius" translatable="false">%1$.1f°C</string>
+    <string name="common_percent_int" translatable="false">%1$d%%</string>
+    <string name="common_percent_float" translatable="false">%1$.0f%%</string>
+    <string name="common_endpoint" translatable="false">%1$s:%2$d</string>
     <string name="cpu_notification_reading">正在读取设备状态…</string>
     <string name="cpu_notification_cool">Cool · %1$s</string>
     <string name="cpu_peak_limited">已限峰</string>
@@ -128,7 +132,7 @@
     <string name="performance_mode_title">性能档位</string>
     <string name="performance_mode_subtitle">选择策略；系统热保护始终优先。</string>
     <string name="performance_mode_auto_description">自动依据 Thermal / 机身温度切换内部阶段。当前：%1$s。</string>
-    <string name="performance_mode_cool_description">长期凉爽模式：只降低 CPU 峰值，不固定频率，也不关闭 Thermal。</string>
+    <string name="performance_mode_cool_description">低温响应模式：保留能效核突发响应，只削性能簇/超大核的高频尾段；不改变充电策略，也不关闭厂商 Thermal。</string>
     <string name="performance_mode_performance_description">临时高性能：默认 15 分钟；检测到系统热限频后立即让路。</string>
     <string name="performance_cluster_efficiency">能效簇</string>
     <string name="performance_cluster_prime">超大核簇</string>
@@ -530,4 +534,92 @@
     <string name="shadow_display_operation_failed">操作失败：%1$s</string>
     <string name="shadow_display_invalid_number">请输入有效的数字。</string>
     <string name="shadow_display_busy">正在处理…</string>
+
+    <!-- 产品导航 / 首页 -->
+    <string name="nav_home">首页</string>
+    <string name="nav_apps">应用</string>
+    <string name="nav_device">设备</string>
+    <string name="nav_diagnostics">诊断</string>
+    <string name="nav_system">系统</string>
+    <string name="home_product_subtitle">%1$s · %2$s</string>
+    <string name="home_verdict_loading_title">正在读取设备状态</string>
+    <string name="home_verdict_loading_detail">正在采集实时 CPU、内存与温控指标。</string>
+    <string name="home_verdict_good_title">设备状态稳定</string>
+    <string name="home_verdict_good_detail">当前实时指标没有发现明显异常。</string>
+    <string name="home_verdict_setup_title">需要完成设备配置</string>
+    <string name="home_verdict_setup_detail">Root 或其它必要能力尚未就绪。</string>
+    <string name="home_verdict_busy_title">系统负载偏高</string>
+    <string name="home_verdict_busy_detail">CPU 或内存压力高于正常交互区间。</string>
+    <string name="home_verdict_warm_title">设备温度偏高</string>
+    <string name="home_verdict_warm_detail">Thermal 或机身温度已经达到需要关注的区间。</string>
+    <string name="home_verdict_critical_title">发现高 CPU Root 进程</string>
+    <string name="home_verdict_critical_detail">Root shell / 进程正在持续占用 CPU，可能导致发热和耗电。</string>
+    <string name="home_metric_skin">机身 %1$s</string>
+    <string name="home_metric_cpu">CPU %1$s</string>
+    <string name="home_metric_battery">电池 %1$s</string>
+    <string name="home_quick_title">快捷入口</string>
+    <string name="home_quick_subtitle">最常用的四个任务，一次点击即可进入。</string>
+    <string name="home_attention_title">需要关注</string>
+    <string name="home_attention_subtitle">只展示 RootTools 已采集数据中真正需要处理的信号。</string>
+    <string name="home_attention_none_title">当前无需处理</string>
+    <string name="home_attention_none_detail">实时 CPU、内存和温控指标处于当前正常区间。</string>
+    <string name="home_attention_root_shell_title">异常 Root 进程</string>
+    <string name="home_attention_root_shell_detail">发现 %1$d 个高 CPU Root 进程，进入进程诊断可继续归属分析。</string>
+    <string name="home_attention_thermal_title">温度偏高</string>
+    <string name="home_attention_thermal_detail">机身 %1$s · Thermal %2$d，建议查看性能与温控状态。</string>
+    <string name="home_attention_cpu_title">CPU 负载偏高</string>
+    <string name="home_attention_cpu_detail">当前 CPU 使用率 %1$.0f%%，进入设备看板可定位活跃负载。</string>
+    <string name="home_attention_memory_title">检测到内存压力</string>
+    <string name="home_attention_memory_detail">Memory PSI 或可用内存已经越过压力阈值。</string>
+    <string name="home_attention_root_title">Root 尚未就绪</string>
+    <string name="home_attention_root_detail">进入权限中心恢复 RootTools 的特权能力。</string>
+    <string name="home_recent_title">最近发生</string>
+    <string name="home_recent_subtitle">性能策略和特权操作按时间倒序展示。</string>
+    <string name="home_recent_empty">最近没有 RootTools 操作。</string>
+    <string name="home_timeline_performance">性能</string>
+    <string name="home_timeline_system">系统</string>
+    <string name="home_view_all_tools">浏览全部领域</string>
+
+    <!-- 领域首页 -->
+    <string name="hub_apps_title">应用</string>
+    <string name="hub_apps_subtitle">统一管理应用、启动、权限、组件和后台行为。</string>
+    <string name="hub_device_title">设备</string>
+    <string name="hub_device_subtitle">性能、温控、ADB、影子屏、网络与存储。</string>
+    <string name="hub_diagnostics_title">诊断</string>
+    <string name="hub_diagnostics_subtitle">定位发热、CPU、内存、Root 进程与环境完整性问题。</string>
+    <string name="hub_system_title">系统</string>
+    <string name="hub_system_subtitle">Root 模块、特权桥接、自动化与开发者运行时。</string>
+    <string name="hub_tools_title">工具</string>
+    <string name="hub_tools_subtitle">进入独立能力，返回后仍停留在当前领域。</string>
+    <string name="hub_apps_status_loaded">%1$d 个应用 · %2$d 运行中 · %3$d 已冻结</string>
+    <string name="hub_apps_status_idle">应用治理能力已就绪，需要时再加载完整清单。</string>
+    <string name="hub_device_status">%1$s · 机身 %2$s · ADB %3$s</string>
+    <string name="hub_diagnostics_status">CPU %1$.0f%% · 机身 %2$s · %3$d 项关注</string>
+    <string name="hub_system_status">Root %1$s · Shizuku %2$s</string>
+    <string name="hub_status_on">开启</string>
+    <string name="hub_status_off">关闭</string>
+    <string name="hub_status_ready">就绪</string>
+    <string name="hub_status_unavailable">不可用</string>
+    <string name="hub_tool_health_desc">CPU · 内存 · 温控 · 历史趋势</string>
+    <string name="hub_tool_performance_desc">%1$s · 自适应性能削峰</string>
+    <string name="hub_tool_adb_desc">Root TCP · 无线调试 · Tailscale</string>
+    <string name="hub_tool_battery_desc">电池 · 充电 · 温控状态</string>
+    <string name="hub_tool_network_desc">网卡 · 路由 · DNS · 端口</string>
+    <string name="hub_tool_storage_desc">容量 · ZRAM · IO 压力</string>
+    <string name="hub_tool_startup_desc">开机 Receiver · Service · 启动排名</string>
+    <string name="hub_tool_apps_desc">应用清单 · 运行态 · 策略 · 批量操作</string>
+    <string name="hub_tool_appops_desc">运行时权限 · AppOps · 特殊权限</string>
+    <string name="hub_tool_diagnostics_desc">Top CPU · Root Shell · WakeLock · Service</string>
+    <string name="hub_tool_diagnostics_abnormal">%1$d 个异常 Root 进程 · 进入后继续归属分析</string>
+    <string name="hub_tool_integrity_desc">运行态 · Root · 启动链 · Attestation</string>
+    <string name="hub_tool_modules_desc">Magisk · Vector · Xposed 模块</string>
+    <string name="hub_tool_modules_loaded">Magisk %1$d · Vector %2$d 已启用</string>
+    <string name="hub_tool_actions_desc">收藏动作 · 自动化 · 诊断报告</string>
+    <string name="hub_tool_actions_loaded">%1$d 个收藏动作 · 自动化 · 报告</string>
+    <string name="hub_tool_shizuku_desc">Binder · 权限 · Backend 能力</string>
+    <string name="hub_tool_developer_desc">Termux · CLI · MCP · Managed Tasks</string>
+    <string name="hub_tool_permissions_desc">Root · 通知 · 特权能力配置</string>
+    <string name="hub_tool_battery_live">%1$s · 机身 %2$s</string>
+    <string name="hub_capability_missing">需要配置</string>
+    <string name="hub_open_tool">打开%1$s</string>
 </resources>
