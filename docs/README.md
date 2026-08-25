@@ -29,8 +29,12 @@
 | [adr/](./adr/) | Architecture Decision Records：composition root、模块化边界等长期工程决策 |
 | [19-environment-integrity-center.md](./19-environment-integrity-center.md) | Environment Integrity Center：Hook/篡改、Root runtime、Boot/ROM、设备表面、Sandbox、Attestation 与可信基线 |
 | [20-termux-developer-runtime.md](./20-termux-developer-runtime.md) | Termux / Developer Runtime Bridge：双向 Intent、CLI、managed task、SSH/MCP 执行平面与安全边界 |
+| [21-scheduled-actions.md](./21-scheduled-actions.md) | 定时动作与调度边界：任务模型、执行窗口、持久化与安全约束 |
+| [22-shadow-display.md](./22-shadow-display.md) | Shadow Display：Root-owned Virtual Display、隔离输入、Preview、Automation 与跨 OEM 状态探针 |
+| [23-ad-governance.md](./23-ad-governance.md) | 广告治理：只读识别、跳过/关闭入口边界与设备验证 |
 | [23-product-navigation-and-home.md](./23-product-navigation-and-home.md) | 产品导航与首页：5 Tab、multiple back stacks、Health Verdict、Attention、Recent Activity 与领域 Landing Page |
 | [24-lag-forensics.md](./24-lag-forensics.md) | Xiaomi / Qualcomm 系统级卡顿的低开销滚动取证、PSI 阈值、证据预算与后台性能契约 |
+| [25-agent-session-presence.md](./25-agent-session-presence.md) | Agent Session Presence：统一任务状态、持续通知、悬浮窗、详情页、Shadow Preview 与 OEM 顶部状态适配边界 |
 
 ## 工程原则
 
@@ -61,6 +65,7 @@
 - App Control Center（核心 Inventory / Detail / Components / Permission / AppOps 已落地并持续扩展）
 - Environment Integrity Center（基础实现已落地；Hardware Attestation 已完成 Samsung 真机验收，其余扫描模式持续扩展/验收）
 - Developer Runtime / Termux Bridge（规划完成；当前 Samsung Play Termux 先走 reverse bridge）
+- Agent Session Presence（通用层已实现；Samsung 正在完成通知 / Overlay / Shadow Preview / 生命周期整体验收，Xiaomi Focus / HyperIsland 后续只做 adapter）
 
 ### 行业调研后确认的后续一级领域
 

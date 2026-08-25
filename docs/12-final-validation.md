@@ -210,3 +210,39 @@ com.arthur.roottools/.automation.ActionRouterReceiver
 - ADB 5555 / Tailscale 管理链路在安装与视觉验证后仍可达。
 
 详细截图与验证记录：`docs/validation/navigation-2026-08-24.md`。
+
+## 15. Agent Session Presence — Samsung SM-S908E
+
+通用后台 Agent 可见性必须先在 Samsung / Generic Android 跑通，再把 Xiaomi Focus / HyperIsland 作为 OEM adapter 叠加。
+
+### Notification fallback
+
+- 未授权 `SYSTEM_ALERT_WINDOW` 时 Agent Session 仍能启动；
+- `AgentSessionService` 为 Android 14 `specialUse` foreground service；
+- running notification 使用低重要度 channel，包含 Pause/Resume 与 Stop；
+- 此状态下不得存在 RootTools `TYPE_APPLICATION_OVERLAY` window。
+
+### Overlay
+
+- 只通过 Samsung Settings 标准「悬浮窗」页面授权；
+- collapsed 约 56dp，展开约 320dp，均保持在 logical display bounds 内；
+- collapsed / hidden 状态 Shadow Preview mtime 不持续变化；
+- expanded + Running 才允许约 0.5fps Preview；
+- One UI 敏感系统页强制隐藏 non-system overlay 时必须接受系统策略，不绕过。
+
+### Shadow / Agent integration
+
+- Samsung VirtualDisplay 状态必须显示 `running / processAlive / displayActive=true`；
+- target App 启动后 `AgentSessionState.targetPackage / targetLabel / currentStep` 同步；
+- expanded overlay 可读取真实 Shadow Preview；
+- Presence Stop 不得隐式销毁非该 Session 独占的 Shadow Display。
+
+### Lifecycle
+
+- 通知点击在 RootTools 冷启动、Activity 已运行两种情况下都进入 `agent-session`；
+- Pause / Resume / Stop 在 Detail、Notification、persisted state 一致；
+- 覆盖安装 / 进程重建后 active session 可按策略恢复 presence surface；
+- 息屏 / 锁屏后 Notification / Session 存活，Overlay 不唤醒物理屏；
+- 最终 Stop 后 Service / active Notification / Overlay 清理，CPU 稳态无持续 busy-loop。
+
+详细过程：`docs/validation/agent-session-samsung-2026-08-25.md`。

@@ -400,3 +400,26 @@ app/build/outputs/apk/release/app-release-unsigned.apk
 - [x] JVM navigation / verdict tests
 - [x] unit + lint + assemble
 - [x] Xiaomi 14 五个一级页面真机截图与视觉回归（见 `docs/validation/navigation-2026-08-24.md`）
+
+## Q — Agent Session Presence / Background Agent UX（2026-08-25）
+
+- [x] 设计契约：`docs/25-agent-session-presence.md`
+- [x] `AgentSessionState` / `AgentSessionManager` 作为 Notification / Overlay / Detail 的单一状态源
+- [x] Android 14 `specialUse` foreground service + running / attention notification channels
+- [x] `SYSTEM_ALERT_WINDOW` 未授权时自动降级为标准 ongoing notification
+- [x] 标准 Settings Overlay 授权入口；禁止 Root/AppOps 静默授予
+- [x] collapsed ~56dp overlay + expanded task card；expanded 位置按 logical display bounds clamp
+- [x] collapsed / hidden 不请求 Preview；expanded + Running 最多 2 秒一次 Shadow Preview
+- [x] Shadow Display Automation / read-only Preview provider / Unicode input / ADB trusted transport
+- [x] Samsung One UI 6.1 VirtualDisplay `cmd display` 输出差异修复为跨 OEM probe
+- [x] Samsung 敏感系统页 `HIDE_NON_SYSTEM_OVERLAY_WINDOWS` 明确接受，不绕过 anti-tapjacking
+- [x] Samsung 第一阶段：无 Overlay 通知 fallback、标准授权、collapsed/expanded、Shadow Display 6、Chrome Preview、CPU 0.0% 抽样
+- [ ] 覆盖安装最新 `onNewIntent` external-screen 修复并回归通知点击进入 Agent detail
+- [ ] Pause / Resume / Stop 在 detail / notification / persisted state 三处一致
+- [ ] Process restart / APK reinstall 后 active session presence 恢复策略真机验收
+- [ ] Screen-off / lock-screen persistence + overlay no-wake 真机验收
+- [ ] 最新完整 unit / lint / assemble / security gate
+- [ ] Samsung 最终清理与 idle CPU 验收
+- [ ] Samsung 通用矩阵完成后再进入 Xiaomi Focus Notification / HyperIsland adapter
+
+Samsung 记录：`docs/validation/agent-session-samsung-2026-08-25.md`。
