@@ -111,6 +111,7 @@ import com.arthur.roottools.feature.dashboard.presentation.thermalStageLabel
 import com.arthur.roottools.feature.dashboard.ui.DailyHealthHistoryCard
 import com.arthur.roottools.feature.dashboard.ui.HealthDashboardScreen
 import com.arthur.roottools.feature.dashboard.ui.SamplingIntervalCard
+import com.arthur.roottools.feature.diagnostics.ui.LagForensicsCard
 import com.arthur.roottools.feature.performance.ui.PerformanceScreen as FeaturePerformanceScreen
 import com.arthur.roottools.model.AppPolicyCategory
 import com.arthur.roottools.model.AppComponentRecord
@@ -1184,6 +1185,7 @@ private fun DiagnosticsScreen(
                     onRefresh = onRefresh,
                 )
             }
+            item { LagForensicsCard() }
             item {
                 Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
                     Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

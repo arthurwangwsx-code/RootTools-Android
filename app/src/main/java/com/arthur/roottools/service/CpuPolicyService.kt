@@ -7,12 +7,14 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.arthur.roottools.MainActivity
 import com.arthur.roottools.R
 import com.arthur.roottools.app.rootToolsContainer
 import com.arthur.roottools.data.DeviceRepository
+import com.arthur.roottools.data.LagForensicsMonitor
 import com.arthur.roottools.data.RootActionAuditStore
 import com.arthur.roottools.model.CpuPolicyEventType
 import com.arthur.roottools.model.PerformanceMode
@@ -37,8 +39,11 @@ class CpuPolicyService : Service() {
     private lateinit var store: PolicyStore
     private lateinit var controller: CpuPolicyController
     private lateinit var eventStore: CpuPolicyEventStore
+    private lateinit var lagForensicsMonitor: LagForensicsMonitor
+    private lateinit var powerManager: PowerManager
     private val thermalHysteresis = ThermalStageHysteresis()
     private var monitorJob: Job? = null
+    private var lastNotificationText: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -47,6 +52,8 @@ class CpuPolicyService : Service() {
         store = container.policyStore
         eventStore = container.policyEventStore
         controller = container.createCpuPolicyController("CpuPolicyService")
+        lagForensicsMonitor = container.lagForensicsMonitor
+        powerManager = getSystemService(PowerManager::class.java)
         createNotificationChannel()
     }
 
@@ -111,6 +118,7 @@ class CpuPolicyService : Service() {
                 // Reconcile every poll. The controller itself only writes when it owns a cap or
                 // needs to add a stricter one, so a stable state produces no sysfs writes.
                 if (snapshot.rootAvailable) controller.apply(mode, snapshot, stage)
+                lagForensicsMonitor.observe(snapshot, scope)
 
                 val temp = snapshot.apTempC?.let { getString(R.string.cpu_temperature_ap, it) }
                     ?: getString(R.string.cpu_temperature_loading)
@@ -126,9 +134,15 @@ class CpuPolicyService : Service() {
                         }
                     }
                 }
-                getSystemService(NotificationManager::class.java)
-                    .notify(NOTIFICATION_ID, buildNotification(subtitle))
-                delay(CpuPolicyPollingPolicy.intervalMs(mode, effectiveStage))
+                if (subtitle != lastNotificationText) {
+                    getSystemService(NotificationManager::class.java)
+                        .notify(NOTIFICATION_ID, buildNotification(subtitle))
+                    lastNotificationText = subtitle
+                }
+                // Cadence follows the physical thermal stage, not the mode-adjusted effective stage.
+                // Cool intentionally treats Normal as Warm for cap selection, but that must not turn
+                // an otherwise stable device back into a 30s polling loop.
+                delay(CpuPolicyPollingPolicy.intervalMs(mode, stage, powerManager.isInteractive))
             }
         }
     }

@@ -161,6 +161,23 @@
     <string name="dashboard_lmk_count" translatable="false">%1$d LMKD</string>
     <string name="dashboard_recent_am_kill" translatable="false">Recent am_kill</string>
     <string name="dashboard_lmk_no_static_config">This device does not expose static ro.lmk.* parameters; use MemAvailable, PSI, and kill events to judge pressure.</string>
+    <string name="lag_forensics_title">Rolling lag forensics</string>
+    <string name="lag_forensics_subtitle">Normal operation reuses low-frequency CPU policy PSI sampling. A bounded evidence capture runs only after sustained abnormal pressure.</string>
+    <string name="lag_forensics_memory_psi">Memory PSI</string>
+    <string name="lag_forensics_io_psi">IO PSI</string>
+    <string name="lag_forensics_incidents">Incidents</string>
+    <string name="lag_forensics_waiting">Waiting</string>
+    <string name="lag_forensics_unknown">—</string>
+    <string name="lag_forensics_some_avg10">some avg10</string>
+    <string name="lag_forensics_capturing">capturing</string>
+    <string name="lag_forensics_stored">stored</string>
+    <string name="lag_forensics_recent">Latest: %1$s</string>
+    <string name="lag_forensics_recent_metrics">Memory %1$.1f/%2$.1f · IO %3$.1f/%4$.1f · CPU %5$.1f</string>
+    <string name="lag_forensics_copy_latest">Copy latest evidence</string>
+    <string name="lag_forensics_cadence">Stable background cadence: about 60 s while interactive and 120 s while screen-off. Keeps at most 5 files, each capped at 128 KB.</string>
+    <string name="lag_forensics_level_normal">Normal</string>
+    <string name="lag_forensics_level_elevated">Elevated</string>
+    <string name="lag_forensics_level_severe">Severe</string>
     <string name="dashboard_metric_skin">Skin</string>
     <string name="dashboard_metric_battery">Battery</string>
     <string name="dashboard_status_value" translatable="false">status %1$d</string>

@@ -11,6 +11,7 @@ import com.arthur.roottools.data.AdbPreferenceStore
 import com.arthur.roottools.data.RootActionAuditStore
 import com.arthur.roottools.policy.AdbController
 import com.arthur.roottools.root.RootShell
+import com.arthur.roottools.service.CpuPolicyService
 import com.arthur.roottools.widget.AdbWidgetProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +23,9 @@ class AdbBootReceiver : BroadcastReceiver() {
         val action = intent.action ?: return
         if (action !in setOf(Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_USER_UNLOCKED, ACTION_RETRY)) return
         val appContext = context.applicationContext
+        if (action != ACTION_RETRY && appContext.rootToolsContainer.lagForensicsStore.enabled) {
+            runCatching { CpuPolicyService.ensureRunning(appContext, source = "boot-lag-forensics") }
+        }
         val policy = AdbPreferenceStore(appContext).bootPolicy()
         if (!policy.restoreRootTcp && !policy.restoreNativeWireless) {
             AdbWidgetProvider.requestUpdate(appContext)

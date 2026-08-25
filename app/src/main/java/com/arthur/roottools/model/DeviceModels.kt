@@ -42,6 +42,7 @@ data class DeviceSnapshot(
     val adbPort: Int? = null,
     val adbListening: Boolean = false,
     val tailscaleIpv4: String? = null,
+    val runtimePressure: RuntimePressureSnapshot = RuntimePressureSnapshot(),
 ) {
     val adbEnabled: Boolean get() = adbPort != null && adbPort > 0 && adbListening
 

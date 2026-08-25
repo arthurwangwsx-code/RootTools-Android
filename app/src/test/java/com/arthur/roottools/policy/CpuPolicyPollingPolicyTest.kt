@@ -7,19 +7,35 @@ import org.junit.Test
 
 class CpuPolicyPollingPolicyTest {
     @Test
-    fun coolNormalOrWarm_usesLowFrequencyReconciliation() {
+    fun stableInteractive_usesOneMinuteCadence() {
         assertEquals(
             60_000L,
             CpuPolicyPollingPolicy.intervalMs(PerformanceMode.COOL, ThermalStage.NORMAL),
         )
         assertEquals(
             60_000L,
-            CpuPolicyPollingPolicy.intervalMs(PerformanceMode.COOL, ThermalStage.WARM),
+            CpuPolicyPollingPolicy.intervalMs(PerformanceMode.AUTO, ThermalStage.NORMAL),
         )
     }
 
     @Test
-    fun coolHotStage_reactsAtNormalThermalCadence() {
+    fun stableScreenOff_usesTwoMinuteCadence() {
+        assertEquals(
+            120_000L,
+            CpuPolicyPollingPolicy.intervalMs(PerformanceMode.AUTO, ThermalStage.NORMAL, interactive = false),
+        )
+        assertEquals(
+            120_000L,
+            CpuPolicyPollingPolicy.intervalMs(PerformanceMode.COOL, ThermalStage.NORMAL, interactive = false),
+        )
+    }
+
+    @Test
+    fun warmOrHotStage_reactsAtThirtySecondCadence() {
+        assertEquals(
+            30_000L,
+            CpuPolicyPollingPolicy.intervalMs(PerformanceMode.COOL, ThermalStage.WARM),
+        )
         assertEquals(
             30_000L,
             CpuPolicyPollingPolicy.intervalMs(PerformanceMode.COOL, ThermalStage.MODERATE),
@@ -31,10 +47,14 @@ class CpuPolicyPollingPolicyTest {
     }
 
     @Test
-    fun autoAndPerformance_keepNormalCadence() {
-        ThermalStage.entries.forEach { stage ->
-            assertEquals(30_000L, CpuPolicyPollingPolicy.intervalMs(PerformanceMode.AUTO, stage))
-            assertEquals(30_000L, CpuPolicyPollingPolicy.intervalMs(PerformanceMode.PERFORMANCE, stage))
-        }
+    fun interactivePerformance_keepsThirtySecondCadence() {
+        assertEquals(
+            30_000L,
+            CpuPolicyPollingPolicy.intervalMs(PerformanceMode.PERFORMANCE, ThermalStage.NORMAL, interactive = true),
+        )
+        assertEquals(
+            60_000L,
+            CpuPolicyPollingPolicy.intervalMs(PerformanceMode.PERFORMANCE, ThermalStage.NORMAL, interactive = false),
+        )
     }
 }

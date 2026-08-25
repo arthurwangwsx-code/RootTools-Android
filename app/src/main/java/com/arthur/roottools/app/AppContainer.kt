@@ -12,6 +12,8 @@ import com.arthur.roottools.data.DeviceRepository
 import com.arthur.roottools.data.DeviceSamplerService
 import com.arthur.roottools.data.DiagnosticReportStore
 import com.arthur.roottools.data.DiagnosticsRepository
+import com.arthur.roottools.data.LagForensicsMonitor
+import com.arthur.roottools.data.LagForensicsStore
 import com.arthur.roottools.data.ModuleCenterRepository
 import com.arthur.roottools.data.NetworkRepository
 import com.arthur.roottools.data.PermissionAppOpsRepository
@@ -78,6 +80,8 @@ internal class AppContainer(private val application: Application) {
     val sampler by lazy { DeviceSamplerService(application) }
     val startupRepository by lazy { StartupRepository(application, shell) }
     val diagnosticsRepository by lazy { DiagnosticsRepository(shell) }
+    val lagForensicsStore by lazy { LagForensicsStore(application) }
+    val lagForensicsMonitor by lazy { LagForensicsMonitor(shell, lagForensicsStore) }
     val moduleCenterRepository by lazy { ModuleCenterRepository(shell, auditStore, UI_AUDIT_SOURCE) }
     val networkRepository by lazy { NetworkRepository(shell) }
     val adGovernanceRepository by lazy { AdGovernanceRepository(shell) }
