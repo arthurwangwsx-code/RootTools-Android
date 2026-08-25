@@ -9,6 +9,7 @@ enum class AutomationScope {
     APP_POLICY,
     INTEGRITY_SCAN,
     RUN_WORKFLOW,
+    SHADOW_DISPLAY,
 }
 
 enum class AutomationCommand(
@@ -26,6 +27,14 @@ enum class AutomationCommand(
     INTEGRITY_DEEP_SCAN("INTEGRITY_DEEP_SCAN", AutomationScope.INTEGRITY_SCAN),
     INTEGRITY_EXPORT_LAST_REPORT("INTEGRITY_EXPORT_LAST_REPORT", AutomationScope.INTEGRITY_SCAN),
     RUN_WORKFLOW("RUN_WORKFLOW", AutomationScope.RUN_WORKFLOW),
+    SHADOW_STATUS("SHADOW_STATUS", AutomationScope.SHADOW_DISPLAY),
+    SHADOW_START("SHADOW_START", AutomationScope.SHADOW_DISPLAY),
+    SHADOW_STOP("SHADOW_STOP", AutomationScope.SHADOW_DISPLAY),
+    SHADOW_LAUNCH("SHADOW_LAUNCH", AutomationScope.SHADOW_DISPLAY),
+    SHADOW_TAP("SHADOW_TAP", AutomationScope.SHADOW_DISPLAY),
+    SHADOW_SWIPE("SHADOW_SWIPE", AutomationScope.SHADOW_DISPLAY),
+    SHADOW_TEXT("SHADOW_TEXT", AutomationScope.SHADOW_DISPLAY),
+    SHADOW_CAPTURE("SHADOW_CAPTURE", AutomationScope.SHADOW_DISPLAY),
     ;
 
     companion object {
@@ -57,6 +66,7 @@ object AutomationAuthorizationPolicy {
         AutomationScope.APP_POLICY,
         AutomationScope.INTEGRITY_SCAN,
         AutomationScope.RUN_WORKFLOW,
+        AutomationScope.SHADOW_DISPLAY,
     )
 
     val termuxMcpScopes: Set<AutomationScope> = setOf(
@@ -66,6 +76,7 @@ object AutomationAuthorizationPolicy {
         AutomationScope.SET_ADB_ENABLE,
         AutomationScope.APP_POLICY,
         AutomationScope.RUN_WORKFLOW,
+        AutomationScope.SHADOW_DISPLAY,
     )
 }
 

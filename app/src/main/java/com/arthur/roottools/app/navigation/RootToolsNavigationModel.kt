@@ -10,7 +10,6 @@ enum class RootToolsTab(
     DIAGNOSTICS("graph/diagnostics", "diagnostics"),
     SYSTEM("graph/system", "system"),
 }
-
 enum class RootToolsDestination(
     val route: String,
     val tab: RootToolsTab,
@@ -25,6 +24,7 @@ enum class RootToolsDestination(
     HEALTH_DASHBOARD("diagnostics/health", RootToolsTab.DIAGNOSTICS, ToolId.DASHBOARD),
     PERFORMANCE("device/performance", RootToolsTab.DEVICE, ToolId.PERFORMANCE),
     SHADOW_DISPLAY("device/shadow-display", RootToolsTab.DEVICE, ToolId.SHADOW_DISPLAY),
+    AGENT_SESSION("device/agent-session", RootToolsTab.DEVICE, ToolId.AGENT_SESSION),
     ADB("device/adb", RootToolsTab.DEVICE, ToolId.ROOT_ADB),
     PERMISSIONS("apps/permissions", RootToolsTab.APPS, ToolId.PERMISSIONS),
     STARTUP("apps/startup", RootToolsTab.APPS, ToolId.STARTUP),
@@ -42,7 +42,6 @@ enum class RootToolsDestination(
     PERMISSION_OPS("apps/appops", RootToolsTab.APPS, ToolId.PERMISSION_OPS),
     DEVELOPER_RUNTIME("system/developer-runtime", RootToolsTab.SYSTEM, ToolId.DEVELOPER_RUNTIME),
 }
-
 object RootToolsNavigationPolicy {
     private val byToolId = RootToolsDestination.entries
         .mapNotNull { destination -> destination.toolId?.let { it to destination } }
@@ -64,6 +63,8 @@ object RootToolsNavigationPolicy {
     fun externalScreen(screen: String?): RootToolsDestination? = when (screen?.trim()?.lowercase()) {
         "adb" -> RootToolsDestination.ADB
         "integrity" -> RootToolsDestination.INTEGRITY
+        "shadow", "shadow-display" -> RootToolsDestination.SHADOW_DISPLAY
+        "agent", "agent-session" -> RootToolsDestination.AGENT_SESSION
         else -> null
     }
 }

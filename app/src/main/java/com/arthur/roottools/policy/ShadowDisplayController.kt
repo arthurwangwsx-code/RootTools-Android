@@ -112,6 +112,12 @@ class ShadowDisplayController(
         return privilegeRouter.typeTextOnShadowDisplay(safe).toActionResult()
     }
 
+    suspend fun paste(): ShadowDisplayActionResult {
+        val current = status().getOrNull() ?: return invalid("Unable to read shadow display")
+        if (!current.running) return invalid("Shadow display is not running")
+        return privilegeRouter.pasteShadowDisplay().toActionResult()
+    }
+
     suspend fun capturePreview(): Result<ByteArray> {
         val current = status().getOrNull()
         if (current?.running != true) return Result.failure(IllegalStateException("Shadow display is not running"))

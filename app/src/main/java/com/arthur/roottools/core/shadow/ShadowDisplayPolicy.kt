@@ -4,6 +4,11 @@ import com.arthur.roottools.model.ShadowDisplayConfig
 import com.arthur.roottools.model.ShadowDisplayRuntimeState
 import com.arthur.roottools.model.ShadowDisplayStatus
 
+enum class ShadowDisplayTextStrategy {
+    KEY_EVENTS,
+    CLIPBOARD_PASTE,
+}
+
 object ShadowDisplayPolicy {
     const val MIN_WIDTH = 360
     const val MAX_WIDTH = 2560
@@ -32,6 +37,15 @@ object ShadowDisplayPolicy {
         .takeIf { candidate ->
             candidate.length <= MAX_TEXT_LENGTH && candidate.none(Char::isISOControl)
         }
+
+    fun textStrategy(value: String): ShadowDisplayTextStrategy? {
+        val safe = text(value) ?: return null
+        return if (safe.all { it.code in 0x20..0x7E }) {
+            ShadowDisplayTextStrategy.KEY_EVENTS
+        } else {
+            ShadowDisplayTextStrategy.CLIPBOARD_PASTE
+        }
+    }
 
     fun packageName(value: String): String? {
         val trimmed = value.trim()

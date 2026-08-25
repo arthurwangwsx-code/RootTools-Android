@@ -15,6 +15,7 @@
 - 查看 Display ID、分辨率、DPI、运行状态与后端；
 - 在影子屏启动指定 package；
 - 向影子屏注入 tap / swipe / text；
+- Unicode 文本由 Automation 层临时写入系统剪贴板并向影子屏发送 `KEYCODE_PASTE`；ASCII 继续使用 display-scoped `input text`；
 - 按需抓取缩略预览；
 - 所有入口使用 typed Controller，不暴露任意 shell；
 - start / stop / launch 写入 Root Action Audit；
@@ -59,6 +60,22 @@ ShadowDisplayScreen
  -> DisplayManager / ImageReader / Input / ActivityManager
 ```
 
+Agent/ADB 调用复用完全相同的 Controller，不新增第二套 Root 实现：
+
+```text
+ADB shell (UID 2000) / Termux MCP scoped client
+ -> explicit ActionRouterReceiver
+ -> SHADOW_* typed command
+ -> ShadowDisplayController
+ -> PrivilegeRouter
+```
+
+ADB `am broadcast` 由 ActivityManager 加上系统内部 `FLAG_RECEIVER_FROM_SHELL`；Framework 会对非
+ROOT/SHELL 调用者移除伪造的该标记。RootTools 仅在收到这个 system-sanitized transport 标记时允许
+免 token 调用 `SHADOW_*` 命令族，`SET_ADB`、应用冻结、工作流等其它 Automation 动作仍要求
+token/scope。
+Termux MCP Relay 继续使用 bearer + scoped RootTools client，不因为新增 ADB transport 而放宽其网络边界。
+
 `ShadowDisplayDaemon` 不注册外部 Android 组件，不接受网络请求，也不解析任意 shell。它只接收经过 Policy 校验的 width / height / dpi / stateDir，持有一个 VirtualDisplay，并把只读状态和按需缩略图写入 Root-only state directory。
 
 ## 6. Domain Model / API
@@ -69,6 +86,9 @@ ShadowDisplayScreen
 - `ShadowDisplayStatusParser`：解析 daemon + system probe；
 - Controller query：`status()`、`capturePreview()`；
 - Controller action：`start()`、`stop()`、`launchPackage()`、`tap()`、`swipe()`、`typeText()`。
+- ADB/root 只读预览：`content://com.arthur.roottools.shadow-preview/latest`；Provider 受
+  `android.permission.DUMP` + UID 0/2000/本应用双重限制，仅调用 typed Controller 获取 JPEG，
+  不暴露生命周期或输入动作。
 
 ## 7. Safety / Rollback
 
@@ -79,6 +99,9 @@ ShadowDisplayScreen
 - 远程失联：不会关闭 ADB/Tailscale/Wi‑Fi；
 - 全局键：不提供 HOME/RECENTS 注入，避免 HyperOS 把物理主屏带回桌面；
 - 安全画面：不设置 secure capture 绕过，受保护窗口保持系统默认黑屏/拒绝行为。
+- ADB transport：只信任 ActivityManager 保留下来的 `FLAG_RECEIVER_FROM_SHELL`，且只允许
+  `SHADOW_*` typed commands；Framework 会剥离非 ROOT/SHELL 调用者伪造的该标记，因此普通 App
+  不能利用该分支跳过 token。
 
 ## 8. UI / UX
 
@@ -88,7 +111,7 @@ ShadowDisplayScreen
 - 支持默认 720×1600 / 320dpi 和可编辑尺寸；
 - App 启动提供 package 输入与 Maps / Chrome / Settings 快捷项；
 - Input 区提供 tap、swipe、text；
-- Preview 只按用户请求刷新，不持续编码/截图；
+- Preview 只按用户请求刷新，不持续 JPEG 编码；daemon 保留最近一帧 `Image`，静态页面也可在没有新动画帧时立即生成预览；
 - default English + `values-zh-rCN`。
 
 ## 9. Test Matrix
@@ -128,6 +151,8 @@ ShadowDisplayScreen
 - [x] Shadow Display 改动未增加 quality guard 新违规；仓库级 guard 仍被既有 Developer Runtime 两项历史债阻塞；
 - [x] Xiaomi 14 / Android 15 / HyperOS 2 真机通过核心生命周期、Maps secondary-display、tap 隔离、Preview、App force-stop 生存与恢复接管。
 - [x] 最新 PID/cmdline 身份校验安全硬化 APK 已覆盖安装；最终实机再次创建 Display 47 并正常 Stop，结束后仅剩 Display 0。
+- [x] Shadow Display 已接入 scoped Automation API 与 Termux MCP Relay v3 固定工具目录；没有新增任意 shell/exec surface。
+- [ ] ADB shell typed transport 的最新 APK 待覆盖安装后，完成熄屏 `SHADOW_START -> SHADOW_LAUNCH(Taobao) -> capture/input` 全链路验收。
 
 ## 12. Open Questions
 

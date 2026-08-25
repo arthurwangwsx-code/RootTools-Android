@@ -21,6 +21,8 @@ import com.arthur.roottools.data.RootActionAuditStore
 import com.arthur.roottools.data.StartupRepository
 import com.arthur.roottools.data.StorageRepository
 import com.arthur.roottools.feature.adgovernance.data.AdGovernanceRepository
+import com.arthur.roottools.feature.agent.AgentSessionManager
+import com.arthur.roottools.feature.agent.data.AgentSessionStore
 import com.arthur.roottools.policy.ActionFavoritesStore
 import com.arthur.roottools.policy.AdbController
 import com.arthur.roottools.policy.AppOpsPolicyController
@@ -110,9 +112,13 @@ internal class AppContainer(private val application: Application) {
     val componentPolicyController by lazy { ComponentPolicyController(privilegeRouter, auditStore, UI_AUDIT_SOURCE) }
     val appOpsPolicyController by lazy { AppOpsPolicyController(privilegeRouter, auditStore, UI_AUDIT_SOURCE) }
     val permissionPolicyController by lazy { PermissionPolicyController(privilegeRouter, auditStore, UI_AUDIT_SOURCE) }
-    val shadowDisplayController by lazy {
-        ShadowDisplayController(privilegeRouter, auditStore, UI_AUDIT_SOURCE)
-    }
+    val shadowDisplayController by lazy { createShadowDisplayController(UI_AUDIT_SOURCE) }
+
+    fun createShadowDisplayController(auditSource: String) =
+        ShadowDisplayController(privilegeRouter, auditStore, auditSource)
+
+    val agentSessionStore by lazy { AgentSessionStore(application) }
+    val agentSessionManager by lazy { AgentSessionManager(application, agentSessionStore) }
 
     val tokenStore by lazy { ActionTokenStore(application) }
     val reportStore by lazy { DiagnosticReportStore(application) }

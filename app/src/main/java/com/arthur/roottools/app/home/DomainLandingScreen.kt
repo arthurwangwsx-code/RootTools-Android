@@ -94,7 +94,6 @@ internal fun DomainLandingScreen(
         }
     }
 }
-
 @Composable
 private fun DomainHero(tab: RootToolsTab, state: DashboardUiState) {
     val titleRes: Int
@@ -202,7 +201,6 @@ private fun DomainHero(tab: RootToolsTab, state: DashboardUiState) {
         }
     }
 }
-
 @Composable
 private fun DomainToolRow(
     definition: ToolDefinition,
@@ -267,6 +265,7 @@ private fun toolStatus(toolId: ToolId, state: DashboardUiState): String = when (
     ToolId.DASHBOARD -> stringResource(R.string.hub_tool_health_desc)
     ToolId.PERFORMANCE -> stringResource(R.string.hub_tool_performance_desc, stringResource(state.mode.labelRes()))
     ToolId.SHADOW_DISPLAY -> stringResource(R.string.shadow_display_home_subtitle)
+    ToolId.AGENT_SESSION -> stringResource(R.string.agent_session_home_subtitle)
     ToolId.ROOT_ADB -> if (state.adb.rootTcpEnabled) {
         val host = state.adb.tailscaleIpv4 ?: state.adb.localIpv4
         if (host != null) {

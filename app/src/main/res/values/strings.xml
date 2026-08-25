@@ -670,6 +670,7 @@
     <string name="shadow_display_launch">Launch</string>
     <string name="shadow_display_quick_maps" translatable="false">Google Maps</string>
     <string name="shadow_display_quick_chrome" translatable="false">Chrome</string>
+    <string name="shadow_display_quick_taobao">Taobao</string>
     <string name="shadow_display_quick_settings">Settings</string>
     <string name="shadow_display_pointer_title">Pointer input</string>
     <string name="shadow_display_pointer_subtitle">Coordinates are validated against the virtual screen before Root input is injected.</string>
@@ -789,4 +790,55 @@
     <string name="hub_tool_battery_live">%1$s · Skin %2$s</string>
     <string name="hub_capability_missing">Setup required</string>
     <string name="hub_open_tool">Open %1$s</string>
+
+    <!-- Agent session / presence surfaces -->
+    <string name="tool_agent_session_title">Agent session</string>
+    <string name="agent_session_title">Agent session</string>
+    <string name="agent_session_subtitle">See what the background Agent is doing without taking over the physical screen.</string>
+    <string name="agent_session_home_subtitle">Ongoing task · overlay · notification · preview</string>
+    <string name="agent_session_shadow_title">Background Agent</string>
+    <string name="agent_session_shadow_ready_step">Shadow display is ready.</string>
+    <string name="agent_session_observer_started_step">Observing the background task.</string>
+    <string name="agent_session_idle_step">No background step is active.</string>
+    <string name="agent_session_no_task_title">No active Agent task</string>
+    <string name="agent_session_target">Target app</string>
+    <string name="agent_session_progress">Progress</string>
+    <string name="agent_session_progress_value">%1$d / %2$d</string>
+    <string name="agent_status_idle">Idle</string>
+    <string name="agent_status_running">Running</string>
+    <string name="agent_status_paused">Paused</string>
+    <string name="agent_status_waiting">Needs you</string>
+    <string name="agent_status_completed">Completed</string>
+    <string name="agent_status_failed">Failed</string>
+    <string name="agent_status_stopped">Stopped</string>
+    <string name="agent_overlay_permission_title">Floating Agent window</string>
+    <string name="agent_overlay_permission_granted">Overlay permission is ready. The task can collapse into a small floating capsule.</string>
+    <string name="agent_overlay_permission_required">Overlay permission is optional. Without it, the Agent continues through the ongoing notification.</string>
+    <string name="agent_overlay_ready_title">Overlay ready</string>
+    <string name="agent_overlay_ready_detail">Collapsed mode does not capture preview frames. Expanded mode refreshes the background preview at a low rate.</string>
+    <string name="agent_overlay_fallback_title">Notification fallback is active</string>
+    <string name="agent_overlay_fallback_detail">RootTools will not bypass the system overlay prompt. Grant it once if you want the floating Agent window.</string>
+    <string name="agent_overlay_open_settings">Open overlay settings</string>
+    <string name="agent_controls_title">Task controls</string>
+    <string name="agent_controls_subtitle">All surfaces control the same Agent session state.</string>
+    <string name="agent_start_observer">Start observer session</string>
+    <string name="agent_action_pause">Pause</string>
+    <string name="agent_action_resume">Resume</string>
+    <string name="agent_action_stop">Stop</string>
+    <string name="agent_action_hide">Hide</string>
+    <string name="agent_action_details">Details</string>
+    <string name="agent_action_show_overlay">Show overlay</string>
+    <string name="agent_action_expand_overlay">Expand</string>
+    <string name="agent_overlay_short_label" translatable="false">AI</string>
+    <string name="agent_preview_title">Background preview</string>
+    <string name="agent_preview_subtitle">Fetched only on demand here, or at low frequency while the overlay is expanded.</string>
+    <string name="agent_preview_empty">No preview yet. Start a shadow-display app, then refresh.</string>
+    <string name="agent_preview_refresh">Refresh preview</string>
+    <string name="agent_notification_channel_running">Agent activity</string>
+    <string name="agent_notification_channel_running_desc">Quiet ongoing status for background Agent tasks.</string>
+    <string name="agent_notification_channel_attention">Agent needs attention</string>
+    <string name="agent_notification_channel_attention_desc">Important Agent tasks that need user action.</string>
+    <string name="agent_session_running_app_step">Running %1$s in the background.</string>
+    <string name="agent_session_interacting_step">Interacting with the background app.</string>
+    <string name="agent_session_preview_step">Reading the background page.</string>
 </resources>

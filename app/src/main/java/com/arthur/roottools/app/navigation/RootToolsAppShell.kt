@@ -17,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -28,7 +29,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import com.arthur.roottools.R
+import com.arthur.roottools.app.rootToolsContainer
+import com.arthur.roottools.core.agent.AgentSessionState
 import com.arthur.roottools.app.adgovernance.AdGovernanceRoute
+import com.arthur.roottools.app.agent.AgentSessionRoute
 import com.arthur.roottools.app.home.DomainLandingScreen
 import com.arthur.roottools.app.home.ProductHomeScreen
 import com.arthur.roottools.app.shadow.ShadowDisplayRoute
@@ -60,8 +64,10 @@ import com.arthur.roottools.ui.toPerformanceUiState
 fun RootToolsAppShell(
     viewModel: DashboardViewModel,
     initialScreen: String? = null,
+    initialScreenRequestVersion: Long = 0L,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val agentSession by LocalContext.current.rootToolsContainer.agentSessionManager.state.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
@@ -71,7 +77,7 @@ fun RootToolsAppShell(
     } ?: RootToolsNavigationPolicy.tabForRoute(currentRoute)
     val diagnosticBadge = diagnosticAttentionCount(state)
 
-    LaunchedEffect(initialScreen) {
+    LaunchedEffect(initialScreen, initialScreenRequestVersion) {
         RootToolsNavigationPolicy.externalScreen(initialScreen)?.let { destination ->
             navigateToDestination(navController, destination)
         }
@@ -123,15 +129,16 @@ fun RootToolsAppShell(
         RootToolsNavHost(
             navController = navController,
             state = state,
+            agentSession = agentSession,
             viewModel = viewModel,
         )
     }
 }
-
 @Composable
 private fun RootToolsNavHost(
     navController: androidx.navigation.NavHostController,
     state: DashboardUiState,
+    agentSession: AgentSessionState,
     viewModel: DashboardViewModel,
 ) {
     val open: (RootToolsDestination) -> Unit = { navigateToDestination(navController, it) }
@@ -149,6 +156,7 @@ private fun RootToolsNavHost(
             composable(RootToolsDestination.HOME.route) {
                 ProductHomeScreen(
                     state = state,
+                    agentSession = agentSession,
                     onRefresh = viewModel::refresh,
                     onNavigate = open,
                 )
@@ -234,6 +242,9 @@ private fun RootToolsNavHost(
             }
             composable(RootToolsDestination.SHADOW_DISPLAY.route) {
                 ShadowDisplayRoute(onBack = back)
+            }
+            composable(RootToolsDestination.AGENT_SESSION.route) {
+                AgentSessionRoute(onBack = back)
             }
             composable(RootToolsDestination.ADB.route) {
                 AdbScreen(

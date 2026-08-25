@@ -62,6 +62,9 @@ class PrivilegeRouter(
         return rootActionResult(shadowInputPrefix() + " text ${shellQuote(inputText)}")
     }
 
+    suspend fun pasteShadowDisplay(): PrivilegeResult<Unit> =
+        rootActionResult(shadowInputPrefix() + " keyevent KEYCODE_PASTE")
+
     suspend fun captureShadowDisplayPreview(): PrivilegeResult<ByteArray> = rootReadResult(
         command = shadowCaptureCommand(),
         timeoutSeconds = 6,
@@ -449,7 +452,11 @@ class PrivilegeRouter(
           *) if shadow_process_matches "${'$'}pid"; then echo 'processAlive=1'; else echo 'processAlive=0'; fi ;;
         esac
         printf 'activeDisplays='
-        cmd display get-displays -i 2>/dev/null | tr '\n' ',' | sed 's/,$//'
+        ids="${'$'}(cmd display get-displays 2>/dev/null | sed -n 's/.*Display id \([0-9][0-9]*\):.*/\1/p' | tr '\n' ',' | sed 's/,$//')"
+        if [ -z "${'$'}ids" ]; then
+          ids="${'$'}(cmd display get-displays -i 2>/dev/null | sed -n 's/[^0-9]*\([0-9][0-9]*\).*/\1/p' | tr '\n' ',' | sed 's/,$//')"
+        fi
+        printf '%s' "${'$'}ids"
         printf '\n'
     """.trimIndent()
 

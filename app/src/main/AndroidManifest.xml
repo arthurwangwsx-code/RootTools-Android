@@ -7,6 +7,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
@@ -41,6 +42,7 @@
 
         <activity
             android:name=".MainActivity"
+            android:launchMode="singleTop"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -52,6 +54,13 @@
             android:name=".automation.ActionRouterReceiver"
             android:exported="true"
             tools:ignore="ExportedReceiver" />
+
+        <provider
+            android:name=".automation.ShadowPreviewProvider"
+            android:authorities="${applicationId}.shadow-preview"
+            android:exported="true"
+            android:grantUriPermissions="false"
+            android:permission="android.permission.DUMP" />
 
         <receiver
             android:name=".boot.AdbBootReceiver"
@@ -96,6 +105,15 @@
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Thermal-aware root CPU policy monitoring" />
+        </service>
+
+        <service
+            android:name=".feature.agent.service.AgentSessionService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-visible background agent task status, controls, and optional overlay" />
         </service>
 
         <service

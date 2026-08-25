@@ -2,9 +2,14 @@ package com.arthur.roottools.automation
 
 import android.app.Activity
 import android.content.BroadcastReceiver
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import com.arthur.roottools.R
 import com.arthur.roottools.app.rootToolsContainer
+import com.arthur.roottools.core.shadow.ShadowDisplayPolicy
+import com.arthur.roottools.core.shadow.ShadowDisplayTextStrategy
 import com.arthur.roottools.data.DeviceHealthCollector
 import com.arthur.roottools.feature.integrity.data.IntegrityBaselineStore
 import com.arthur.roottools.feature.integrity.data.IntegrityReportStore
@@ -12,6 +17,9 @@ import com.arthur.roottools.feature.integrity.data.IntegrityRepository
 import com.arthur.roottools.feature.integrity.model.IntegrityReportFormat
 import com.arthur.roottools.feature.integrity.model.IntegrityScanMode
 import com.arthur.roottools.model.PerformanceMode
+import com.arthur.roottools.model.PrivilegeRouteBackend
+import com.arthur.roottools.model.ShadowDisplayActionResult
+import com.arthur.roottools.model.ShadowDisplayStatus
 import com.arthur.roottools.service.CpuPolicyService
 import com.arthur.roottools.workflow.ManagedWorkflowController
 import com.arthur.roottools.workflow.ManagedWorkflowId
@@ -19,8 +27,10 @@ import com.arthur.roottools.workflow.ManagedWorkflowRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.util.Base64
 import java.util.UUID
 
 class ActionRouterReceiver : BroadcastReceiver() {
@@ -42,6 +52,7 @@ class ActionRouterReceiver : BroadcastReceiver() {
         val enabled = intent.takeIf {
             command == AutomationCommand.SET_ADB || command == AutomationCommand.SET_NATIVE_ADB
         }?.getBooleanExtra(EXTRA_ENABLED, true)
+        val trustedAdbShadowRequest = AutomationTransportPolicy.isTrustedAdbShadowRequest(intent.flags, command)
         val token = intent.getStringExtra(EXTRA_TOKEN)
         val legacyAuthorized = ActionTokenStore(context).matches(token) &&
             AutomationAuthorizationPolicy.isAllowed(
@@ -49,12 +60,12 @@ class ActionRouterReceiver : BroadcastReceiver() {
                 command = command,
                 enabled = enabled,
             )
-        val scopedClient = if (legacyAuthorized) {
+        val scopedClient = if (trustedAdbShadowRequest || legacyAuthorized) {
             null
         } else {
             AutomationClientStore(context).authorize(token, command, enabled)
         }
-        if (!legacyAuthorized && scopedClient == null) {
+        if (!trustedAdbShadowRequest && !legacyAuthorized && scopedClient == null) {
             completeImmediate(
                 requestId = requestId,
                 command = command.wireName,
@@ -63,7 +74,12 @@ class ActionRouterReceiver : BroadcastReceiver() {
             )
             return
         }
-        if (scopedClient != null && !AutomationRateLimiter.tryAcquire(scopedClient.clientId)) {
+        val rateLimitClientId = when {
+            trustedAdbShadowRequest -> ADB_SHADOW_CLIENT_ID
+            scopedClient != null -> scopedClient.clientId
+            else -> null
+        }
+        if (rateLimitClientId != null && !AutomationRateLimiter.tryAcquire(rateLimitClientId)) {
             completeImmediate(requestId, command.wireName, false, "Automation client rate limit exceeded")
             return
         }
@@ -96,6 +112,8 @@ class ActionRouterReceiver : BroadcastReceiver() {
     ): AutomationActionResult {
         val container = context.rootToolsContainer
         val packageController = container.createPackagePolicyController("Automation")
+        val shadowDisplayController = container.createShadowDisplayController("Automation")
+        val agentSessionManager = container.agentSessionManager
         return when (command) {
             AutomationCommand.GET_STATUS -> {
                 val adb = container.adbRepository.read()
@@ -240,8 +258,191 @@ class ActionRouterReceiver : BroadcastReceiver() {
                         .put("steps", steps),
                 )
             }
+            AutomationCommand.SHADOW_STATUS -> {
+                val status = shadowDisplayController.status().getOrElse { error ->
+                    return AutomationActionResult(requestId, command.wireName, false, error.message ?: "Unable to read shadow display")
+                }
+                AutomationActionResult(
+                    requestId = requestId,
+                    command = command.wireName,
+                    success = true,
+                    message = "Shadow display status ready",
+                    payload = status.toAutomationJson(),
+                )
+            }
+            AutomationCommand.SHADOW_START -> {
+                val action = shadowDisplayController.start(
+                    width = intent.getIntExtra(EXTRA_WIDTH, DEFAULT_SHADOW_WIDTH),
+                    height = intent.getIntExtra(EXTRA_HEIGHT, DEFAULT_SHADOW_HEIGHT),
+                    densityDpi = intent.getIntExtra(EXTRA_DENSITY_DPI, DEFAULT_SHADOW_DENSITY_DPI),
+                )
+                val status = shadowDisplayController.status().getOrNull()
+                if (action.success) {
+                    agentSessionManager.ensureShadowSession()
+                    agentSessionManager.updateStep(context.getString(R.string.agent_session_shadow_ready_step))
+                }
+                AutomationActionResult(
+                    requestId = requestId,
+                    command = command.wireName,
+                    success = action.success,
+                    message = if (action.success) "Shadow display started" else action.detail.ifBlank { "Shadow display start failed" },
+                    backend = action.backend.name.lowercase(),
+                    payload = status?.toAutomationJson(),
+                )
+            }
+            AutomationCommand.SHADOW_STOP -> {
+                val action = shadowDisplayController.stop()
+                if (action.success) agentSessionManager.stop()
+                AutomationActionResult(
+                    requestId = requestId,
+                    command = command.wireName,
+                    success = action.success,
+                    message = if (action.success) "Shadow display stopped" else action.detail.ifBlank { "Shadow display stop failed" },
+                    backend = action.backend.name.lowercase(),
+                )
+            }
+            AutomationCommand.SHADOW_LAUNCH -> {
+                val packageName = intent.getStringExtra(EXTRA_PACKAGE)
+                    ?: return AutomationActionResult(requestId, command.wireName, false, "Missing package")
+                val action = shadowDisplayController.launchPackage(packageName)
+                if (action.success) {
+                    val label = runCatching {
+                        val info = context.packageManager.getApplicationInfo(packageName, 0)
+                        context.packageManager.getApplicationLabel(info).toString()
+                    }.getOrDefault(packageName)
+                    agentSessionManager.updateStep(
+                        context.getString(R.string.agent_session_running_app_step, label),
+                        targetPackage = packageName,
+                        targetLabel = label,
+                    )
+                }
+                AutomationActionResult(
+                    requestId,
+                    command.wireName,
+                    action.success,
+                    if (action.success) "Package launched on shadow display" else action.detail.ifBlank { "Shadow launch failed" },
+                    backend = action.backend.name.lowercase(),
+                )
+            }
+            AutomationCommand.SHADOW_TAP -> {
+                val action = shadowDisplayController.tap(
+                    x = intent.getIntExtra(EXTRA_X, Int.MIN_VALUE),
+                    y = intent.getIntExtra(EXTRA_Y, Int.MIN_VALUE),
+                )
+                if (action.success) agentSessionManager.updateStep(context.getString(R.string.agent_session_interacting_step))
+                AutomationActionResult(
+                    requestId,
+                    command.wireName,
+                    action.success,
+                    if (action.success) "Shadow tap sent" else action.detail.ifBlank { "Shadow tap failed" },
+                    backend = action.backend.name.lowercase(),
+                )
+            }
+            AutomationCommand.SHADOW_SWIPE -> {
+                val action = shadowDisplayController.swipe(
+                    x1 = intent.getIntExtra(EXTRA_X1, Int.MIN_VALUE),
+                    y1 = intent.getIntExtra(EXTRA_Y1, Int.MIN_VALUE),
+                    x2 = intent.getIntExtra(EXTRA_X2, Int.MIN_VALUE),
+                    y2 = intent.getIntExtra(EXTRA_Y2, Int.MIN_VALUE),
+                    durationMs = intent.getIntExtra(EXTRA_DURATION_MS, DEFAULT_SHADOW_SWIPE_DURATION_MS),
+                )
+                if (action.success) agentSessionManager.updateStep(context.getString(R.string.agent_session_interacting_step))
+                AutomationActionResult(
+                    requestId,
+                    command.wireName,
+                    action.success,
+                    if (action.success) "Shadow swipe sent" else action.detail.ifBlank { "Shadow swipe failed" },
+                    backend = action.backend.name.lowercase(),
+                )
+            }
+            AutomationCommand.SHADOW_TEXT -> {
+                val text = intent.getStringExtra(EXTRA_TEXT)
+                    ?: return AutomationActionResult(requestId, command.wireName, false, "Missing text")
+                val action = sendShadowText(context, shadowDisplayController, text)
+                if (action.success) agentSessionManager.updateStep(context.getString(R.string.agent_session_interacting_step))
+                AutomationActionResult(
+                    requestId,
+                    command.wireName,
+                    action.success,
+                    if (action.success) "Shadow text sent" else action.detail.ifBlank { "Shadow text failed" },
+                    backend = action.backend.name.lowercase(),
+                )
+            }
+            AutomationCommand.SHADOW_CAPTURE -> {
+                val preview = shadowDisplayController.capturePreview().getOrElse { error ->
+                    return AutomationActionResult(requestId, command.wireName, false, error.message ?: "Shadow capture failed")
+                }
+                if (preview.size > MAX_AUTOMATION_PREVIEW_BYTES) {
+                    return AutomationActionResult(requestId, command.wireName, false, "Shadow preview exceeds automation payload limit")
+                }
+                agentSessionManager.updateStep(context.getString(R.string.agent_session_preview_step))
+                AutomationActionResult(
+                    requestId = requestId,
+                    command = command.wireName,
+                    success = true,
+                    message = "Shadow preview captured",
+                    payload = JSONObject()
+                        .put("mimeType", "image/jpeg")
+                        .put("byteCount", preview.size)
+                        .put("base64", Base64.getEncoder().encodeToString(preview)),
+                )
+            }
         }
     }
+
+    private suspend fun sendShadowText(
+        context: Context,
+        controller: com.arthur.roottools.policy.ShadowDisplayController,
+        text: String,
+    ): ShadowDisplayActionResult = when (ShadowDisplayPolicy.textStrategy(text)) {
+        ShadowDisplayTextStrategy.KEY_EVENTS -> controller.typeText(text)
+        ShadowDisplayTextStrategy.CLIPBOARD_PASTE -> pasteShadowText(context, controller, text)
+        null -> ShadowDisplayActionResult(
+            success = false,
+            backend = PrivilegeRouteBackend.NONE,
+            detail = "Text is too long or contains unsupported control data",
+        )
+    }
+
+    private suspend fun pasteShadowText(
+        context: Context,
+        controller: com.arthur.roottools.policy.ShadowDisplayController,
+        text: String,
+    ): ShadowDisplayActionResult {
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+            ?: return ShadowDisplayActionResult(false, PrivilegeRouteBackend.NONE, "Clipboard service unavailable")
+        val previousClip = runCatching { clipboard.primaryClip }.getOrNull()
+        return try {
+            clipboard.setPrimaryClip(ClipData.newPlainText("RootTools shadow input", text))
+            val action = controller.paste()
+            delay(SHADOW_CLIPBOARD_SETTLE_MS)
+            action
+        } catch (error: Throwable) {
+            ShadowDisplayActionResult(
+                success = false,
+                backend = PrivilegeRouteBackend.NONE,
+                detail = error.message?.take(160) ?: "Unable to paste Unicode text",
+            )
+        } finally {
+            runCatching {
+                if (previousClip != null) clipboard.setPrimaryClip(previousClip)
+                else clipboard.clearPrimaryClip()
+            }
+        }
+    }
+
+    private fun ShadowDisplayStatus.toAutomationJson(): JSONObject = JSONObject()
+        .put("state", state.name)
+        .put("running", running)
+        .put("displayId", displayId ?: JSONObject.NULL)
+        .put("pid", pid ?: JSONObject.NULL)
+        .put("width", config.width)
+        .put("height", config.height)
+        .put("densityDpi", config.densityDpi)
+        .put("processAlive", processAlive)
+        .put("displayActive", displayActive)
+        .put("startedAtMs", startedAtMs ?: JSONObject.NULL)
+        .put("error", error ?: JSONObject.NULL)
 
     private fun completeImmediate(
         requestId: String,
@@ -267,7 +468,25 @@ class ActionRouterReceiver : BroadcastReceiver() {
         const val EXTRA_ENABLED = "enabled"
         const val EXTRA_PACKAGE = "package"
         const val EXTRA_WORKFLOW = "workflow"
+        const val EXTRA_WIDTH = "width"
+        const val EXTRA_HEIGHT = "height"
+        const val EXTRA_DENSITY_DPI = "density_dpi"
+        const val EXTRA_X = "x"
+        const val EXTRA_Y = "y"
+        const val EXTRA_X1 = "x1"
+        const val EXTRA_Y1 = "y1"
+        const val EXTRA_X2 = "x2"
+        const val EXTRA_Y2 = "y2"
+        const val EXTRA_DURATION_MS = "duration_ms"
+        const val EXTRA_TEXT = "text"
         const val EXTRA_REQUEST_ID = "request_id"
+        private const val DEFAULT_SHADOW_WIDTH = 720
+        private const val DEFAULT_SHADOW_HEIGHT = 1600
+        private const val DEFAULT_SHADOW_DENSITY_DPI = 320
+        private const val DEFAULT_SHADOW_SWIPE_DURATION_MS = 300
+        private const val SHADOW_CLIPBOARD_SETTLE_MS = 300L
+        private const val MAX_AUTOMATION_PREVIEW_BYTES = 512 * 1024
+        private const val ADB_SHADOW_CLIENT_ID = "adb-shell-shadow"
         private val REQUEST_ID_REGEX = Regex("^[A-Za-z0-9._:-]{1,80}$")
     }
 }

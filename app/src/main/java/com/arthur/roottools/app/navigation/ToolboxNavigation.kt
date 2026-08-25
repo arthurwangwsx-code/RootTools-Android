@@ -8,6 +8,7 @@ internal enum class ToolboxRoute {
     DASHBOARD,
     PERFORMANCE,
     SHADOW_DISPLAY,
+    AGENT_SESSION,
     ADB,
     PERMISSIONS,
     STARTUP,
@@ -39,6 +40,7 @@ internal fun routeFor(id: ToolId): ToolboxRoute = when (id) {
     ToolId.DASHBOARD -> ToolboxRoute.DASHBOARD
     ToolId.PERFORMANCE -> ToolboxRoute.PERFORMANCE
     ToolId.SHADOW_DISPLAY -> ToolboxRoute.SHADOW_DISPLAY
+    ToolId.AGENT_SESSION -> ToolboxRoute.AGENT_SESSION
     ToolId.ROOT_ADB -> ToolboxRoute.ADB
     ToolId.PERMISSIONS -> ToolboxRoute.PERMISSIONS
     ToolId.STARTUP -> ToolboxRoute.STARTUP

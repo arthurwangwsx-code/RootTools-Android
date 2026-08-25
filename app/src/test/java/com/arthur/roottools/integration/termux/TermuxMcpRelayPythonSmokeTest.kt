@@ -55,6 +55,9 @@ class TermuxMcpRelayPythonSmokeTest {
             assertTrue(output.contains("\"name\":\"get_device_status\""))
             assertTrue(output.contains("\"name\":\"get_device_identity\""))
             assertTrue(output.contains("\"name\":\"freeze_app\""))
+            assertTrue(output.contains("\"name\":\"shadow_display_status\""))
+            assertTrue(output.contains("\"name\":\"launch_app_on_shadow_display\""))
+            assertTrue(output.contains("\"name\":\"capture_shadow_display\""))
             assertTrue(output.contains("\"resultType\":\"complete\""))
         } finally {
             file.delete()

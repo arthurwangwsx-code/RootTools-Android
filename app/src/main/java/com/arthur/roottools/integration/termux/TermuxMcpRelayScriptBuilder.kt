@@ -8,7 +8,7 @@ package com.arthur.roottools.integration.termux
  * MCP 2026-07-28 stateless core over stdio or request-scoped HTTP POST.
  */
 object TermuxMcpRelayScriptBuilder {
-    const val VERSION = 2
+    const val VERSION = 3
     const val MCP_PROTOCOL_VERSION = "2026-07-28"
     const val HTTP_PORT = 8765
 
@@ -126,6 +126,91 @@ object TermuxMcpRelayScriptBuilder {
                         "additionalProperties": False,
                     },
                 },
+                {
+                    "name": "shadow_display_status",
+                    "title": "Get shadow display status",
+                    "description": "Read the RootTools managed virtual display state without touching the physical screen.",
+                    "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+                },
+                {
+                    "name": "start_shadow_display",
+                    "title": "Start shadow display",
+                    "description": "Start the RootTools managed virtual display. Optional dimensions are validated before the typed Android action is invoked.",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "width": {"type": "integer", "minimum": 360, "maximum": 2560},
+                            "height": {"type": "integer", "minimum": 640, "maximum": 3200},
+                            "density_dpi": {"type": "integer", "minimum": 120, "maximum": 640},
+                        },
+                        "additionalProperties": False,
+                    },
+                },
+                {
+                    "name": "stop_shadow_display",
+                    "title": "Stop shadow display",
+                    "description": "Stop the RootTools managed virtual display and release its app tasks.",
+                    "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+                },
+                {
+                    "name": "launch_app_on_shadow_display",
+                    "title": "Launch app on shadow display",
+                    "description": "Launch one validated Android package on the managed virtual display.",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {"package": {"type": "string", "pattern": "^[A-Za-z0-9._]+${'$'}"}},
+                        "required": ["package"],
+                        "additionalProperties": False,
+                    },
+                },
+                {
+                    "name": "tap_shadow_display",
+                    "title": "Tap shadow display",
+                    "description": "Inject one display-scoped tap into the managed virtual display.",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "x": {"type": "integer", "minimum": 0, "maximum": 4095},
+                            "y": {"type": "integer", "minimum": 0, "maximum": 4095},
+                        },
+                        "required": ["x", "y"],
+                        "additionalProperties": False,
+                    },
+                },
+                {
+                    "name": "swipe_shadow_display",
+                    "title": "Swipe shadow display",
+                    "description": "Inject one display-scoped swipe into the managed virtual display.",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "x1": {"type": "integer", "minimum": 0, "maximum": 4095},
+                            "y1": {"type": "integer", "minimum": 0, "maximum": 4095},
+                            "x2": {"type": "integer", "minimum": 0, "maximum": 4095},
+                            "y2": {"type": "integer", "minimum": 0, "maximum": 4095},
+                            "duration_ms": {"type": "integer", "minimum": 50, "maximum": 5000},
+                        },
+                        "required": ["x1", "y1", "x2", "y2"],
+                        "additionalProperties": False,
+                    },
+                },
+                {
+                    "name": "type_shadow_display_text",
+                    "title": "Type text on shadow display",
+                    "description": "Send validated text to the focused field on the managed virtual display.",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {"text": {"type": "string", "maxLength": 500}},
+                        "required": ["text"],
+                        "additionalProperties": False,
+                    },
+                },
+                {
+                    "name": "capture_shadow_display",
+                    "title": "Capture shadow display",
+                    "description": "Capture the current RootTools virtual display preview on demand. Android secure content remains protected.",
+                    "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+                },
             ]
             TOOL_BY_NAME = {tool["name"]: tool for tool in TOOLS}
 
@@ -239,6 +324,16 @@ object TermuxMcpRelayScriptBuilder {
                 if arguments not in ({}, None):
                     raise RpcFailure(-32602, "This tool accepts no arguments")
 
+            def validate_integer(arguments, key, minimum, maximum, required=True, default=None):
+                if key not in arguments:
+                    if required:
+                        raise RpcFailure(-32602, key + " is required")
+                    return default
+                value = arguments.get(key)
+                if isinstance(value, bool) or not isinstance(value, int) or value < minimum or value > maximum:
+                    raise RpcFailure(-32602, "%s must be an integer in [%d, %d]" % (key, minimum, maximum))
+                return value
+
             def call_tool(name, arguments):
                 if name not in TOOL_BY_NAME:
                     raise RpcFailure(-32602, "Unknown RootTools tool")
@@ -296,6 +391,68 @@ object TermuxMcpRelayScriptBuilder {
                     if package_name is not None:
                         extras.extend(["--es", "package", package_name])
                     result = call_roottools("RUN_WORKFLOW", extras)
+                elif name == "shadow_display_status":
+                    validate_empty_arguments(arguments)
+                    result = call_roottools("SHADOW_STATUS")
+                elif name == "start_shadow_display":
+                    allowed_keys = {"width", "height", "density_dpi"}
+                    if not set(arguments.keys()).issubset(allowed_keys):
+                        raise RpcFailure(-32602, "Unknown shadow display configuration field")
+                    width = validate_integer(arguments, "width", 360, 2560, required=False, default=None)
+                    height = validate_integer(arguments, "height", 640, 3200, required=False, default=None)
+                    density = validate_integer(arguments, "density_dpi", 120, 640, required=False, default=None)
+                    extras = []
+                    if width is not None:
+                        extras.extend(["--ei", "width", str(width)])
+                    if height is not None:
+                        extras.extend(["--ei", "height", str(height)])
+                    if density is not None:
+                        extras.extend(["--ei", "density_dpi", str(density)])
+                    result = call_roottools("SHADOW_START", extras)
+                elif name == "stop_shadow_display":
+                    validate_empty_arguments(arguments)
+                    result = call_roottools("SHADOW_STOP")
+                elif name == "launch_app_on_shadow_display":
+                    if set(arguments.keys()) != {"package"}:
+                        raise RpcFailure(-32602, "package is required")
+                    package_name = arguments.get("package")
+                    if not isinstance(package_name, str) or not PACKAGE_RE.fullmatch(package_name):
+                        raise RpcFailure(-32602, "Invalid Android package name")
+                    result = call_roottools("SHADOW_LAUNCH", ["--es", "package", package_name])
+                elif name == "tap_shadow_display":
+                    if set(arguments.keys()) != {"x", "y"}:
+                        raise RpcFailure(-32602, "x and y are required")
+                    x = validate_integer(arguments, "x", 0, 4095)
+                    y = validate_integer(arguments, "y", 0, 4095)
+                    result = call_roottools("SHADOW_TAP", ["--ei", "x", str(x), "--ei", "y", str(y)])
+                elif name == "swipe_shadow_display":
+                    allowed_keys = {"x1", "y1", "x2", "y2", "duration_ms"}
+                    required_keys = {"x1", "y1", "x2", "y2"}
+                    if not required_keys.issubset(arguments.keys()) or not set(arguments.keys()).issubset(allowed_keys):
+                        raise RpcFailure(-32602, "x1, y1, x2 and y2 are required")
+                    x1 = validate_integer(arguments, "x1", 0, 4095)
+                    y1 = validate_integer(arguments, "y1", 0, 4095)
+                    x2 = validate_integer(arguments, "x2", 0, 4095)
+                    y2 = validate_integer(arguments, "y2", 0, 4095)
+                    duration = validate_integer(arguments, "duration_ms", 50, 5000, required=False, default=300)
+                    result = call_roottools(
+                        "SHADOW_SWIPE",
+                        [
+                            "--ei", "x1", str(x1), "--ei", "y1", str(y1),
+                            "--ei", "x2", str(x2), "--ei", "y2", str(y2),
+                            "--ei", "duration_ms", str(duration),
+                        ],
+                    )
+                elif name == "type_shadow_display_text":
+                    if set(arguments.keys()) != {"text"}:
+                        raise RpcFailure(-32602, "text is required")
+                    text = arguments.get("text")
+                    if not isinstance(text, str) or len(text) > 500 or any(ord(ch) < 32 or 0x7f <= ord(ch) <= 0x9f for ch in text):
+                        raise RpcFailure(-32602, "Invalid shadow display text")
+                    result = call_roottools("SHADOW_TEXT", ["--es", "text", text])
+                elif name == "capture_shadow_display":
+                    validate_empty_arguments(arguments)
+                    result = call_roottools("SHADOW_CAPTURE")
                 else:
                     raise RpcFailure(-32602, "Unknown RootTools tool")
 

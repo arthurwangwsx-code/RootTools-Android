@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Security
@@ -46,6 +47,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.arthur.roottools.R
 import com.arthur.roottools.app.navigation.RootToolsDestination
+import com.arthur.roottools.core.agent.AgentSessionState
+import com.arthur.roottools.core.agent.AgentSessionStatus
 import com.arthur.roottools.core.presentation.labelRes
 import com.arthur.roottools.core.ui.component.RootToolsSectionHeader
 import com.arthur.roottools.core.ui.component.RootToolsStatusChip
@@ -66,6 +69,7 @@ import java.util.Date
 @Composable
 internal fun ProductHomeScreen(
     state: DashboardUiState,
+    agentSession: AgentSessionState,
     onRefresh: () -> Unit,
     onNavigate: (RootToolsDestination) -> Unit,
 ) {
@@ -107,6 +111,9 @@ internal fun ProductHomeScreen(
                 )
             }
             item { HealthVerdictCard(state, decision) }
+            if (agentSession.active) {
+                item { ActiveAgentCard(agentSession, onNavigate) }
+            }
             item {
                 RootToolsSectionHeader(
                     title = stringResource(R.string.home_quick_title),
@@ -128,6 +135,67 @@ internal fun ProductHomeScreen(
                 )
             }
             item { RecentActivityCard(timeline) }
+        }
+    }
+}
+
+@Composable
+private fun ActiveAgentCard(
+    session: AgentSessionState,
+    onNavigate: (RootToolsDestination) -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable { onNavigate(RootToolsDestination.AGENT_SESSION) },
+        shape = RoundedCornerShape(RootToolsRadius.card),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(RootToolsSpacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(RootToolsSpacing.sm),
+        ) {
+            Surface(
+                modifier = Modifier.size(44.dp),
+                shape = RoundedCornerShape(RootToolsRadius.chip),
+                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.14f),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.ChatBubble, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                }
+            }
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = session.title.ifBlank { stringResource(R.string.agent_session_title) },
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    RootToolsStatusChip(
+                        label = stringResource(
+                            when (session.status) {
+                                AgentSessionStatus.RUNNING -> R.string.agent_status_running
+                                AgentSessionStatus.PAUSED -> R.string.agent_status_paused
+                                AgentSessionStatus.WAITING_USER -> R.string.agent_status_waiting
+                                else -> R.string.agent_status_running
+                            }
+                        ),
+                        tone = when (session.status) {
+                            AgentSessionStatus.RUNNING -> RootToolsStatusTone.Success
+                            AgentSessionStatus.WAITING_USER -> RootToolsStatusTone.Warning
+                            else -> RootToolsStatusTone.Neutral
+                        },
+                    )
+                }
+                Text(
+                    text = session.currentStep.ifBlank { stringResource(R.string.agent_session_idle_step) },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null)
         }
     }
 }

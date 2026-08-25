@@ -333,6 +333,7 @@ private fun AppLaunchCard(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AssistChip(onClick = { onPreset(MAPS_PACKAGE) }, label = { Text(stringResource(R.string.shadow_display_quick_maps)) })
             AssistChip(onClick = { onPreset(CHROME_PACKAGE) }, label = { Text(stringResource(R.string.shadow_display_quick_chrome)) })
+            AssistChip(onClick = { onPreset(TAOBAO_PACKAGE) }, label = { Text(stringResource(R.string.shadow_display_quick_taobao)) })
             AssistChip(onClick = { onPreset(SETTINGS_PACKAGE) }, label = { Text(stringResource(R.string.shadow_display_quick_settings)) })
         }
         Button(onClick = onLaunch, enabled = running && !busy, modifier = Modifier.fillMaxWidth()) {
@@ -488,4 +489,5 @@ private fun NumberField(
 
 private const val MAPS_PACKAGE = "com.google.android.apps.maps"
 private const val CHROME_PACKAGE = "com.android.chrome"
+private const val TAOBAO_PACKAGE = "com.taobao.taobao"
 private const val SETTINGS_PACKAGE = "com.android.settings"

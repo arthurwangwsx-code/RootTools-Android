@@ -25,7 +25,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Root-only app_process helper that owns one trusted VirtualDisplay.
@@ -84,7 +83,8 @@ public final class ShadowDisplayDaemon {
         ImageReader imageReader = null;
         Surface surface = null;
         VirtualDisplay virtualDisplay = null;
-        final AtomicBoolean captureInProgress = new AtomicBoolean(false);
+        final Object latestFrameLock = new Object();
+        final Image[] latestFrame = new Image[1];
         int displayId = -1;
         try {
             ensureMainLooper();
@@ -99,18 +99,14 @@ public final class ShadowDisplayDaemon {
                 try {
                     image = reader.acquireLatestImage();
                     if (image == null) return;
-                    if (CAPTURE_REQUEST.isFile() && captureInProgress.compareAndSet(false, true)) {
-                        try {
-                            writePreview(image, width, height);
-                            CAPTURE_REQUEST.delete();
-                        } finally {
-                            captureInProgress.set(false);
-                        }
+                    synchronized (latestFrameLock) {
+                        Image previous = latestFrame[0];
+                        latestFrame[0] = image;
+                        image = null;
+                        if (previous != null) previous.close();
                     }
                 } catch (Throwable error) {
-                    System.err.println("Preview capture failed: " + oneLine(error));
-                    CAPTURE_REQUEST.delete();
-                    captureInProgress.set(false);
+                    System.err.println("Shadow frame update failed: " + oneLine(error));
                 } finally {
                     if (image != null) image.close();
                 }
@@ -150,6 +146,19 @@ public final class ShadowDisplayDaemon {
             System.out.println("shadow-display-ready id=" + displayId);
 
             while (!STOP_REQUEST.isFile()) {
+                if (CAPTURE_REQUEST.isFile()) {
+                    try {
+                        synchronized (latestFrameLock) {
+                            if (latestFrame[0] != null) {
+                                writePreview(latestFrame[0], width, height);
+                                CAPTURE_REQUEST.delete();
+                            }
+                        }
+                    } catch (Throwable captureError) {
+                        System.err.println("Preview capture failed: " + oneLine(captureError));
+                        CAPTURE_REQUEST.delete();
+                    }
+                }
                 Thread.sleep(200L);
             }
         } catch (Throwable error) {
@@ -165,6 +174,14 @@ public final class ShadowDisplayDaemon {
                 try {
                     imageReader.close();
                 } catch (Throwable ignored) {}
+            }
+            synchronized (latestFrameLock) {
+                if (latestFrame[0] != null) {
+                    try {
+                        latestFrame[0].close();
+                    } catch (Throwable ignored) {}
+                    latestFrame[0] = null;
+                }
             }
             if (surface != null) {
                 try {

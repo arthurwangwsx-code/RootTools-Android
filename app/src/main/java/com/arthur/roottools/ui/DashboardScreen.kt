@@ -157,6 +157,7 @@ import com.arthur.roottools.feature.developer.DeveloperRuntimeRoute
 import com.arthur.roottools.feature.integrity.ui.EnvironmentIntegrityRoute
 import com.arthur.roottools.app.shadow.ShadowDisplayRoute
 import com.arthur.roottools.app.adgovernance.AdGovernanceRoute
+import com.arthur.roottools.app.agent.AgentSessionRoute
 import java.io.File
 import kotlin.math.roundToInt
 
@@ -215,6 +216,9 @@ fun DashboardRoute(
             onReleaseCaps = viewModel::releaseRootToolsCpuCaps,
         )
         ToolboxRoute.SHADOW_DISPLAY -> ShadowDisplayRoute(
+            onBack = { route = ToolboxRoute.HOME },
+        )
+        ToolboxRoute.AGENT_SESSION -> AgentSessionRoute(
             onBack = { route = ToolboxRoute.HOME },
         )
         ToolboxRoute.ADB -> AdbScreen(
@@ -337,6 +341,8 @@ private fun ToolboxHomeScreen(
     val health = state.health
     val shadowDisplaySubtitle = stringResource(R.string.shadow_display_home_subtitle)
     val shadowDisplayBadge = stringResource(R.string.shadow_display_home_badge)
+    val agentSessionSubtitle = stringResource(R.string.agent_session_home_subtitle)
+    val agentSessionBadge = stringResource(R.string.agent_overlay_short_label)
     val adGovernanceSubtitle = stringResource(R.string.ad_governance_home_subtitle)
     val adGovernanceBadge = stringResource(R.string.ad_governance_home_badge)
     val cards = ToolRegistry.tools.map { definition ->
@@ -346,6 +352,8 @@ private fun ToolboxHomeScreen(
             state = state,
             shadowDisplaySubtitle = shadowDisplaySubtitle,
             shadowDisplayBadge = shadowDisplayBadge,
+            agentSessionSubtitle = agentSessionSubtitle,
+            agentSessionBadge = agentSessionBadge,
             adGovernanceSubtitle = adGovernanceSubtitle,
             adGovernanceBadge = adGovernanceBadge,
         )
@@ -395,6 +403,8 @@ private fun buildToolboxCard(
     state: DashboardUiState,
     shadowDisplaySubtitle: String,
     shadowDisplayBadge: String,
+    agentSessionSubtitle: String,
+    agentSessionBadge: String,
     adGovernanceSubtitle: String,
     adGovernanceBadge: String,
 ): ToolboxCard {
@@ -408,6 +418,7 @@ private fun buildToolboxCard(
         ) to (health.thermal.apC?.let { "%.0f°C".format(it) } ?: "LIVE")
         ToolId.PERFORMANCE -> "${state.mode.displayName} · ${snapshot.thermalStage().displayName}" to (snapshot.apTempC?.let { "%.0f°C".format(it) } ?: "CPU")
         ToolId.SHADOW_DISPLAY -> shadowDisplaySubtitle to shadowDisplayBadge
+        ToolId.AGENT_SESSION -> agentSessionSubtitle to agentSessionBadge
         ToolId.ROOT_ADB -> (
             when {
                 state.adb.rootTcpEnabled -> "${state.adb.tailscaleIpv4 ?: state.adb.localIpv4 ?: "TCP"}:${state.adb.rootTcpPort ?: 5555}"

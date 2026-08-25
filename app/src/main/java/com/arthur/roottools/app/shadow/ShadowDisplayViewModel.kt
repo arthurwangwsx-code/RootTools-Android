@@ -17,7 +17,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class ShadowDisplayViewModel(application: Application) : AndroidViewModel(application) {
+    private val app = application
     private val controller = application.rootToolsContainer.shadowDisplayController
+    private val agentSession = application.rootToolsContainer.agentSessionManager
     private val _state = MutableStateFlow(ShadowDisplayUiState())
     val state: StateFlow<ShadowDisplayUiState> = _state.asStateFlow()
 
@@ -55,6 +57,10 @@ class ShadowDisplayViewModel(application: Application) : AndroidViewModel(applic
         runAction(
             successMessage = R.string.shadow_display_started,
             clearPreview = true,
+            onSuccess = {
+                agentSession.ensureShadowSession()
+                agentSession.updateStep(app.getString(R.string.agent_session_shadow_ready_step))
+            },
         ) { controller.start(w, h, dpi) }
     }
 
@@ -62,11 +68,25 @@ class ShadowDisplayViewModel(application: Application) : AndroidViewModel(applic
         runAction(
             successMessage = R.string.shadow_display_stopped,
             clearPreview = true,
+            onSuccess = agentSession::stop,
         ) { controller.stop() }
     }
 
     fun launchPackage(packageName: String) {
-        runAction(R.string.shadow_display_launched) { controller.launchPackage(packageName) }
+        runAction(
+            successMessage = R.string.shadow_display_launched,
+            onSuccess = {
+                val label = runCatching {
+                    val info = app.packageManager.getApplicationInfo(packageName, 0)
+                    app.packageManager.getApplicationLabel(info).toString()
+                }.getOrDefault(packageName)
+                agentSession.updateStep(
+                    step = app.getString(R.string.agent_session_running_app_step, label),
+                    targetPackage = packageName,
+                    targetLabel = label,
+                )
+            },
+        ) { controller.launchPackage(packageName) }
     }
 
     fun tap(x: String, y: String) {
@@ -76,7 +96,10 @@ class ShadowDisplayViewModel(application: Application) : AndroidViewModel(applic
             showInputError()
             return
         }
-        runAction(R.string.shadow_display_input_sent) { controller.tap(safeX, safeY) }
+        runAction(
+            successMessage = R.string.shadow_display_input_sent,
+            onSuccess = { agentSession.updateStep(app.getString(R.string.agent_session_interacting_step)) },
+        ) { controller.tap(safeX, safeY) }
     }
 
     fun swipe(x1: String, y1: String, x2: String, y2: String, durationMs: String) {
@@ -85,13 +108,19 @@ class ShadowDisplayViewModel(application: Application) : AndroidViewModel(applic
             showInputError()
             return
         }
-        runAction(R.string.shadow_display_input_sent) {
+        runAction(
+            successMessage = R.string.shadow_display_input_sent,
+            onSuccess = { agentSession.updateStep(app.getString(R.string.agent_session_interacting_step)) },
+        ) {
             controller.swipe(values[0]!!, values[1]!!, values[2]!!, values[3]!!, values[4]!!)
         }
     }
 
     fun typeText(text: String) {
-        runAction(R.string.shadow_display_input_sent) { controller.typeText(text) }
+        runAction(
+            successMessage = R.string.shadow_display_input_sent,
+            onSuccess = { agentSession.updateStep(app.getString(R.string.agent_session_interacting_step)) },
+        ) { controller.typeText(text) }
     }
 
     fun capturePreview() {
@@ -103,6 +132,7 @@ class ShadowDisplayViewModel(application: Application) : AndroidViewModel(applic
             _state.update { current ->
                 result.fold(
                     onSuccess = {
+                        agentSession.updateStep(app.getString(R.string.agent_session_preview_step))
                         current.copy(
                             actionRunning = false,
                             previewJpeg = it,
@@ -128,6 +158,7 @@ class ShadowDisplayViewModel(application: Application) : AndroidViewModel(applic
     private fun runAction(
         @StringRes successMessage: Int,
         clearPreview: Boolean = false,
+        onSuccess: (() -> Unit)? = null,
         action: suspend () -> ShadowDisplayActionResult,
     ) {
         viewModelScope.launch {
@@ -139,6 +170,7 @@ class ShadowDisplayViewModel(application: Application) : AndroidViewModel(applic
             _state.update { current ->
                 val nextStatus = statusResult.getOrNull() ?: current.status
                 if (actionResult.success) {
+                    onSuccess?.invoke()
                     current.copy(
                         status = nextStatus,
                         actionRunning = false,

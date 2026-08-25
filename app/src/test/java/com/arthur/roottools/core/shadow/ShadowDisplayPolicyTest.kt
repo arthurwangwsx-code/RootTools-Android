@@ -28,9 +28,13 @@ class ShadowDisplayPolicyTest {
     @Test
     fun text_preservesUserContent_butRejectsControlAndHugePayload() {
         assertEquals("KLCC & TRX", ShadowDisplayPolicy.text("KLCC & TRX"))
+        assertEquals("最近新手机", ShadowDisplayPolicy.text("最近新手机"))
+        assertEquals(ShadowDisplayTextStrategy.KEY_EVENTS, ShadowDisplayPolicy.textStrategy("new phones 2026"))
+        assertEquals(ShadowDisplayTextStrategy.CLIPBOARD_PASTE, ShadowDisplayPolicy.textStrategy("最近新手机"))
         assertNull(ShadowDisplayPolicy.text("bad\u0000text"))
         assertNull(ShadowDisplayPolicy.text("bad\ntext"))
         assertNull(ShadowDisplayPolicy.text("x".repeat(ShadowDisplayPolicy.MAX_TEXT_LENGTH + 1)))
+        assertNull(ShadowDisplayPolicy.textStrategy("bad\ntext"))
     }
 
     @Test

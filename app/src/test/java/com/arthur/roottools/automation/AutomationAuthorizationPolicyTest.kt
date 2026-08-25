@@ -70,6 +70,35 @@ class AutomationAuthorizationPolicyTest {
     }
 
     @Test
+    fun `shadow display commands require dedicated scope`() {
+        val shadowCommands = listOf(
+            AutomationCommand.SHADOW_STATUS,
+            AutomationCommand.SHADOW_START,
+            AutomationCommand.SHADOW_STOP,
+            AutomationCommand.SHADOW_LAUNCH,
+            AutomationCommand.SHADOW_TAP,
+            AutomationCommand.SHADOW_SWIPE,
+            AutomationCommand.SHADOW_TEXT,
+            AutomationCommand.SHADOW_CAPTURE,
+        )
+        shadowCommands.forEach { command ->
+            assertTrue(
+                AutomationAuthorizationPolicy.isAllowed(
+                    scopes = setOf(AutomationScope.SHADOW_DISPLAY),
+                    command = command,
+                )
+            )
+            assertFalse(
+                AutomationAuthorizationPolicy.isAllowed(
+                    scopes = setOf(AutomationScope.READ_STATUS),
+                    command = command,
+                )
+            )
+        }
+        assertTrue(AutomationCommand.parse("shadow_launch") == AutomationCommand.SHADOW_LAUNCH)
+    }
+
+    @Test
     fun `termux defaults contain no destructive root scope`() {
         val defaults = AutomationAuthorizationPolicy.termuxDefaultScopes
         assertTrue(AutomationScope.READ_STATUS in defaults)
@@ -78,6 +107,8 @@ class AutomationAuthorizationPolicyTest {
         assertTrue(AutomationScope.APP_POLICY in defaults)
         assertTrue(AutomationScope.INTEGRITY_SCAN in defaults)
         assertTrue(AutomationScope.RUN_WORKFLOW in defaults)
+        assertTrue(AutomationScope.SHADOW_DISPLAY in defaults)
+        assertTrue(AutomationScope.SHADOW_DISPLAY in AutomationAuthorizationPolicy.termuxMcpScopes)
     }
 }
 
