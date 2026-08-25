@@ -29,6 +29,7 @@
 | [adr/](./adr/) | Architecture Decision Records：composition root、模块化边界等长期工程决策 |
 | [19-environment-integrity-center.md](./19-environment-integrity-center.md) | Environment Integrity Center：Hook/篡改、Root runtime、Boot/ROM、设备表面、Sandbox、Attestation 与可信基线 |
 | [20-termux-developer-runtime.md](./20-termux-developer-runtime.md) | Termux / Developer Runtime Bridge：双向 Intent、CLI、managed task、SSH/MCP 执行平面与安全边界 |
+| [24-lag-forensics.md](./24-lag-forensics.md) | Xiaomi / Qualcomm 系统级卡顿的低开销滚动取证、PSI 阈值、证据预算与后台性能契约 |
 
 ## 工程原则
 

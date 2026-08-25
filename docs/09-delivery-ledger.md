@@ -337,6 +337,20 @@
 - [x] App / Quick Tile 显式切档会立即重启一次 policy loop，不再等待下一个 30 秒周期
 - [x] 当前 Samsung Thermal=0 后实测 CPU max 已恢复到硬件上限：1.785 / 2.496 / 2.995 GHz
 
+### Xiaomi 14 — Rolling Lag Forensics
+
+- [x] 将 2026-08-24 晚间系统级卡顿与中午 orphan `tr` 事件拆分归因
+- [x] 复用 `CpuPolicyService`，不新增第二个常驻 Service / foreground watcher
+- [x] 正常路径只增加 Memory / IO / CPU PSI + selected meminfo 轻量读取
+- [x] 去掉 `DeviceRepository` 每轮额外 `id -u` Root probe，减少 root command 数量
+- [x] 稳定 Normal cadence：interactive 60s / screen-off 120s；Performance screen-off 60s；Warm+ 30s
+- [x] Elevated 连续两次 / Severe 一次触发，capture cooldown 10min
+- [x] 异常证据 hard timeout 5s、output ≤96k chars、incident ≤128k chars、最多 5 份
+- [x] Notification 文本无变化时不重复 `notify()`
+- [x] JVM 测试覆盖 pressure classification / sustained trigger / cooldown / polling cadence
+- [x] Xiaomi 14 覆盖安装 + 后台 CPU / WakeLock / 温度 / residual child 真机验收（见 `docs/validation/lag-forensics-xiaomi14-2026-08-25.md`）
+- [ ] 完整 reboot 后 BOOT_COMPLETED / USER_UNLOCKED 自动恢复仍待独立验证
+
 ### J — Performance explainability
 
 - [x] per-policy cap source
