@@ -1,6 +1,6 @@
-# Root Tools
+# Root Tools Android
 
-个人 Android Root 工具箱。目标不是把所有 Root 能力堆进一个页面，而是提供一个可持续扩展的卡片式启动台，每个能力拥有独立详情页和独立权限边界。
+个人 Android Root 工具箱。GitHub Android 仓库使用 `RootTools-Android` 名称，与同名 iOS 工程明确区分。目标不是把所有 Root 能力堆进一个页面，而是提供一个可持续扩展的卡片式启动台，每个能力拥有独立详情页和独立权限边界。
 
 完整产品规划、架构与子模块设计见 [`docs/README.md`](./docs/README.md)。
 
@@ -29,9 +29,17 @@
 
 - 一键切换 Root ADB TCP `5555`
 - 不依赖 Android 原生“无线调试必须连接 Wi-Fi”的限制
-- 自动显示 `tun0` 上的 Tailscale IPv4
+- 自动显示官方 `tun0` 或 Root `tailscale0` 上的 Tailscale IPv4
 - 可直接复制 `adb connect <tailscale-ip>:5555`
 - 默认不做开机永久开放，降低长期暴露风险
+
+### Root Tailscale
+
+- Root `tailscaled` 运行在独立 `tailscale0`，不占 Android 唯一的 `VpnService` 槽位
+- 支持与 Hiddify 等 Android VPN 共存，普通互联网继续走 Hiddify，`100.64.0.0/10` 走 tailnet
+- App 内完成已验证 runtime 安装、浏览器认证、启停、路由修复和可撤销开机恢复
+- Runtime 固定版本并校验 SHA-256；RootTools 不接受 UI 传入任意 shell
+- Root overlay 未验证成功前不会主动停止官方 Tailscale Android App
 
 ### 启动与应用控制
 
@@ -126,11 +134,17 @@
 
 ## 构建
 
-当前本机验证环境：Android SDK 36、AGP 9.2、Gradle 9.4.x、JDK 17+。
+当前构建基线：Android SDK 36、AGP 9.2、Gradle 9.5、JDK 17+。项目自带 `./gradlew` 启动入口，会优先复用本机 Gradle 缓存，并在常见 macOS 开发环境自动发现 JDK 21 与 Android SDK。
 
 ```bash
-gradle :app:assembleDebug
+./gradlew :app:assembleDebug
 ```
+
+## GitHub Release
+
+Android 发布仓库为 `RootTools-Android`。推送 `v*` tag 后，GitHub Actions 会运行质量/安全门禁、单测和 lint，使用仓库 Secrets 中的固定 Android signing key 构建可覆盖升级的签名 Release APK，并上传 APK 与 SHA-256 到 GitHub Releases。
+
+首个远程测试版本为 `v0.4.0-beta.1`。详细流程与签名边界见 [`docs/29-github-release.md`](./docs/29-github-release.md)。
 
 ### 工程开发基线
 
@@ -145,13 +159,33 @@ bash scripts/setup-dev.sh
 ```bash
 python3 scripts/quality_guard.py
 python3 scripts/security_guard.py
-gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 ```
+
+日常开发优先使用快速门禁，只编译测试所需代码，不生成 APK，避免每次修改都重复跑 native 打包 / dex / lint / release / coverage：
+
+```bash
+bash scripts/verify-fast.sh
+# 或只聚焦一个 JVM 测试类：
+bash scripts/verify-fast.sh com.arthur.roottools.feature.assistant.policy.AssistantSelectionPolicyTest
+```
+
+需要真机安装时再单独生成 Debug APK：
+
+```bash
+./gradlew :app:assembleDebug
+```
+
+`./gradlew` 还会为 RootTools 使用项目级构建锁；同一 checkout 已经有 Gradle 构建时，新调用会快速失败，而不是再启动一套 Kotlin/Gradle 编译进程争抢 CPU 与缓存。必要时可显式设置 `ROOTTOOLS_BUILD_LOCK=0` 绕过，但日常开发不建议这么做。
+
+RootTools 默认使用 Kotlin in-process compilation。这样在多个 Android 工程被 AI Agent 并行开发时，不会全部排队到同一个全局 Kotlin Compile Daemon；编译内存由项目自己的 Gradle daemon 复用，换取更可预测的本工程反馈时间。
+
+构建入口还带主机负载预检：默认在 1 分钟 load average 超过逻辑 CPU 数的 2 倍时直接拒绝启动重型 Gradle 构建，避免在已经严重拥塞的机器上再浪费十几分钟。可用 `ROOTTOOLS_MAX_LOAD_PER_CORE` 调整阈值；只有明确需要抢占式立即构建时才使用 `ROOTTOOLS_FORCE_BUILD=1 ./gradlew ...` 绕过。
 
 核心 JVM 覆盖率基线：
 
 ```bash
-gradle :app:koverXmlReportDebug
+./gradlew :app:koverXmlReportDebug
 python3 scripts/coverage_guard.py
 ```
 

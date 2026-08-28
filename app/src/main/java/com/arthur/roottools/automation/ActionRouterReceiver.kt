@@ -8,6 +8,9 @@ import android.content.Context
 import android.content.Intent
 import com.arthur.roottools.R
 import com.arthur.roottools.app.rootToolsContainer
+import com.arthur.roottools.core.agent.AgentOverlayMode
+import com.arthur.roottools.core.agent.AgentSessionState
+import com.arthur.roottools.core.agent.AgentSessionStatus
 import com.arthur.roottools.core.shadow.ShadowDisplayPolicy
 import com.arthur.roottools.core.shadow.ShadowDisplayTextStrategy
 import com.arthur.roottools.data.DeviceHealthCollector
@@ -52,7 +55,7 @@ class ActionRouterReceiver : BroadcastReceiver() {
         val enabled = intent.takeIf {
             command == AutomationCommand.SET_ADB || command == AutomationCommand.SET_NATIVE_ADB
         }?.getBooleanExtra(EXTRA_ENABLED, true)
-        val trustedAdbShadowRequest = AutomationTransportPolicy.isTrustedAdbShadowRequest(intent.flags, command)
+        val trustedAdbRequest = AutomationTransportPolicy.isTrustedAdbRequest(intent.flags, command)
         val token = intent.getStringExtra(EXTRA_TOKEN)
         val legacyAuthorized = ActionTokenStore(context).matches(token) &&
             AutomationAuthorizationPolicy.isAllowed(
@@ -60,12 +63,12 @@ class ActionRouterReceiver : BroadcastReceiver() {
                 command = command,
                 enabled = enabled,
             )
-        val scopedClient = if (trustedAdbShadowRequest || legacyAuthorized) {
+        val scopedClient = if (trustedAdbRequest || legacyAuthorized) {
             null
         } else {
             AutomationClientStore(context).authorize(token, command, enabled)
         }
-        if (!trustedAdbShadowRequest && !legacyAuthorized && scopedClient == null) {
+        if (!trustedAdbRequest && !legacyAuthorized && scopedClient == null) {
             completeImmediate(
                 requestId = requestId,
                 command = command.wireName,
@@ -75,7 +78,7 @@ class ActionRouterReceiver : BroadcastReceiver() {
             return
         }
         val rateLimitClientId = when {
-            trustedAdbShadowRequest -> ADB_SHADOW_CLIENT_ID
+            trustedAdbRequest -> ADB_TYPED_CLIENT_ID
             scopedClient != null -> scopedClient.clientId
             else -> null
         }
@@ -257,6 +260,78 @@ class ActionRouterReceiver : BroadcastReceiver() {
                         .put("finishedAtEpochMs", execution.finishedAtEpochMs)
                         .put("steps", steps),
                 )
+            }
+            AutomationCommand.AGENT_STATUS -> {
+                AutomationActionResult(
+                    requestId = requestId,
+                    command = command.wireName,
+                    success = true,
+                    message = "Agent session status ready",
+                    payload = agentSessionManager.state.value.toAutomationJson(),
+                )
+            }
+            AutomationCommand.AGENT_PAUSE -> {
+                val current = agentSessionManager.state.value
+                if (!current.active) {
+                    AutomationActionResult(requestId, command.wireName, false, "No active agent session")
+                } else {
+                    if (current.status != AgentSessionStatus.PAUSED) agentSessionManager.pause()
+                    AutomationActionResult(
+                        requestId,
+                        command.wireName,
+                        true,
+                        "Agent session paused",
+                        payload = agentSessionManager.state.value.toAutomationJson(),
+                    )
+                }
+            }
+            AutomationCommand.AGENT_RESUME -> {
+                val current = agentSessionManager.state.value
+                if (!current.active) {
+                    AutomationActionResult(requestId, command.wireName, false, "No active agent session")
+                } else {
+                    if (current.status != AgentSessionStatus.RUNNING) agentSessionManager.resume()
+                    AutomationActionResult(
+                        requestId,
+                        command.wireName,
+                        true,
+                        "Agent session resumed",
+                        payload = agentSessionManager.state.value.toAutomationJson(),
+                    )
+                }
+            }
+            AutomationCommand.AGENT_STOP -> {
+                agentSessionManager.stop()
+                AutomationActionResult(
+                    requestId,
+                    command.wireName,
+                    true,
+                    "Agent session stopped",
+                    payload = agentSessionManager.state.value.toAutomationJson(),
+                )
+            }
+            AutomationCommand.AGENT_OVERLAY -> {
+                val current = agentSessionManager.state.value
+                if (!current.active) {
+                    AutomationActionResult(requestId, command.wireName, false, "No active agent session")
+                } else {
+                    val mode = runCatching {
+                        AgentOverlayMode.valueOf(intent.getStringExtra(EXTRA_OVERLAY_MODE)?.trim()?.uppercase().orEmpty())
+                    }.getOrNull() ?: return AutomationActionResult(
+                        requestId,
+                        command.wireName,
+                        false,
+                        "Invalid agent overlay mode",
+                    )
+                    agentSessionManager.setOverlayMode(mode)
+                    AutomationActionResult(
+                        requestId,
+                        command.wireName,
+                        true,
+                        "Agent overlay mode set to ${mode.name}",
+                        payload = agentSessionManager.state.value.toAutomationJson(),
+                    )
+                }
             }
             AutomationCommand.SHADOW_STATUS -> {
                 val status = shadowDisplayController.status().getOrElse { error ->
@@ -444,6 +519,20 @@ class ActionRouterReceiver : BroadcastReceiver() {
         .put("startedAtMs", startedAtMs ?: JSONObject.NULL)
         .put("error", error ?: JSONObject.NULL)
 
+    private fun AgentSessionState.toAutomationJson(): JSONObject = JSONObject()
+        .put("taskId", taskId ?: JSONObject.NULL)
+        .put("title", title)
+        .put("targetPackage", targetPackage ?: JSONObject.NULL)
+        .put("targetLabel", targetLabel ?: JSONObject.NULL)
+        .put("currentStep", currentStep)
+        .put("status", status.name)
+        .put("active", active)
+        .put("progressCurrent", progressCurrent ?: JSONObject.NULL)
+        .put("progressTotal", progressTotal ?: JSONObject.NULL)
+        .put("overlayMode", overlayMode.name)
+        .put("startedAtEpochMs", startedAtEpochMs)
+        .put("updatedAtEpochMs", updatedAtEpochMs)
+
     private fun completeImmediate(
         requestId: String,
         command: String,
@@ -479,6 +568,7 @@ class ActionRouterReceiver : BroadcastReceiver() {
         const val EXTRA_Y2 = "y2"
         const val EXTRA_DURATION_MS = "duration_ms"
         const val EXTRA_TEXT = "text"
+        const val EXTRA_OVERLAY_MODE = "overlay_mode"
         const val EXTRA_REQUEST_ID = "request_id"
         private const val DEFAULT_SHADOW_WIDTH = 720
         private const val DEFAULT_SHADOW_HEIGHT = 1600
@@ -486,7 +576,7 @@ class ActionRouterReceiver : BroadcastReceiver() {
         private const val DEFAULT_SHADOW_SWIPE_DURATION_MS = 300
         private const val SHADOW_CLIPBOARD_SETTLE_MS = 300L
         private const val MAX_AUTOMATION_PREVIEW_BYTES = 512 * 1024
-        private const val ADB_SHADOW_CLIENT_ID = "adb-shell-shadow"
+        private const val ADB_TYPED_CLIENT_ID = "adb-shell-semantic"
         private val REQUEST_ID_REGEX = Regex("^[A-Za-z0-9._:-]{1,80}$")
     }
 }

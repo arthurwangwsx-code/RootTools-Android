@@ -6,7 +6,7 @@ cd "$ROOT_DIR"
 
 python3 scripts/quality_guard.py
 python3 scripts/security_guard.py
-gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease :app:koverXmlReportDebug
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease :app:koverXmlReportDebug
 python3 scripts/coverage_guard.py
 
 echo

@@ -194,6 +194,25 @@ class PrivilegeRouter(
         },
     )
 
+    suspend fun getAssistantRoleHolder(): PrivilegeResult<String> = routeRead(
+        capability = PrivilegeCapability.ROLE_CONTROL,
+        shizuku = { it.getAssistantRoleHolder() },
+        root = {
+            rootRead("cmd role get-role-holders --user 0 android.app.role.ASSISTANT 2>/dev/null") { output ->
+                output.lineSequence().map(String::trim).firstOrNull(String::isNotEmpty).orEmpty()
+            }
+        },
+    )
+
+    suspend fun setAssistantRoleHolder(packageName: String): PrivilegeResult<Unit> {
+        val pkg = PrivilegeInputValidator.packageName(packageName) ?: return invalid("package name")
+        return routeIdempotent(
+            capability = PrivilegeCapability.ROLE_CONTROL,
+            shizuku = { it.setAssistantRoleHolder(pkg) },
+            root = { rootAction("cmd role add-role-holder --user 0 android.app.role.ASSISTANT $pkg 0") },
+        )
+    }
+
     suspend fun isPackageRunning(packageName: String): PrivilegeResult<Boolean> {
         val pkg = PrivilegeInputValidator.packageName(packageName) ?: return invalid("package name")
         return routeRead(

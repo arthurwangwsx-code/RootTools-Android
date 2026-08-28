@@ -117,6 +117,10 @@
 - [x] Boot Policy + `BOOT_COMPLETED / USER_UNLOCKED` + bounded restore retry
 - [ ] reboot 后 Root TCP 5555 自动恢复
 - [ ] reboot 后 Tailscale + ADB 真实远程重连
+- [x] Root Tailscale 代码层收口：`tailscale0` 独立状态/策略、固定 `1.102.3` ARM64 Runtime + SHA-256 校验、userspace 认证、root TUN 启停/修复、RootTools-owned 启动恢复脚本、独立 App 页面
+- [x] ADB / Network 现有 Tailscale 真值源兼容 root `tailscale0`，不再要求 Android `VPN` transport 才判定 tailnet 在线
+- [ ] Xiaomi 14：Hiddify 占 Android VPN + Root `tailscale0` + Mac ADB `:5555` 同时在线验收
+- [ ] Xiaomi 14：重启后 Root `tailscale0` + Hiddify + Root ADB 自动恢复验收
 - [x] 2x1 Launcher Widget，`updatePeriodMillis=0`，事件驱动刷新
 - [x] Root ADB Quick Tile + 新增 Wireless ADB Quick Tile
 - [x] `SET_NATIVE_ADB` token-protected Automation API

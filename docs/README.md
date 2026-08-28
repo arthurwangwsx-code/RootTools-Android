@@ -35,6 +35,9 @@
 | [23-product-navigation-and-home.md](./23-product-navigation-and-home.md) | 产品导航与首页：5 Tab、multiple back stacks、Health Verdict、Attention、Recent Activity 与领域 Landing Page |
 | [24-lag-forensics.md](./24-lag-forensics.md) | Xiaomi / Qualcomm 系统级卡顿的低开销滚动取证、PSI 阈值、证据预算与后台性能契约 |
 | [25-agent-session-presence.md](./25-agent-session-presence.md) | Agent Session Presence：统一任务状态、持续通知、悬浮窗、详情页、Shadow Preview 与 OEM 顶部状态适配边界 |
+| [28-root-tailscale-coexistence.md](./28-root-tailscale-coexistence.md) | Root Tailscale：与 Hiddify 共存的 Root overlay、认证、路由和恢复模型 |
+| [29-github-release.md](./29-github-release.md) | Android GitHub 仓库、固定签名、tag 驱动的 APK Release 流程 |
+| [28-root-tailscale-coexistence.md](./28-root-tailscale-coexistence.md) | Root Tailscale：Root `tailscale0`、Android VPN 共存、固定哈希 Runtime、认证、启停与开机恢复 |
 
 ## 工程原则
 

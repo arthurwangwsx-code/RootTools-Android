@@ -39,7 +39,12 @@ class AdbRepository(
             echo '__ADBD_PORTS__'
             ss -ltnp 2>/dev/null | grep 'adbd' | awk '{print ${'$'}4}' | awk -F: '{print ${'$'}NF}' | tr -d '[]' | grep -E '^[0-9]+${'$'}' | sort -nu
             echo '__NETWORK__'
-            echo "TAILSCALE=${'$'}(ip -4 -o addr show tun0 2>/dev/null | awk '{print ${'$'}4}' | cut -d/ -f1 | head -n 1)"
+            echo "TAILSCALE=${'$'}(ip -4 -o addr show 2>/dev/null | awk '
+              ${'$'}2 == "tailscale0" || ${'$'}2 ~ /^tun[0-9]+${'$'}/ {
+                split(${'$'}4, cidr, "/"); split(cidr[1], octet, ".");
+                if (octet[1] == 100 && octet[2] >= 64 && octet[2] <= 127) { print cidr[1]; exit }
+              }
+            ')"
             iface=${'$'}(ip route show default 2>/dev/null | head -n 1 | sed -n 's/.* dev \([^ ]*\).*/\1/p')
             echo "IFACE=${'$'}iface"
             echo "LOCAL=${'$'}(ip -4 -o addr show "${'$'}iface" 2>/dev/null | awk '{print ${'$'}4}' | cut -d/ -f1 | head -n 1)"

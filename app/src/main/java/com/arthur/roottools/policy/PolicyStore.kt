@@ -36,6 +36,10 @@ class PolicyStore(context: Context) {
         get() = prefs.getInt(KEY_POLICY_SCHEMA, 0)
         set(value) = prefs.edit { putInt(KEY_POLICY_SCHEMA, value) }
 
+    var buildFingerprint: String
+        get() = prefs.getString(KEY_BUILD_FINGERPRINT, "").orEmpty()
+        set(value) = prefs.edit { putString(KEY_BUILD_FINGERPRINT, value) }
+
     fun hasLegacyBaseline(): Boolean = prefs.all.keys.any { it.startsWith("baseline_min_") }
 
     fun ownedMax(policyId: Int): Long = prefs.getLong(ownedMaxKey(policyId), 0L)
@@ -54,6 +58,12 @@ class PolicyStore(context: Context) {
         }
     }
 
+    fun clearBaselines() {
+        prefs.edit {
+            prefs.all.keys.filter { it.startsWith("baseline_min_") }.forEach(::remove)
+        }
+    }
+
     private fun baselineMinKey(policyId: Int) = "baseline_min_$policyId"
     private fun ownedMaxKey(policyId: Int) = "owned_max_$policyId"
 
@@ -61,6 +71,7 @@ class PolicyStore(context: Context) {
         const val KEY_MODE = "mode"
         const val KEY_PERF_UNTIL = "performance_until_ms"
         const val KEY_POLICY_SCHEMA = "policy_schema_version"
+        const val KEY_BUILD_FINGERPRINT = "build_fingerprint"
     }
 }
 

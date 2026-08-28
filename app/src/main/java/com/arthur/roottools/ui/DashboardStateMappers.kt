@@ -7,6 +7,7 @@ import android.os.Build
 import com.arthur.roottools.feature.dashboard.presentation.HealthDashboardUiState
 import com.arthur.roottools.feature.performance.presentation.PerformanceUiState
 import com.arthur.roottools.model.AdbSnapshot
+import com.arthur.roottools.policy.AdaptiveThermalPolicy
 import com.arthur.roottools.model.DeviceHealthSnapshot
 import com.arthur.roottools.model.DeviceSnapshot
 
@@ -54,13 +55,18 @@ internal fun DashboardUiState.toHealthDashboardUiState(): HealthDashboardUiState
     detailSamplingSeconds = detailSamplingSeconds,
 )
 
-internal fun DashboardUiState.toPerformanceUiState(): PerformanceUiState = PerformanceUiState(
-    loading = loading,
-    actionInProgress = actionInProgress,
-    snapshot = snapshot,
-    mode = mode,
-    cpuCapStates = cpuCapStates,
-    cpuPolicyEvents = cpuPolicyEvents,
-    actionMessage = actionMessage,
-    error = error,
-)
+internal fun DashboardUiState.toPerformanceUiState(): PerformanceUiState {
+    val adaptive = AdaptiveThermalPolicy.decide(snapshot, interactive = true)
+    return PerformanceUiState(
+        loading = loading,
+        actionInProgress = actionInProgress,
+        snapshot = snapshot,
+        mode = mode,
+        adaptiveStage = adaptive.stage,
+        adaptiveReason = adaptive.reason,
+        cpuCapStates = cpuCapStates,
+        cpuPolicyEvents = cpuPolicyEvents,
+        actionMessage = actionMessage,
+        error = error,
+    )
+}

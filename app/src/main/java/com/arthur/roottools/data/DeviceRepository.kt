@@ -14,7 +14,7 @@ class DeviceRepository(
             echo '__MODEL__'
             getprop ro.product.model
             echo '__THERMAL__'
-            dumpsys thermalservice 2>/dev/null | grep -E 'Thermal Status:|mName=(AP|BAT|SKIN)' | head -n 10
+            dumpsys thermalservice 2>/dev/null | grep -E 'Thermal Status:|Current temperatures from HAL:|Current cooling devices from HAL:|Temperature\{' | head -n 160
             echo '__BATTERY__'
             dumpsys battery 2>/dev/null | grep -E '^  (AC powered|USB powered|Wireless powered|level|temperature):'
             echo '__MEMORY__'
@@ -48,7 +48,7 @@ class DeviceRepository(
     private fun parseSnapshot(raw: String): DeviceSnapshot {
         val sections = splitSections(raw)
         val model = sections["MODEL"]?.firstOrNull()?.trim().orEmpty().ifBlank { "Android" }
-        val thermal = parseThermal(sections["THERMAL"].orEmpty())
+        val thermal = ThermalProbeParser.parse(sections["THERMAL"].orEmpty())
         val battery = parseBattery(sections["BATTERY"].orEmpty())
         val clusters = parseCpu(sections["CPU"].orEmpty())
         val runtimePressure = parseRuntimePressure(
@@ -67,9 +67,9 @@ class DeviceRepository(
             rootAvailable = true,
             model = model,
             thermalStatus = thermal.status,
-            apTempC = thermal.ap,
-            skinTempC = thermal.skin,
-            batteryTempC = thermal.battery,
+            apTempC = thermal.apC,
+            skinTempC = thermal.skinC,
+            batteryTempC = thermal.batteryC,
             batteryLevel = battery.level,
             charging = battery.charging,
             cpuClusters = clusters,
@@ -93,29 +93,6 @@ class DeviceRepository(
             }
         }
         return result
-    }
-
-    private data class ThermalData(
-        var status: Int = 0,
-        var ap: Float? = null,
-        var skin: Float? = null,
-        var battery: Float? = null,
-    )
-
-    private fun parseThermal(lines: List<String>): ThermalData {
-        val data = ThermalData()
-        lines.forEach { line ->
-            if (line.contains("Thermal Status:")) {
-                data.status = line.substringAfter("Thermal Status:").trim().toIntOrNull() ?: data.status
-            }
-            val value = Regex("mValue=([0-9.]+)").find(line)?.groupValues?.getOrNull(1)?.toFloatOrNull()
-            when {
-                line.contains("mName=AP") -> data.ap = value
-                line.contains("mName=SKIN") -> data.skin = value
-                line.contains("mName=BAT") -> data.battery = value
-            }
-        }
-        return data
     }
 
     private data class BatteryData(var level: Int? = null, var charging: Boolean = false)

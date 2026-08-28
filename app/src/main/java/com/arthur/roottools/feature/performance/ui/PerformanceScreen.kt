@@ -47,6 +47,7 @@ import com.arthur.roottools.core.ui.component.RootToolsTemperatureMetric
 import com.arthur.roottools.core.ui.token.RootToolsRiskLevel
 import com.arthur.roottools.core.ui.token.RootToolsStatusTone
 import com.arthur.roottools.feature.performance.presentation.PerformanceUiState
+import com.arthur.roottools.model.AdaptiveThermalReason
 import com.arthur.roottools.model.CpuCluster
 import com.arthur.roottools.model.DeviceSnapshot
 import com.arthur.roottools.model.PerformanceMode
@@ -61,7 +62,7 @@ internal fun PerformanceScreen(
     onReleaseCaps: () -> Unit,
 ) {
     val snapshot = state.snapshot
-    val stage = snapshot.thermalStage()
+    val stage = state.adaptiveStage
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -77,7 +78,7 @@ internal fun PerformanceScreen(
                     onRefresh = onRefresh,
                 )
             }
-            item { PerformanceHero(snapshot, state.mode) }
+            item { PerformanceHero(snapshot, state.mode, stage) }
             item {
                 PerformanceModeCard(
                     selected = state.mode,
@@ -86,6 +87,7 @@ internal fun PerformanceScreen(
                     onModeSelected = onModeSelected,
                 )
             }
+            item { AdaptiveThermalCard(state.adaptiveStage, state.adaptiveReason) }
             item {
                 RootToolsSectionHeader(
                     stringResource(R.string.performance_section_cpu_title),
@@ -133,8 +135,77 @@ internal fun PerformanceScreen(
 }
 
 @Composable
-private fun PerformanceHero(snapshot: DeviceSnapshot, mode: PerformanceMode) {
-    val stage = snapshot.thermalStage()
+private fun AdaptiveThermalCard(stage: ThermalStage, adaptiveReason: AdaptiveThermalReason) {
+    val reason = when (adaptiveReason) {
+        AdaptiveThermalReason.NORMAL -> R.string.performance_adaptive_reason_normal
+        AdaptiveThermalReason.BACKGROUND_EFFICIENCY -> R.string.performance_adaptive_reason_background
+        AdaptiveThermalReason.CHARGING_HEAT -> R.string.performance_adaptive_reason_charging
+        AdaptiveThermalReason.BATTERY_TEMPERATURE -> R.string.performance_adaptive_reason_battery
+        AdaptiveThermalReason.SKIN_TEMPERATURE -> R.string.performance_adaptive_reason_skin
+        AdaptiveThermalReason.SYSTEM_THERMAL -> R.string.performance_adaptive_reason_system
+    }
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.Icon(
+                    Icons.Rounded.Thermostat,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(Modifier.weight(0.04f))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.performance_adaptive_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        stringResource(R.string.performance_adaptive_subtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            RootToolsStatusChip(
+                label = stringResource(
+                    R.string.performance_adaptive_current,
+                    stringResource(stage.labelRes()),
+                ),
+                tone = when (stage) {
+                    ThermalStage.NORMAL -> RootToolsStatusTone.Success
+                    ThermalStage.WARM -> RootToolsStatusTone.Warning
+                    ThermalStage.MODERATE, ThermalStage.SEVERE -> RootToolsStatusTone.Danger
+                },
+            )
+            Text(
+                stringResource(reason),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                stringResource(R.string.performance_adaptive_rule_interactive),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                stringResource(R.string.performance_adaptive_rule_background),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                stringResource(R.string.performance_adaptive_rule_upgrade),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PerformanceHero(snapshot: DeviceSnapshot, mode: PerformanceMode, stage: ThermalStage) {
     Card(
         shape = RoundedCornerShape(30.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),

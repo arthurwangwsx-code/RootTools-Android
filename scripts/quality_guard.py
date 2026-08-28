@@ -22,6 +22,9 @@ LEGACY_LINE_CEILINGS = {
     "app/src/main/java/com/arthur/roottools/ui/DashboardScreen.kt": 2950,
     "app/src/main/java/com/arthur/roottools/ui/DashboardViewModel.kt": 1060,
     "app/src/main/java/com/arthur/roottools/ui/AppControlCenterScreen.kt": 950,
+    # Developer Runtime predates the strict feature file-size guard. Keep the current debt frozen
+    # until it is split; new feature screens still use NEW_KOTLIN_FILE_LINE_LIMIT.
+    "app/src/main/java/com/arthur/roottools/feature/developer/DeveloperRuntimeScreen.kt": 1328,
 }
 
 NEW_KOTLIN_FILE_LINE_LIMIT = 900
@@ -58,6 +61,9 @@ CORE_REVERSE_IMPORT = re.compile(r"^import\s+com\.arthur\.roottools\.(feature|ui
 
 LEGACY_FEATURE_DEPENDENCY_CEILINGS = {
     "app/src/main/java/com/arthur/roottools/feature/integrity/data/IntegrityRepository.kt": 2,
+    # Existing Termux bridge composition still depends on two legacy data-layer collaborators.
+    # Freeze the current count so future feature work cannot add more cross-layer dependencies.
+    "app/src/main/java/com/arthur/roottools/feature/developer/DeveloperRuntimeViewModel.kt": 2,
 }
 
 

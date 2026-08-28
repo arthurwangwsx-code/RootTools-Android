@@ -15,6 +15,7 @@ import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.VerifiedUser
+import androidx.compose.material.icons.rounded.VpnKey
 import androidx.compose.material.icons.rounded.WifiTethering
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -41,6 +42,8 @@ enum class ToolId {
     INTEGRITY,
     DEVELOPER_RUNTIME,
     AD_GOVERNANCE,
+    ASSISTANT,
+    ROOT_TAILSCALE,
 }
 
 enum class ToolCategory {
@@ -77,6 +80,7 @@ object ToolRegistry {
         ToolDefinition(ToolId.SHADOW_DISPLAY, ToolCategory.DAILY, R.string.tool_shadow_display_title, Icons.Rounded.DesktopWindows, Color(0xFF9ED7FF), setOf(ToolCapability.ROOT)),
         ToolDefinition(ToolId.AGENT_SESSION, ToolCategory.DAILY, R.string.tool_agent_session_title, Icons.Rounded.ChatBubble, Color(0xFFC5B3FF), setOf(ToolCapability.NOTIFICATION)),
         ToolDefinition(ToolId.ROOT_ADB, ToolCategory.DAILY, R.string.tool_adb_title, Icons.Rounded.WifiTethering, Color(0xFFB9C8FF), setOf(ToolCapability.ROOT, ToolCapability.NETWORK)),
+        ToolDefinition(ToolId.ROOT_TAILSCALE, ToolCategory.DAILY, R.string.root_tailscale_title, Icons.Rounded.VpnKey, Color(0xFF8FC7FF), setOf(ToolCapability.ROOT, ToolCapability.NETWORK)),
         ToolDefinition(ToolId.PERMISSIONS, ToolCategory.DAILY, R.string.tool_permissions_title, Icons.Rounded.VerifiedUser, Color(0xFFFFC56F)),
         ToolDefinition(ToolId.STARTUP, ToolCategory.GOVERNANCE, R.string.tool_startup_title, Icons.Rounded.Tune, Color(0xFF9BD4FF), setOf(ToolCapability.ROOT)),
         ToolDefinition(ToolId.APPS, ToolCategory.GOVERNANCE, R.string.tool_apps_title, Icons.Rounded.Security, Color(0xFFB7B7FF), setOf(ToolCapability.PACKAGE_CONTROL)),
@@ -92,5 +96,6 @@ object ToolRegistry {
         ToolDefinition(ToolId.BATTERY, ToolCategory.DAILY, R.string.tool_battery_title, Icons.Rounded.Thermostat, Color(0xFFFFC98B), setOf(ToolCapability.ROOT)),
         ToolDefinition(ToolId.SHIZUKU, ToolCategory.SYSTEM, R.string.tool_shizuku_title, Icons.Rounded.Share, Color(0xFF8FD8FF), setOf(ToolCapability.SHIZUKU)),
         ToolDefinition(ToolId.DEVELOPER_RUNTIME, ToolCategory.SYSTEM, R.string.developer_runtime_title, Icons.Rounded.Terminal, Color(0xFF9BD9C7)),
+        ToolDefinition(ToolId.ASSISTANT, ToolCategory.SYSTEM, R.string.tool_assistant_title, Icons.Rounded.ChatBubble, Color(0xFFC5B3FF), setOf(ToolCapability.PACKAGE_CONTROL)),
     )
 }

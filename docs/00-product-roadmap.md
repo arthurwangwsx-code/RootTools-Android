@@ -343,10 +343,14 @@ Root Tools 本身必须满足：
 - [ ] Native Wireless capability probe + 系统 pairing 快捷入口
 - [ ] Boot Policy + reboot 后 Root TCP 自动恢复
 - [ ] Tailscale + Root ADB post-boot 真实远程重连
+- [x] Root Tailscale 产品/安全边界：Android VPN 槽位留给 Hiddify，Tailscale 改走 Root `tailscale0`
+- [x] Root Tailscale typed Controller / 状态探针 / 固定版本哈希安装器 / 独立详情页
+- [ ] Root Tailscale + Hiddify 同时在线真机验收
+- [ ] Root Tailscale + Root ADB reboot 后真实远程重连验收
 - [ ] Launcher Widget（事件驱动，不做 1 秒 Root polling）
 - [ ] Samsung SM-S908E 完整真机验收
 
-详细方案见 [04-adb-network.md](./04-adb-network.md)。
+详细方案见 [04-adb-network.md](./04-adb-network.md) 与 [28-root-tailscale-coexistence.md](./28-root-tailscale-coexistence.md)。
 
 ### Milestone L — App Control Center
 

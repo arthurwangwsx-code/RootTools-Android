@@ -37,6 +37,10 @@
     <string name="common_percent_int" translatable="false">%1$d%%</string>
     <string name="common_percent_float" translatable="false">%1$.0f%%</string>
     <string name="common_endpoint" translatable="false">%1$s:%2$d</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_dismiss">知道了</string>
+    <string name="common_success">成功</string>
+    <string name="common_failed">失败</string>
     <string name="cpu_notification_reading">正在读取设备状态…</string>
     <string name="cpu_notification_cool">Cool · %1$s</string>
     <string name="cpu_peak_limited">已限峰</string>
@@ -120,20 +124,35 @@
     <string name="dashboard_processes">进程数</string>
     <string name="dashboard_top_process_waiting">等待下一次 Top Process 采样…</string>
 
-    <string name="performance_detail_subtitle">温度驱动策略 · 始终保留 Samsung Thermal</string>
+    <string name="cpu_cap_source_samsung_thermal">系统温控</string>
+    <string name="cpu_policy_system_build_changed">检测到系统版本变化：已清理 Root Tools 旧 CPU cap ownership，并将在当前系统重新探测平台能力后再应用自适应限制。</string>
+    <string name="performance_detail_subtitle">自适应体感温控 · 始终保留厂商原生温控</string>
     <string name="performance_section_cpu_title">CPU 实时限制</string>
     <string name="performance_section_cpu_subtitle">对比 scaling max 与 hardware max，并标注当前限频来源</string>
     <string name="performance_release_owned_caps">释放 Root Tools 自己拥有的 CPU cap</string>
     <string name="performance_history_title">策略历史</string>
     <string name="performance_history_subtitle">记录模式切换、cap 写入/释放与 ownership 判断</string>
     <string name="performance_safety_title">安全边界</string>
-    <string name="performance_safety_body">Root Tools 保留原厂 WALT governor、cpuset/uclamp 与 Samsung Thermal；Thermal 已经限频时只允许继续削峰，不会主动抬高系统上限。</string>
+    <string name="performance_safety_body">Root Tools 保留原厂 governor、cpuset/uclamp 与厂商温控；系统已经限频时只允许继续削峰，不会主动抬高系统上限。</string>
     <string name="performance_hero_mode_stage">%1$s · %2$s</string>
     <string name="performance_mode_title">性能档位</string>
     <string name="performance_mode_subtitle">选择策略；系统热保护始终优先。</string>
-    <string name="performance_mode_auto_description">自动依据 Thermal / 机身温度切换内部阶段。当前：%1$s。</string>
+    <string name="performance_system_thermal_kept">厂商温控保留</string>
+    <string name="performance_mode_auto_description">自适应依据系统 Thermal、机身/电池温度、充电热量和交互状态切换内部阶段。当前：%1$s。</string>
     <string name="performance_mode_cool_description">低温响应模式：保留能效核突发响应，只削性能簇/超大核的高频尾段；不改变充电策略，也不关闭厂商 Thermal。</string>
     <string name="performance_mode_performance_description">临时高性能：默认 15 分钟；检测到系统热限频后立即让路。</string>
+    <string name="performance_adaptive_title">AI 手机自适应温控</string>
+    <string name="performance_adaptive_subtitle">人在用时快，无人操作时高效，并能跨系统升级重新探测。</string>
+    <string name="performance_adaptive_current">当前自适应阶段 · %1$s</string>
+    <string name="performance_adaptive_reason_normal">当前温度足够低，保留完整突发响应</string>
+    <string name="performance_adaptive_reason_background">后台任务自动削掉低能效的高频尾段</string>
+    <string name="performance_adaptive_reason_charging">充电热量触发提前温控</string>
+    <string name="performance_adaptive_reason_battery">电池温度触发温控升级</string>
+    <string name="performance_adaptive_reason_skin">机身表面温度触发体感温控</string>
+    <string name="performance_adaptive_reason_system">厂商 Thermal 状态优先</string>
+    <string name="performance_adaptive_rule_interactive">人在操作：低于体感温度阈值时保留突发性能。</string>
+    <string name="performance_adaptive_rule_background">无人操作：能力不关闭，但至少使用 Warm 策略削减大核高频尾段。</string>
+    <string name="performance_adaptive_rule_upgrade">系统升级：自动丢弃旧 cap ownership，并重新探测新的 CPU / Thermal 拓扑。</string>
     <string name="performance_cluster_efficiency">能效簇</string>
     <string name="performance_cluster_prime">超大核簇</string>
     <string name="performance_cluster_performance">性能簇</string>
@@ -673,4 +692,43 @@
     <string name="agent_session_running_app_step">正在后台运行 %1$s。</string>
     <string name="agent_session_interacting_step">正在操作后台 App。</string>
     <string name="agent_session_preview_step">正在读取后台页面。</string>
+
+    <!-- 默认数字助理 / 电源键助理 -->
+    <string name="tool_assistant_title">默认数字助理</string>
+    <string name="hub_tool_assistant_desc">ChatGPT · 语音助理 · 电源键绑定</string>
+    <string name="assistant_settings_title">默认数字助理</string>
+    <string name="assistant_settings_subtitle">选择 Android 系统助理入口实际唤起的语音助手。</string>
+    <string name="assistant_current_title">当前默认助理</string>
+    <string name="assistant_current_subtitle">系统助理手势实际使用的 Android ASSISTANT Role Holder。</string>
+    <string name="assistant_none">未设置默认助理</string>
+    <string name="assistant_status_active">当前使用</string>
+    <string name="assistant_status_none">未设置</string>
+    <string name="assistant_backend_label">读取后端</string>
+    <string name="assistant_service_label">语音服务</string>
+    <string name="assistant_power_key_title">电源键</string>
+    <string name="assistant_power_key_subtitle">读取 OEM 长按电源键绑定，但不直接改写物理按键策略。</string>
+    <string name="assistant_power_key_binding_label">长按动作</string>
+    <string name="assistant_power_key_bound">呼出助理</string>
+    <string name="assistant_power_key_other">其他动作</string>
+    <string name="assistant_power_key_unknown">未识别</string>
+    <string name="assistant_power_key_oem_value">OEM 绑定值</string>
+    <string name="assistant_power_key_aosp_value">AOSP 长按值</string>
+    <string name="assistant_power_key_very_long_value">AOSP 超长按值</string>
+    <string name="assistant_power_key_read_only_note">这个页面只切换默认数字助理，不改写 OEM 电源键行为，避免误伤原有的关机 / 重启入口。</string>
+    <string name="assistant_candidates_title">可用语音助理</string>
+    <string name="assistant_candidates_subtitle">只有安装后真正声明 BIND_VOICE_INTERACTION 的语音服务才允许成为切换目标。</string>
+    <string name="assistant_candidates_empty">这台设备上没有发现合格的 VoiceInteractionService。</string>
+    <string name="assistant_switch_confirm_title">切换默认数字助理？</string>
+    <string name="assistant_switch_confirm_detail">Android 会把 ASSISTANT Role 从当前应用切换为 %1$s（%2$s），之后仍可随时切回来。</string>
+    <string name="assistant_switch_confirm_action">确认切换</string>
+    <string name="assistant_current_action">正在使用</string>
+    <string name="assistant_switch_action">设为默认助理</string>
+    <string name="assistant_load_failed">读取数字助理状态失败：%1$s</string>
+    <string name="assistant_role_read_warning">读取 Assistant Role 时有警告：%1$s</string>
+    <string name="assistant_feedback_switched">默认数字助理已切换为 %1$s · %2$s</string>
+    <string name="assistant_feedback_already_selected">这个应用已经是默认数字助理。</string>
+    <string name="assistant_feedback_invalid_package">所选 package name 非法。</string>
+    <string name="assistant_feedback_not_eligible">所选应用不是合格的语音助理候选。</string>
+    <string name="assistant_feedback_write_failed">系统拒绝了 Assistant Role 切换：%1$s</string>
+    <string name="assistant_feedback_verify_failed">写入已经返回，但回读校验不一致。当前 Holder：%1$s</string>
 </resources>

@@ -7,6 +7,10 @@ local.properties
 *.iml
 .DS_Store
 captures/
+*.jks
+*.keystore
+*.p12
+signing.properties
 
 # Local reference projects used for research only. These repositories are
 # intentionally not part of RootTools source control.

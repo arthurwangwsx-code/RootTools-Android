@@ -453,6 +453,28 @@ docs(...)     validation / ledger
 
 ### 7.1 现有最低门禁
 
+日常开发先跑快速反馈，不要每次修改都生成 APK：
+
+```bash
+bash scripts/verify-fast.sh
+# 单个 JVM 契约：
+bash scripts/verify-fast.sh com.arthur.roottools.feature.assistant.policy.AssistantSelectionPolicyTest
+```
+
+只有准备真机安装时再执行：
+
+```bash
+./gradlew :app:assembleDebug
+```
+
+`./gradlew` 是 RootTools 的统一构建入口，负责固定 Gradle 版本、发现 JDK/Android SDK，并使用 checkout 级构建锁阻止同一工程重复并发编译。不要从 AI workflow 中绕过它直接调用其它工程的 wrapper 或裸 `gradle`。
+
+当前 RootTools 使用 Kotlin in-process compilation，避免多个 Android 工程在 AI 并行开发时争用同一全局 Kotlin Compile Daemon。机器整体有多个重型 build 时仍应由 workspace 调度层避免同时启动 Android/Rust 全量编译；项目内 Gradle 参数不能替代跨项目资源调度。
+
+`./gradlew` 同时执行 host-load preflight：1 分钟 load average 默认超过逻辑 CPU 数 2 倍时拒绝启动 build，可通过 `ROOTTOOLS_MAX_LOAD_PER_CORE` 调整。AI 不应在这种状态下反复重试或绕过锁；应先结束自己重复的 build，或由 workspace 调度层等待重型任务槽位。`ROOTTOOLS_FORCE_BUILD=1` 只用于明确需要立即抢占构建的人工/诊断场景。
+
+交付前最低门禁：
+
 ```bash
 ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 ```

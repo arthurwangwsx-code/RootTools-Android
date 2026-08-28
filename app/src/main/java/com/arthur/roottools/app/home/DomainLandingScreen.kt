@@ -276,6 +276,7 @@ private fun toolStatus(toolId: ToolId, state: DashboardUiState): String = when (
     } else {
         stringResource(R.string.hub_tool_adb_desc)
     }
+    ToolId.ROOT_TAILSCALE -> stringResource(R.string.root_tailscale_home_desc)
     ToolId.PERMISSIONS -> stringResource(R.string.hub_tool_permissions_desc)
     ToolId.STARTUP -> stringResource(R.string.hub_tool_startup_desc)
     ToolId.APPS -> stringResource(R.string.hub_tool_apps_desc)
@@ -308,4 +309,5 @@ private fun toolStatus(toolId: ToolId, state: DashboardUiState): String = when (
     )
     ToolId.SHIZUKU -> stringResource(R.string.hub_tool_shizuku_desc)
     ToolId.DEVELOPER_RUNTIME -> stringResource(R.string.hub_tool_developer_desc)
+    ToolId.ASSISTANT -> stringResource(R.string.hub_tool_assistant_desc)
 }

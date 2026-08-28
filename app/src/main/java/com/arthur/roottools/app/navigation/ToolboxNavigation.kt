@@ -10,6 +10,7 @@ internal enum class ToolboxRoute {
     SHADOW_DISPLAY,
     AGENT_SESSION,
     ADB,
+    ROOT_TAILSCALE,
     PERMISSIONS,
     STARTUP,
     APPS,
@@ -23,6 +24,7 @@ internal enum class ToolboxRoute {
     COMPONENTS,
     PERMISSION_OPS,
     INTEGRITY,
+    ASSISTANT,
     DEVELOPER_RUNTIME,
     AD_GOVERNANCE,
 }
@@ -42,6 +44,7 @@ internal fun routeFor(id: ToolId): ToolboxRoute = when (id) {
     ToolId.SHADOW_DISPLAY -> ToolboxRoute.SHADOW_DISPLAY
     ToolId.AGENT_SESSION -> ToolboxRoute.AGENT_SESSION
     ToolId.ROOT_ADB -> ToolboxRoute.ADB
+    ToolId.ROOT_TAILSCALE -> ToolboxRoute.ROOT_TAILSCALE
     ToolId.PERMISSIONS -> ToolboxRoute.PERMISSIONS
     ToolId.STARTUP -> ToolboxRoute.STARTUP
     ToolId.APPS -> ToolboxRoute.APPS
@@ -55,6 +58,7 @@ internal fun routeFor(id: ToolId): ToolboxRoute = when (id) {
     ToolId.COMPONENTS -> ToolboxRoute.COMPONENTS
     ToolId.PERMISSION_OPS -> ToolboxRoute.PERMISSION_OPS
     ToolId.INTEGRITY -> ToolboxRoute.INTEGRITY
+    ToolId.ASSISTANT -> ToolboxRoute.ASSISTANT
     ToolId.DEVELOPER_RUNTIME -> ToolboxRoute.DEVELOPER_RUNTIME
     ToolId.AD_GOVERNANCE -> ToolboxRoute.AD_GOVERNANCE
 }

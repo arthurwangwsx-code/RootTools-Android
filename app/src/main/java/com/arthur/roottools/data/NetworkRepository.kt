@@ -38,13 +38,17 @@ class NetworkRepository(private val shell: RootShell) {
             ?: Regex("accessNetworkTechnology=([A-Za-z0-9_]+)").find(serviceState)?.groupValues?.getOrNull(1)
         val adbPort = sections["ADB"]?.firstOrNull { it.startsWith("PORT=") }?.substringAfter('=')?.trim()?.toIntOrNull()?.takeIf { it > 0 }
         val listening = parseListening(sections["LISTEN"].orEmpty())
+        val tailscaleIpv4 = interfaces.firstOrNull { candidate ->
+            (candidate.name == "tailscale0" || TUN_INTERFACE_REGEX.matches(candidate.name)) &&
+                isTailnetIpv4(candidate.ipv4)
+        }?.ipv4
         return NetworkSnapshot(
             interfaces = interfaces,
             transports = transports,
             dnsServers = dns,
             routes = routes,
             listeningPorts = listening,
-            tailscaleIpv4 = interfaces.firstOrNull { it.name == "tun0" }?.ipv4,
+            tailscaleIpv4 = tailscaleIpv4,
             wifiIpv4 = interfaces.firstOrNull { it.name == "wlan0" }?.ipv4,
             cellularIpv4 = interfaces.firstOrNull { it.name.startsWith("rmnet_data") }?.ipv4,
             carrierName = carrier,
@@ -90,6 +94,11 @@ class NetworkRepository(private val shell: RootShell) {
         ListeningPortInfo(address = local.substringBeforeLast(':').ifBlank { "*" }, port = port)
     }.distinctBy { it.address to it.port }.sortedBy { it.port }
 
+    private fun isTailnetIpv4(value: String): Boolean {
+        val octets = value.split('.').map { it.toIntOrNull() ?: return false }
+        return octets.size == 4 && octets.all { it in 0..255 } && octets[0] == 100 && octets[1] in 64..127
+    }
+
     private fun splitSections(raw: String): Map<String, List<String>> {
         val result = linkedMapOf<String, MutableList<String>>()
         var current: String? = null
@@ -105,6 +114,7 @@ class NetworkRepository(private val shell: RootShell) {
 
     private companion object {
         val HOST_REGEX = Regex("[A-Za-z0-9][A-Za-z0-9._:-]*")
+        val TUN_INTERFACE_REGEX = Regex("tun[0-9]+")
         val ADDR_REGEX = Regex("^[0-9]+:\\s+([^\\s]+)\\s+inet\\s+([0-9.]+)/([0-9]+)")
         val DNS_REGEX = Regex("/(?:([0-9a-fA-F:.]+))")
         val ROUTE_BLOCK_REGEX = Regex("Routes: \\[([^]]+)]")

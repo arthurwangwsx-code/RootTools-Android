@@ -95,6 +95,17 @@ class PrivilegeUserService : IPrivilegeUserService.Stub() {
         return run(command).success
     }
 
+    override fun getAssistantRoleHolder(): String = run(
+        "cmd role get-role-holders --user 0 android.app.role.ASSISTANT 2>/dev/null"
+    ).output.lineSequence().map(String::trim).firstOrNull(String::isNotEmpty).orEmpty()
+
+    override fun setAssistantRoleHolder(packageName: String): Boolean {
+        val pkg = PrivilegeInputValidator.packageName(packageName) ?: return false
+        return run(
+            "cmd role add-role-holder --user 0 android.app.role.ASSISTANT $pkg 0"
+        ).success
+    }
+
     override fun getTopPackage(): String = run(
         """dumpsys activity activities 2>/dev/null | grep -m1 'topResumedActivity' | sed -n 's/.* u[0-9]* \([^/ ]*\)\/.*/\1/p'"""
     ).output.trim()

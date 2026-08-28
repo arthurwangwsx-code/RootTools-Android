@@ -16,6 +16,8 @@ interface IPrivilegeUserService {
     boolean setRuntimePermission(String packageName, String permissionName, boolean granted);
     boolean setBackgroundAllowed(String packageName, boolean allowed);
     boolean setAppiumTestMode(boolean enabled);
+    String getAssistantRoleHolder();
+    boolean setAssistantRoleHolder(String packageName);
     String getTopPackage();
     String appRuntimeSnapshot(String packageName);
     String frameworkSelfTest(String ownPackageName);

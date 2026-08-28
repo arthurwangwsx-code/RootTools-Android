@@ -75,6 +75,11 @@ class AgentSessionService : Service() {
     override fun onDestroy() {
         previewJob?.cancel()
         overlay.remove()
+        if (foregroundStarted) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            foregroundStarted = false
+        }
+        getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
         scope.cancel()
         super.onDestroy()
     }
@@ -233,6 +238,7 @@ class AgentSessionService : Service() {
         }
 
         fun stop(context: Context) {
+            context.getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
             context.stopService(Intent(context, AgentSessionService::class.java))
         }
     }

@@ -20,16 +20,20 @@ class RootToolsNavigationPolicyTest {
         assertEquals(RootToolsTab.DEVICE, RootToolsNavigationPolicy.destinationFor(ToolId.PERFORMANCE).tab)
         assertEquals(RootToolsTab.DEVICE, RootToolsNavigationPolicy.destinationFor(ToolId.AGENT_SESSION).tab)
         assertEquals(RootToolsTab.DEVICE, RootToolsNavigationPolicy.destinationFor(ToolId.ROOT_ADB).tab)
+        assertEquals(RootToolsTab.DEVICE, RootToolsNavigationPolicy.destinationFor(ToolId.ROOT_TAILSCALE).tab)
         assertEquals(RootToolsTab.DIAGNOSTICS, RootToolsNavigationPolicy.destinationFor(ToolId.INTEGRITY).tab)
         assertEquals(RootToolsTab.SYSTEM, RootToolsNavigationPolicy.destinationFor(ToolId.MODULES).tab)
+        assertEquals(RootToolsTab.SYSTEM, RootToolsNavigationPolicy.destinationFor(ToolId.ASSISTANT).tab)
     }
 
     @Test
     fun externalEntryMapsToTypedDestination() {
         assertEquals(RootToolsDestination.ADB, RootToolsNavigationPolicy.externalScreen("ADB"))
+        assertEquals(RootToolsDestination.ROOT_TAILSCALE, RootToolsNavigationPolicy.externalScreen("root-tailscale"))
         assertEquals(RootToolsDestination.INTEGRITY, RootToolsNavigationPolicy.externalScreen("integrity"))
         assertEquals(RootToolsDestination.AGENT_SESSION, RootToolsNavigationPolicy.externalScreen("agent-session"))
         assertEquals(RootToolsDestination.SHADOW_DISPLAY, RootToolsNavigationPolicy.externalScreen("shadow-display"))
+        assertEquals(RootToolsDestination.ASSISTANT, RootToolsNavigationPolicy.externalScreen("default-assistant"))
         assertNull(RootToolsNavigationPolicy.externalScreen("unknown"))
     }
 

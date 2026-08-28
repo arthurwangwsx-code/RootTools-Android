@@ -23,6 +23,12 @@ import com.arthur.roottools.data.StorageRepository
 import com.arthur.roottools.feature.adgovernance.data.AdGovernanceRepository
 import com.arthur.roottools.feature.agent.AgentSessionManager
 import com.arthur.roottools.feature.agent.data.AgentSessionStore
+import com.arthur.roottools.feature.network.tailscale.RootTailscaleAuditSink
+import com.arthur.roottools.feature.network.tailscale.RootTailscaleController
+import com.arthur.roottools.feature.network.tailscale.data.RootTailscaleRepository
+import com.arthur.roottools.feature.network.tailscale.data.RootTailscaleRuntimeInstaller
+import com.arthur.roottools.feature.assistant.data.AssistantRepository
+import com.arthur.roottools.app.assistant.AssistantController
 import com.arthur.roottools.policy.ActionFavoritesStore
 import com.arthur.roottools.policy.AdbController
 import com.arthur.roottools.policy.AppOpsPolicyController
@@ -86,6 +92,28 @@ internal class AppContainer(private val application: Application) {
     val lagForensicsMonitor by lazy { LagForensicsMonitor(shell, lagForensicsStore) }
     val moduleCenterRepository by lazy { ModuleCenterRepository(shell, auditStore, UI_AUDIT_SOURCE) }
     val networkRepository by lazy { NetworkRepository(shell) }
+    val rootTailscaleRepository by lazy { RootTailscaleRepository(shell) }
+    val rootTailscaleRuntimeInstaller by lazy { RootTailscaleRuntimeInstaller(application) }
+    val rootTailscaleController by lazy {
+        RootTailscaleController(
+            shell = shell,
+            privilegeRouter = privilegeRouter,
+            repository = rootTailscaleRepository,
+            installer = rootTailscaleRuntimeInstaller,
+            auditSink = RootTailscaleAuditSink { record ->
+                auditStore.record(
+                    source = UI_AUDIT_SOURCE,
+                    feature = "root_tailscale",
+                    action = record.action,
+                    target = record.target,
+                    before = record.before,
+                    after = record.after,
+                    success = record.success,
+                    rollbackHint = record.rollbackHint,
+                )
+            },
+        )
+    }
     val adGovernanceRepository by lazy { AdGovernanceRepository(shell) }
     val storageRepository by lazy { StorageRepository(shell) }
     val batteryPolicyController by lazy { BatteryPolicyController(shell, auditStore, UI_AUDIT_SOURCE) }
@@ -119,6 +147,16 @@ internal class AppContainer(private val application: Application) {
 
     val agentSessionStore by lazy { AgentSessionStore(application) }
     val agentSessionManager by lazy { AgentSessionManager(application, agentSessionStore) }
+
+    val assistantRepository by lazy { AssistantRepository(application, privilegeRouter) }
+    val assistantController by lazy {
+        AssistantController(
+            repository = assistantRepository,
+            privilegeRouter = privilegeRouter,
+            auditStore = auditStore,
+            auditSource = UI_AUDIT_SOURCE,
+        )
+    }
 
     val tokenStore by lazy { ActionTokenStore(application) }
     val reportStore by lazy { DiagnosticReportStore(application) }

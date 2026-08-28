@@ -26,6 +26,7 @@ enum class RootToolsDestination(
     SHADOW_DISPLAY("device/shadow-display", RootToolsTab.DEVICE, ToolId.SHADOW_DISPLAY),
     AGENT_SESSION("device/agent-session", RootToolsTab.DEVICE, ToolId.AGENT_SESSION),
     ADB("device/adb", RootToolsTab.DEVICE, ToolId.ROOT_ADB),
+    ROOT_TAILSCALE("device/root-tailscale", RootToolsTab.DEVICE, ToolId.ROOT_TAILSCALE),
     PERMISSIONS("apps/permissions", RootToolsTab.APPS, ToolId.PERMISSIONS),
     STARTUP("apps/startup", RootToolsTab.APPS, ToolId.STARTUP),
     APP_CONTROL("apps/control", RootToolsTab.APPS, ToolId.APPS),
@@ -41,6 +42,7 @@ enum class RootToolsDestination(
     COMPONENTS("apps/components", RootToolsTab.APPS, ToolId.COMPONENTS),
     PERMISSION_OPS("apps/appops", RootToolsTab.APPS, ToolId.PERMISSION_OPS),
     DEVELOPER_RUNTIME("system/developer-runtime", RootToolsTab.SYSTEM, ToolId.DEVELOPER_RUNTIME),
+    ASSISTANT("system/assistant", RootToolsTab.SYSTEM, ToolId.ASSISTANT),
 }
 object RootToolsNavigationPolicy {
     private val byToolId = RootToolsDestination.entries
@@ -62,9 +64,11 @@ object RootToolsNavigationPolicy {
 
     fun externalScreen(screen: String?): RootToolsDestination? = when (screen?.trim()?.lowercase()) {
         "adb" -> RootToolsDestination.ADB
+        "tailscale", "root-tailscale" -> RootToolsDestination.ROOT_TAILSCALE
         "integrity" -> RootToolsDestination.INTEGRITY
         "shadow", "shadow-display" -> RootToolsDestination.SHADOW_DISPLAY
         "agent", "agent-session" -> RootToolsDestination.AGENT_SESSION
+        "assistant", "default-assistant" -> RootToolsDestination.ASSISTANT
         else -> null
     }
 }

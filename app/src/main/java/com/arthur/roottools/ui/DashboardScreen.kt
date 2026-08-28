@@ -155,9 +155,11 @@ import com.arthur.roottools.feature.dashboard.presentation.rangeText
 import com.arthur.roottools.feature.dashboard.presentation.thermalStageLabel
 import com.arthur.roottools.feature.developer.DeveloperRuntimeRoute
 import com.arthur.roottools.feature.integrity.ui.EnvironmentIntegrityRoute
+import com.arthur.roottools.feature.network.tailscale.RootTailscaleRoute
 import com.arthur.roottools.app.shadow.ShadowDisplayRoute
 import com.arthur.roottools.app.adgovernance.AdGovernanceRoute
 import com.arthur.roottools.app.agent.AgentSessionRoute
+import com.arthur.roottools.app.assistant.AssistantSettingsRoute
 import java.io.File
 import kotlin.math.roundToInt
 
@@ -229,6 +231,9 @@ fun DashboardRoute(
             onNativeWirelessToggle = viewModel::setNativeWireless,
             onRootBootRestore = { viewModel.setAdbBootPolicy(restoreRootTcp = it) },
             onNativeBootRestore = { viewModel.setAdbBootPolicy(restoreNativeWireless = it) },
+        )
+        ToolboxRoute.ROOT_TAILSCALE -> RootTailscaleRoute(
+            onBack = { route = ToolboxRoute.HOME },
         )
         ToolboxRoute.PERMISSIONS -> PermissionScreen(
             state = state,
@@ -320,6 +325,9 @@ fun DashboardRoute(
             onSetMode = viewModel::setAppOpMode,
         )
         ToolboxRoute.INTEGRITY -> EnvironmentIntegrityRoute(
+            onBack = { route = ToolboxRoute.HOME },
+        )
+        ToolboxRoute.ASSISTANT -> AssistantSettingsRoute(
             onBack = { route = ToolboxRoute.HOME },
         )
         ToolboxRoute.DEVELOPER_RUNTIME -> DeveloperRuntimeRoute(
@@ -430,6 +438,10 @@ private fun buildToolboxCard(
             state.adb.nativeWirelessEnabled -> "WIFI"
             else -> "OFF"
         }
+        ToolId.ROOT_TAILSCALE -> (
+            state.network.tailscaleIpv4?.let { "$it · Root overlay" }
+                ?: "Root overlay · Hiddify coexistence"
+        ) to if (state.network.tailscaleIpv4 != null) "TAILNET" else "ROOT"
         ToolId.PERMISSIONS -> when {
             snapshot.rootAvailable && state.notificationsGranted -> "所需权限已就绪" to "ROOT"
             snapshot.rootAvailable -> "Root 已授权" to "CHECK"
@@ -487,6 +499,7 @@ private fun buildToolboxCard(
                 if (info.appOpsBackendAvailable) "EDIT" else "READ"
         } ?: ("Runtime Permission · AppOps · Special Access" to "PERM")
         ToolId.INTEGRITY -> "Fast · Deep · Native · Attestation" to "SCAN"
+        ToolId.ASSISTANT -> "Default assistant · power button" to "ASSIST"
         ToolId.DEVELOPER_RUNTIME -> "Termux · CLI · Managed Tasks" to "DEV"
         ToolId.AD_GOVERNANCE -> adGovernanceSubtitle to adGovernanceBadge
     }

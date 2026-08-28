@@ -33,6 +33,7 @@ import com.arthur.roottools.app.rootToolsContainer
 import com.arthur.roottools.core.agent.AgentSessionState
 import com.arthur.roottools.app.adgovernance.AdGovernanceRoute
 import com.arthur.roottools.app.agent.AgentSessionRoute
+import com.arthur.roottools.app.assistant.AssistantSettingsRoute
 import com.arthur.roottools.app.home.DomainLandingScreen
 import com.arthur.roottools.app.home.ProductHomeScreen
 import com.arthur.roottools.app.shadow.ShadowDisplayRoute
@@ -42,6 +43,7 @@ import com.arthur.roottools.feature.home.presentation.HomeHealthInput
 import com.arthur.roottools.feature.home.presentation.HomeHealthPolicy
 import com.arthur.roottools.feature.integrity.ui.EnvironmentIntegrityRoute
 import com.arthur.roottools.feature.performance.ui.PerformanceScreen
+import com.arthur.roottools.feature.network.tailscale.RootTailscaleRoute
 import com.arthur.roottools.ui.AdbScreen
 import com.arthur.roottools.ui.AppControlCenterScreen
 import com.arthur.roottools.ui.BatteryThermalScreen
@@ -257,6 +259,9 @@ private fun RootToolsNavHost(
                     onNativeBootRestore = { viewModel.setAdbBootPolicy(restoreNativeWireless = it) },
                 )
             }
+            composable(RootToolsDestination.ROOT_TAILSCALE.route) {
+                RootTailscaleRoute(onBack = back)
+            }
             composable(RootToolsDestination.NETWORK.route) {
                 NetworkDiagnosticsScreen(
                     state = state,
@@ -344,6 +349,9 @@ private fun RootToolsNavHost(
             }
             composable(RootToolsDestination.DEVELOPER_RUNTIME.route) {
                 DeveloperRuntimeRoute(onBack = back)
+            }
+            composable(RootToolsDestination.ASSISTANT.route) {
+                AssistantSettingsRoute(onBack = back)
             }
         }
     }

@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
@@ -22,6 +23,8 @@ import com.arthur.roottools.model.ThermalStage
 import com.arthur.roottools.policy.CpuPolicyController
 import com.arthur.roottools.policy.CpuPolicyEventStore
 import com.arthur.roottools.policy.CpuPolicyPollingPolicy
+import com.arthur.roottools.policy.AdaptiveThermalPolicy
+import com.arthur.roottools.policy.BuildCompatibilityPolicy
 import com.arthur.roottools.policy.PolicyStore
 import com.arthur.roottools.policy.ThermalStageHysteresis
 import kotlinx.coroutines.CoroutineScope
@@ -55,6 +58,7 @@ class CpuPolicyService : Service() {
         lagForensicsMonitor = container.lagForensicsMonitor
         powerManager = getSystemService(PowerManager::class.java)
         createNotificationChannel()
+        reconcileSystemBuild()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -109,7 +113,11 @@ class CpuPolicyService : Service() {
 
                 val snapshot = repository.readSnapshot()
                 controller.migrateLegacyCapsIfNeeded(snapshot)
-                val stage = thermalHysteresis.update(snapshot.thermalStage())
+                val adaptiveDecision = AdaptiveThermalPolicy.decide(
+                    snapshot = snapshot,
+                    interactive = powerManager.isInteractive,
+                )
+                val stage = thermalHysteresis.update(adaptiveDecision.stage)
                 val effectiveStage = when (mode) {
                     PerformanceMode.AUTO -> stage
                     PerformanceMode.COOL -> maxOf(stage, ThermalStage.WARM)
@@ -139,10 +147,38 @@ class CpuPolicyService : Service() {
                         .notify(NOTIFICATION_ID, buildNotification(subtitle))
                     lastNotificationText = subtitle
                 }
-                // Cadence follows the physical thermal stage, not the mode-adjusted effective stage.
-                // Cool intentionally treats Normal as Warm for cap selection, but that must not turn
-                // an otherwise stable device back into a 30s polling loop.
-                delay(CpuPolicyPollingPolicy.intervalMs(mode, stage, powerManager.isInteractive))
+                // Cadence follows physical thermal pressure, not the adaptive background Warm floor.
+                // A cool screen-off AI worker can therefore remain peak-limited while sampling only
+                // every two minutes, so the monitor itself does not become a source of heat.
+                delay(
+                    CpuPolicyPollingPolicy.intervalMs(
+                        mode = mode,
+                        stage = snapshot.thermalStage(),
+                        interactive = powerManager.isInteractive,
+                    ),
+                )
+            }
+        }
+    }
+
+    private fun reconcileSystemBuild() {
+        val current = Build.FINGERPRINT.orEmpty()
+        when (BuildCompatibilityPolicy.evaluate(store.buildFingerprint, current)) {
+            BuildCompatibilityPolicy.Result.INITIALIZE -> store.buildFingerprint = current
+            BuildCompatibilityPolicy.Result.COMPATIBLE -> Unit
+            BuildCompatibilityPolicy.Result.SYSTEM_BUILD_CHANGED -> {
+                store.clearAllOwnedMax()
+                store.clearBaselines()
+                thermalHysteresis.reset()
+                if (store.mode == PerformanceMode.PERFORMANCE) {
+                    store.mode = PerformanceMode.AUTO
+                    store.performanceUntilMs = 0L
+                }
+                store.buildFingerprint = current
+                eventStore.append(
+                    CpuPolicyEventType.COMPATIBILITY,
+                    getString(R.string.cpu_policy_system_build_changed),
+                )
             }
         }
     }

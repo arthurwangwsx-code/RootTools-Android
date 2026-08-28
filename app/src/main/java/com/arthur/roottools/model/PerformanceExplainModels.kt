@@ -20,6 +20,7 @@ enum class CpuPolicyEventType {
     CAP_WRITE,
     CAP_RELEASE,
     OWNERSHIP,
+    COMPATIBILITY,
 }
 
 data class CpuPolicyEvent(

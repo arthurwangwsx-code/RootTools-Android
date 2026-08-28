@@ -99,6 +99,32 @@ class AutomationAuthorizationPolicyTest {
     }
 
     @Test
+    fun `agent session commands require dedicated scope`() {
+        val agentCommands = listOf(
+            AutomationCommand.AGENT_STATUS,
+            AutomationCommand.AGENT_PAUSE,
+            AutomationCommand.AGENT_RESUME,
+            AutomationCommand.AGENT_STOP,
+            AutomationCommand.AGENT_OVERLAY,
+        )
+        agentCommands.forEach { command ->
+            assertTrue(
+                AutomationAuthorizationPolicy.isAllowed(
+                    scopes = setOf(AutomationScope.AGENT_SESSION),
+                    command = command,
+                )
+            )
+            assertFalse(
+                AutomationAuthorizationPolicy.isAllowed(
+                    scopes = setOf(AutomationScope.READ_STATUS),
+                    command = command,
+                )
+            )
+        }
+        assertTrue(AutomationCommand.parse("agent_stop") == AutomationCommand.AGENT_STOP)
+    }
+
+    @Test
     fun `termux defaults contain no destructive root scope`() {
         val defaults = AutomationAuthorizationPolicy.termuxDefaultScopes
         assertTrue(AutomationScope.READ_STATUS in defaults)
@@ -109,6 +135,8 @@ class AutomationAuthorizationPolicyTest {
         assertTrue(AutomationScope.RUN_WORKFLOW in defaults)
         assertTrue(AutomationScope.SHADOW_DISPLAY in defaults)
         assertTrue(AutomationScope.SHADOW_DISPLAY in AutomationAuthorizationPolicy.termuxMcpScopes)
+        assertTrue(AutomationScope.AGENT_SESSION in defaults)
+        assertTrue(AutomationScope.AGENT_SESSION in AutomationAuthorizationPolicy.termuxMcpScopes)
     }
 }
 

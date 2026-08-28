@@ -75,7 +75,7 @@ class DeviceHealthCollector(private val shell: RootShell) {
         appendLine("echo '__IO_PSI__'")
         appendLine("cat /proc/pressure/io 2>/dev/null || true")
         appendLine("echo '__THERMAL__'")
-        appendLine("dumpsys thermalservice 2>/dev/null | grep -E 'Thermal Status:|mName=(AP|BAT|SKIN|USB|PATHM)' | head -n 18")
+        appendLine("dumpsys thermalservice 2>/dev/null | grep -E 'Thermal Status:|Current temperatures from HAL:|Current cooling devices from HAL:|Temperature\\{' | head -n 160")
         appendLine("echo '__BATTERY__'")
         appendLine("dumpsys battery 2>/dev/null | grep -E '^  (AC powered|USB powered|Wireless powered|level|voltage|temperature|current now):'")
         appendLine("echo '__PROTECTION__'")
@@ -231,24 +231,15 @@ class DeviceHealthCollector(private val shell: RootShell) {
     }
 
     private fun parseThermal(lines: List<String>): ThermalHealth {
-        var status = 0
-        var ap: Float? = null
-        var skin: Float? = null
-        var bat: Float? = null
-        var usb: Float? = null
-        var pathm: Float? = null
-        lines.forEach { line ->
-            if (line.contains("Thermal Status:")) status = line.substringAfter("Thermal Status:").trim().toIntOrNull() ?: status
-            val value = Regex("mValue=([-0-9.]+)").find(line)?.groupValues?.getOrNull(1)?.toFloatOrNull()
-            when {
-                line.contains("mName=AP") -> ap = value
-                line.contains("mName=SKIN") -> skin = value
-                line.contains("mName=BAT") -> bat = value
-                line.contains("mName=USB") -> usb = value
-                line.contains("mName=PATHM") -> pathm = value
-            }
-        }
-        return ThermalHealth(status, ap, skin, bat, usb, pathm)
+        val thermal = ThermalProbeParser.parse(lines)
+        return ThermalHealth(
+            status = thermal.status,
+            apC = thermal.apC,
+            skinC = thermal.skinC,
+            batteryC = thermal.batteryC,
+            usbC = thermal.usbC,
+            pathmC = thermal.pathmC,
+        )
     }
 
     private fun parseBattery(lines: List<String>, protection: List<String>): BatteryHealth {

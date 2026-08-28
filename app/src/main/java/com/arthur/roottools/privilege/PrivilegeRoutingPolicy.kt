@@ -16,6 +16,7 @@ object PrivilegeRoutingPolicy {
         PrivilegeCapability.PACKAGE_CONTROL,
         PrivilegeCapability.COMPONENT_CONTROL,
         PrivilegeCapability.ACTIVITY_CONTROL,
+        PrivilegeCapability.ROLE_CONTROL,
         PrivilegeCapability.APP_OPS,
         PrivilegeCapability.FRAMEWORK_DIAGNOSTICS,
     )

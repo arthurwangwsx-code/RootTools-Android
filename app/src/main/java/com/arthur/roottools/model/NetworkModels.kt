@@ -25,7 +25,12 @@ data class NetworkSnapshot(
     val adbPort: Int? = null,
     val adbListening: Boolean = false,
 ) {
-    val tailscaleActive: Boolean get() = tailscaleIpv4 != null && "VPN" in transports
+    /**
+     * Tailscale can be either an Android VpnService transport or a root-managed Linux TUN.
+     * A verified tailnet address is therefore the source of truth; Android's VPN transport bit
+     * must not be required for Root Tailscale.
+     */
+    val tailscaleActive: Boolean get() = tailscaleIpv4 != null
     val primarySummary: String
         get() = buildList {
             if ("WIFI" in transports) add("Wi-Fi")

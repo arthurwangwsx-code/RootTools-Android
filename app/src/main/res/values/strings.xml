@@ -35,6 +35,10 @@
     <string name="common_percent_int" translatable="false">%1$d%%</string>
     <string name="common_percent_float" translatable="false">%1$.0f%%</string>
     <string name="common_endpoint" translatable="false">%1$s:%2$d</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_dismiss">Dismiss</string>
+    <string name="common_success">Success</string>
+    <string name="common_failed">Failed</string>
     <string name="adb_tile_label_root" translatable="false">Root ADB</string>
     <string name="adb_tile_label_port" translatable="false">ADB · %1$d</string>
     <string name="wireless_adb_tile_label" translatable="false">Wireless ADB</string>
@@ -48,7 +52,8 @@
     <string name="thermal_stage_severe">Severe</string>
     <string name="cpu_cap_source_full">Full</string>
     <string name="cpu_cap_source_root_tools" translatable="false">Root Tools</string>
-    <string name="cpu_cap_source_samsung_thermal" translatable="false">Samsung Thermal</string>
+    <string name="cpu_cap_source_samsung_thermal">System thermal</string>
+    <string name="cpu_policy_system_build_changed">System build changed. Cleared old Root Tools CPU ownership and will re-probe the current platform before applying adaptive limits.</string>
     <string name="cpu_cap_source_other_system">Other system</string>
     <string name="wireless_adb_tile_tls_port" translatable="false">TLS %1$d</string>
     <string name="adb_widget_wireless_on" translatable="false">Wireless Debugging ON</string>
@@ -204,24 +209,36 @@
     <string name="dashboard_percent_one_decimal" translatable="false">%1$.1f%%</string>
 
     <!-- Performance feature -->
-    <string name="performance_detail_subtitle">Temperature-driven policy · keeps Samsung Thermal enabled</string>
+    <string name="performance_detail_subtitle">Adaptive comfort policy · keeps OEM thermal protection enabled</string>
     <string name="performance_section_cpu_title">Real-time CPU limits</string>
     <string name="performance_section_cpu_subtitle">Shows scaling max against hardware max and attributes the current cap source</string>
     <string name="performance_release_owned_caps">Release CPU caps owned by Root Tools</string>
     <string name="performance_history_title">Policy history</string>
     <string name="performance_history_subtitle">Mode changes, cap writes/releases, and ownership decisions</string>
     <string name="performance_safety_title">Safety boundary</string>
-    <string name="performance_safety_body">Root Tools keeps the stock WALT governor, cpuset/uclamp, and Samsung Thermal. If Thermal is already limiting frequency, Root Tools only allows additional peak reduction and never raises the system cap.</string>
+    <string name="performance_safety_body">Root Tools keeps the stock governor, cpuset/uclamp, and OEM thermal protection. If the system is already limiting frequency, Root Tools only allows additional peak reduction and never raises the system cap.</string>
     <string name="performance_hero_mode_stage">%1$s · %2$s</string>
     <string name="performance_thermal_status" translatable="false">Thermal status %1$d</string>
     <string name="common_root" translatable="false">ROOT</string>
     <string name="common_no_root" translatable="false">NO ROOT</string>
-    <string name="performance_system_thermal_kept" translatable="false">Samsung Thermal kept</string>
+    <string name="performance_system_thermal_kept">OEM thermal kept</string>
     <string name="performance_mode_title">Performance mode</string>
     <string name="performance_mode_subtitle">Choose a policy; system thermal protection always has priority.</string>
-    <string name="performance_mode_auto_description">Automatically changes internal thermal stages. Current: %1$s.</string>
+    <string name="performance_mode_auto_description">Adaptive mode follows system thermal, skin/battery temperature, charging heat, and interaction state. Current: %1$s.</string>
     <string name="performance_mode_cool_description">Responsive cool mode: keeps efficiency-core burst response, trims the high-frequency tail of performance/prime cores, and leaves charging and vendor Thermal unchanged.</string>
     <string name="performance_mode_performance_description">Temporary performance mode: defaults to 15 minutes and immediately yields to system thermal limiting.</string>
+    <string name="performance_adaptive_title">AI handset thermal governor</string>
+    <string name="performance_adaptive_subtitle">Fast when touched, efficient when unattended, and upgrade-safe.</string>
+    <string name="performance_adaptive_current">Current adaptive stage · %1$s</string>
+    <string name="performance_adaptive_reason_normal">Cool enough for full burst response</string>
+    <string name="performance_adaptive_reason_background">Background work trims the inefficient peak tail</string>
+    <string name="performance_adaptive_reason_charging">Charging heat triggered an early warm guard</string>
+    <string name="performance_adaptive_reason_battery">Battery temperature raised the thermal guard</string>
+    <string name="performance_adaptive_reason_skin">Surface temperature raised the comfort guard</string>
+    <string name="performance_adaptive_reason_system">OEM thermal status has priority</string>
+    <string name="performance_adaptive_rule_interactive">Interactive: preserve burst performance below the comfort threshold.</string>
+    <string name="performance_adaptive_rule_background">Unattended: keep capability but use a Warm floor to reduce peak-core heat.</string>
+    <string name="performance_adaptive_rule_upgrade">System upgrade: discard old cap ownership and re-probe the new CPU/thermal topology automatically.</string>
     <string name="performance_cluster_efficiency">Efficiency cluster</string>
     <string name="performance_cluster_prime">Prime cluster</string>
     <string name="performance_cluster_performance">Performance cluster</string>
@@ -841,4 +858,43 @@
     <string name="agent_session_running_app_step">Running %1$s in the background.</string>
     <string name="agent_session_interacting_step">Interacting with the background app.</string>
     <string name="agent_session_preview_step">Reading the background page.</string>
+
+    <!-- Default assistant / power-key assistant -->
+    <string name="tool_assistant_title">Default assistant</string>
+    <string name="hub_tool_assistant_desc">ChatGPT · voice assistants · power-key binding</string>
+    <string name="assistant_settings_title">Default assistant</string>
+    <string name="assistant_settings_subtitle">Choose which qualified voice assistant Android launches from the system assistant entry point.</string>
+    <string name="assistant_current_title">Current assistant</string>
+    <string name="assistant_current_subtitle">The Android ASSISTANT role holder used by system assistant gestures.</string>
+    <string name="assistant_none">No default assistant</string>
+    <string name="assistant_status_active">Active</string>
+    <string name="assistant_status_none">Not set</string>
+    <string name="assistant_backend_label">Read backend</string>
+    <string name="assistant_service_label">Voice service</string>
+    <string name="assistant_power_key_title">Power button</string>
+    <string name="assistant_power_key_subtitle">Read the OEM long-press binding without rewriting the physical-key policy.</string>
+    <string name="assistant_power_key_binding_label">Long press action</string>
+    <string name="assistant_power_key_bound">Assistant</string>
+    <string name="assistant_power_key_other">Other action</string>
+    <string name="assistant_power_key_unknown">Unknown</string>
+    <string name="assistant_power_key_oem_value">OEM binding</string>
+    <string name="assistant_power_key_aosp_value">AOSP long press</string>
+    <string name="assistant_power_key_very_long_value">AOSP very long press</string>
+    <string name="assistant_power_key_read_only_note">RootTools only changes the default assistant here. It leaves the OEM power-button behavior untouched so the shutdown/restart path is not accidentally changed.</string>
+    <string name="assistant_candidates_title">Available voice assistants</string>
+    <string name="assistant_candidates_subtitle">Only installed services protected by BIND_VOICE_INTERACTION are accepted as switch targets.</string>
+    <string name="assistant_candidates_empty">No qualified VoiceInteractionService was found on this device.</string>
+    <string name="assistant_switch_confirm_title">Switch default assistant?</string>
+    <string name="assistant_switch_confirm_detail">Android will change the ASSISTANT role from the current app to %1$s (%2$s). You can switch back later.</string>
+    <string name="assistant_switch_confirm_action">Switch</string>
+    <string name="assistant_current_action">Currently selected</string>
+    <string name="assistant_switch_action">Use as default assistant</string>
+    <string name="assistant_load_failed">Unable to load assistant state: %1$s</string>
+    <string name="assistant_role_read_warning">Assistant role read warning: %1$s</string>
+    <string name="assistant_feedback_switched">Default assistant is now %1$s · %2$s</string>
+    <string name="assistant_feedback_already_selected">This app is already the default assistant.</string>
+    <string name="assistant_feedback_invalid_package">The selected package name is invalid.</string>
+    <string name="assistant_feedback_not_eligible">The selected app is not a qualified voice-assistant candidate.</string>
+    <string name="assistant_feedback_write_failed">The system rejected the assistant-role change: %1$s</string>
+    <string name="assistant_feedback_verify_failed">The write returned, but role verification did not match. Current holder: %1$s</string>
 </resources>
