@@ -4,18 +4,12 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Existing v* tag to publish
-        required: true
-        type: string
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-android-${{ github.ref }}-${{ inputs.tag || '' }}
+  group: release-android-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -23,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-      ROOTTOOLS_KEYSTORE_PATH: ${{ runner.temp }}/roottools-android-release.jks
+      RELEASE_TAG: ${{ github.ref_name }}
+      ROOTTOOLS_KEYSTORE_PATH: /tmp/roottools-android-release.jks
       ROOTTOOLS_KEYSTORE_PASSWORD: ${{ secrets.ROOTTOOLS_KEYSTORE_PASSWORD }}
       ROOTTOOLS_KEY_ALIAS: ${{ secrets.ROOTTOOLS_KEY_ALIAS }}
 
@@ -38,7 +32,6 @@ jobs:
       - name: Checkout release tag
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
 
       - name: Set up JDK 17
