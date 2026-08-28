@@ -69,4 +69,17 @@ class PersistentRootSessionTest {
         assertEquals("recovered", recovered.output.trim())
         assertEquals(1, session.processLaunchCount)
     }
+
+    @Test
+    fun reportsShellLaunchFailureWithoutClaimingSuccess() = runBlocking {
+        val session = PersistentRootSession(listOf("/definitely/not/a/roottools-shell"))
+
+        val result = session.execute("printf unreachable", timeoutSeconds = 2)
+
+        assertFalse(result.success)
+        assertFalse(result.timedOut)
+        assertEquals(-1, result.exitCode)
+        assertTrue(result.output.isNotBlank())
+        assertEquals(0, session.processLaunchCount)
+    }
 }
