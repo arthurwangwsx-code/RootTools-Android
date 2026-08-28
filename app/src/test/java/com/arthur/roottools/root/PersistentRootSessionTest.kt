@@ -82,4 +82,17 @@ class PersistentRootSessionTest {
         assertTrue(result.output.isNotBlank())
         assertEquals(0, session.processLaunchCount)
     }
+
+    @Test
+    fun reportsShellClosingBeforeCommandCompletes() = runBlocking {
+        val session = PersistentRootSession(listOf("sh", "-c", "sleep 0.1"))
+
+        val result = session.execute("sleep 1; printf unreachable", timeoutSeconds = 2)
+
+        assertFalse(result.success)
+        assertFalse(result.timedOut)
+        assertEquals(-1, result.exitCode)
+        assertTrue(result.output.isNotBlank())
+        assertEquals(1, session.processLaunchCount)
+    }
 }
