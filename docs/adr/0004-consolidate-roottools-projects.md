@@ -68,7 +68,6 @@ RootTools/
 │   ├── nfc-tools/                    # 保留 com.arthur.nfclab / HCE / 自动化数据
 │   └── background-server/            # 保留 com.aibox.backgroundserver / Boot / VPN 数据
 ├── ios/NFCProbe/                     # 独立 Apple 探针，不进入 Android APK
-└── consolidation/sources/            # 迁移期只读来源，完成后删除
 ```
 
 执行规则：

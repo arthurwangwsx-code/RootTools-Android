@@ -58,6 +58,23 @@ FEATURE_IMPORT = re.compile(r"^import\s+com\.arthur\.roottools\.feature\.([A-Za-
 LEGACY_UI_IMPORT = re.compile(r"^import\s+com\.arthur\.roottools\.ui\.", re.MULTILINE)
 LEGACY_DATA_POLICY_IMPORT = re.compile(r"^import\s+com\.arthur\.roottools\.(data|policy)\.", re.MULTILINE)
 CORE_REVERSE_IMPORT = re.compile(r"^import\s+com\.arthur\.roottools\.(feature|ui)\.", re.MULTILINE)
+DIRECT_COMPANION_DEPENDENCY = re.compile(
+    r"\b(?:implementation|androidTestImplementation|debugImplementation|testImplementation|"
+    r"compileOnly|coreLibraryDesugaring)\(\s*\""
+)
+
+REQUIRED_GRADLE_MODULES = (
+    ":app",
+    ":feature:network-inspection",
+    ":companion:nfc-tools",
+    ":companion:background-server",
+    ":companion:hyperos-credential-fix",
+)
+COMPANION_APPLICATION_IDS = {
+    "companion/nfc-tools/build.gradle.kts": "com.arthur.nfclab",
+    "companion/background-server/build.gradle.kts": "com.aibox.backgroundserver",
+    "companion/hyperos-credential-fix/build.gradle.kts": "com.arthur.hyperos.credentialfix",
+}
 
 LEGACY_FEATURE_DEPENDENCY_CEILINGS = {
     "app/src/main/java/com/arthur/roottools/feature/integrity/data/IntegrityRepository.kt": 2,
@@ -197,6 +214,39 @@ def main() -> int:
                 errors.append(
                     f"core has reverse dependency on feature/ui: {relative(path)}"
                 )
+
+    settings_source = (ROOT / "settings.gradle.kts").read_text(encoding="utf-8")
+    for module in REQUIRED_GRADLE_MODULES:
+        if f'include("{module}")' not in settings_source:
+            errors.append(f"canonical Gradle module missing from settings: {module}")
+
+    source_snapshot_root = ROOT / "consolidation" / "sources"
+    if source_snapshot_root.exists():
+        snapshots = sorted(relative(path) for path in source_snapshot_root.rglob("*") if path.is_file())
+        if snapshots:
+            errors.append(
+                "retired consolidation source snapshot returned: " + ", ".join(snapshots[:10])
+            )
+
+    companion_root = ROOT / "companion"
+    forbidden_nested_build_files = {"gradlew", "gradlew.bat", "settings.gradle", "settings.gradle.kts"}
+    for path in companion_root.rglob("*"):
+        if path.is_file() and path.name in forbidden_nested_build_files:
+            errors.append(
+                f"companion reintroduced a nested Gradle root: {relative(path)}"
+            )
+
+    for rel_path, application_id in COMPANION_APPLICATION_IDS.items():
+        build_file = ROOT / rel_path
+        source = build_file.read_text(encoding="utf-8")
+        if f'applicationId = "{application_id}"' not in source:
+            errors.append(
+                f"companion application identity drifted: {rel_path} must remain {application_id}"
+            )
+        if DIRECT_COMPANION_DEPENDENCY.search(source):
+            errors.append(
+                f"companion dependency bypasses gradle/libs.versions.toml: {rel_path}"
+            )
 
     default_strings_path = ROOT / "app" / "src" / "main" / "res" / "values" / "strings.xml"
     zh_strings_path = ROOT / "app" / "src" / "main" / "res" / "values-zh-rCN" / "strings.xml"

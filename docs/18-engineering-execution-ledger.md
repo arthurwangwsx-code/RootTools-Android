@@ -95,7 +95,8 @@ Feature module 不按卡片数量创建。
 - [x] Background Server 保持 `com.aibox.backgroundserver` 收为 companion，保留 WireGuard key / Boot / VPN 数据
 - [x] 建立 HyperOS Credential Fix companion module
 - [x] 删除迁移期 source snapshot；来源提交仍由合并历史可达
-- [ ] 统一验收后将同级旧工程目录移入可恢复归档，根目录只保留 canonical repository
-- [ ] 完成统一构建、静态检查和分域真机验证
+- [x] 同级旧工程目录已移入 macOS 废纸篓的可恢复归档，根目录只保留 canonical repository
+- [x] 完成主 APK、三个 companion 的统一单测、lint、debug/release assemble 与覆盖率门禁
+- [ ] 使用与现有设备安装包匹配的签名完成 RootTools 最新 APK 分域真机验证
 
 收口契约与完成条件见 `adr/0004-consolidate-roottools-projects.md`。
