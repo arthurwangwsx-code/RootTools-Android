@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SERIAL="${1:-f27e2c0f}"
-APK="${2:-app/build/outputs/apk/debug/app-debug.apk}"
+APK="${2:-companion/background-server/build/outputs/apk/debug/background-server-debug.apk}"
 REMOTE_APK="/data/local/tmp/BackgroundServer-debug.apk"
 
 if [[ ! -f "$APK" ]]; then

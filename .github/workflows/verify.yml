@@ -59,6 +59,9 @@ jobs:
           :feature:network-inspection:test
           :companion:hyperos-credential-fix:lintDebug
           :companion:hyperos-credential-fix:assembleDebug
+          :companion:background-server:testDebugUnitTest
+          :companion:background-server:lintDebug
+          :companion:background-server:assembleDebug
           :companion:nfc-tools:testDebugUnitTest
           :companion:nfc-tools:lintDebug
           :companion:nfc-tools:assembleDebug

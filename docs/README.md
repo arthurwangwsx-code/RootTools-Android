@@ -40,6 +40,7 @@
 | [adr/0004-consolidate-roottools-projects.md](./adr/0004-consolidate-roottools-projects.md) | RootTools 相关工程、功能与 Git 历史的归一化收口决策 |
 | [companion/nfc-tools/architecture.md](./companion/nfc-tools/architecture.md) | NFC Tools companion：Reader/HCE、OEM Provider、Root 只读诊断与数据边界 |
 | [companion/nfc-tools/technical-solution.md](./companion/nfc-tools/technical-solution.md) | NFC / eSE / HCE 技术方案与安全边界 |
+| [companion/background-server/architecture.md](./companion/background-server/architecture.md) | Background Server companion：长运行任务、功耗、Boot 与 WireGuard server 边界 |
 
 ## 工程原则
 

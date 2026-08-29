@@ -4,10 +4,10 @@ Date: 2026-08-14 / 15
 
 ## Automated validation
 
-- `gradle :app:testDebugUnitTest :app:assembleDebug :app:lintDebug`: PASS.
+- 原独立工程 `:app` 的 unit / assemble / lint 已通过；归一化后的等价任务为 `:companion:background-server:testDebugUnitTest :companion:background-server:assembleDebug :companion:background-server:lintDebug`。
 - Android Lint: `No issues found.`
 - Unit tests cover WireGuard backend capability selection and generic engine supervisor start/stop behavior.
-- Debug APK: `app/build/outputs/apk/debug/app-debug.apk`.
+- Debug APK: `companion/background-server/build/outputs/apk/debug/background-server-debug.apk`.
 - Package: `com.aibox.backgroundserver`.
 - minSdk: 26.
 - compileSdk / targetSdk: 37 / 37.
@@ -93,7 +93,7 @@ Normal ADB install previously returned:
 INSTALL_FAILED_USER_RESTRICTED: Install canceled by user
 ```
 
-MIUI Security Center still owns the normal USB-install intercept. Because this development device is rooted, project installs now use a scoped root Package Manager path: push the already-built APK to `/data/local/tmp`, then run `su -c pm install -r -t`. This avoids the MIUI USB-install confirmation without disabling Android APK signature validation. The reusable entry point is `scripts/install-rooted-device.sh`.
+MIUI Security Center still owns the normal USB-install intercept. Because this development device is rooted, project installs now use a scoped root Package Manager path: push the already-built APK to `/data/local/tmp`, then run `su -c pm install -r -t`. This avoids the MIUI USB-install confirmation without disabling Android APK signature validation. The reusable entry point is `scripts/background-server-install-rooted-device.sh`.
 
 The `0.1.0` debug APK was successfully installed this way on 2026-08-15. `com.aibox.backgroundserver/.MainActivity` was then started and confirmed as the resumed foreground activity.
 

@@ -16,6 +16,10 @@ python3 scripts/security_guard.py
   :companion:hyperos-credential-fix:lintDebug \
   :companion:hyperos-credential-fix:assembleDebug \
   :companion:hyperos-credential-fix:assembleRelease \
+  :companion:background-server:testDebugUnitTest \
+  :companion:background-server:lintDebug \
+  :companion:background-server:assembleDebug \
+  :companion:background-server:assembleRelease \
   :companion:nfc-tools:testDebugUnitTest \
   :companion:nfc-tools:lintDebug \
   :companion:nfc-tools:assembleDebug \
@@ -29,5 +33,7 @@ ls -lh \
   app/build/outputs/apk/release/app-release-unsigned.apk \
   companion/hyperos-credential-fix/build/outputs/apk/debug/hyperos-credential-fix-debug.apk \
   companion/hyperos-credential-fix/build/outputs/apk/release/hyperos-credential-fix-release-unsigned.apk \
+  companion/background-server/build/outputs/apk/debug/background-server-debug.apk \
+  companion/background-server/build/outputs/apk/release/background-server-release-unsigned.apk \
   companion/nfc-tools/build/outputs/apk/debug/nfc-tools-debug.apk \
   companion/nfc-tools/build/outputs/apk/release/nfc-tools-release-unsigned.apk

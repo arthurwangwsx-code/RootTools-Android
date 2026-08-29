@@ -20,13 +20,13 @@ Root-capable Android control plane for long-running background workloads.
 The project currently targets the locally installed modern Android toolchain (AGP 9.2 / compileSdk 37 / targetSdk 37), including Android 17 local-network permission handling required by the future LAN server role.
 
 ```bash
-gradle :app:assembleDebug
+./gradlew :companion:background-server:assembleDebug
 ```
 
 Install to the current Redmi test device:
 
 ```bash
-adb -s f27e2c0f install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s f27e2c0f install -r companion/background-server/build/outputs/apk/debug/background-server-debug.apk
 ```
 
 On rooted MIUI devices where normal ADB install is intercepted by Security Center,
@@ -34,9 +34,9 @@ use the root Package Manager path. This avoids MIUI's USB-install confirmation w
 leaving Android APK signature validation intact:
 
 ```bash
-bash scripts/install-rooted-device.sh f27e2c0f
+bash scripts/background-server-install-rooted-device.sh f27e2c0f
 ```
 
 ## Architecture
 
-See `docs/architecture.md`, `docs/power-management.md`, `docs/wireguard-server.md`, `docs/validation.md`, and `docs/roadmap.md`.
+See [`docs/companion/background-server/`](../../docs/companion/background-server/) for architecture, power, WireGuard, validation and roadmap records.

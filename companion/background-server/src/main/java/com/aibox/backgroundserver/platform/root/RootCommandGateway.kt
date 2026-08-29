@@ -10,8 +10,8 @@ data class RootCommandResult(
     val ok: Boolean get() = exitCode == 0
 }
 
-class RootCommandGateway {
-    fun execute(command: String, timeoutSeconds: Long = 5): RootCommandResult {
+class RootCommandGateway internal constructor() {
+    internal fun execute(command: String, timeoutSeconds: Long = 5): RootCommandResult {
         return runCatching {
             val process = ProcessBuilder("su", "-c", command).start()
             if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
@@ -28,5 +28,5 @@ class RootCommandGateway {
         }
     }
 
-    fun probe(): RootCommandResult = execute("id")
+    internal fun probe(): RootCommandResult = execute("id")
 }
