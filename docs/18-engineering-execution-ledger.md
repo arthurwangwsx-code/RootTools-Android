@@ -89,11 +89,11 @@ Feature module 不按卡片数量创建。
 - [x] Background Server 建立原始基线提交 `f3cd30c`
 - [x] HyperOS Credential Fix 建立原始基线提交 `32923ba`
 - [x] 确认 Termux / Shizuku 分支已被 `main` 完整包含且无独有提交
-- [ ] 不 squash 导入 Net / NFC / Background / HyperOS 来源历史
-- [ ] 迁移并归一化 network-inspection 功能
-- [ ] 迁移并归一化 NFC 功能及 iOS probe 路径
+- [x] 不 squash 导入 Net / NFC / Background / HyperOS 来源历史
+- [x] 迁移并归一化 network-inspection 抓包、协议解析、MITM、CA 与审计边界
+- [x] NFC 保持 `com.arthur.nfclab` 收为 companion，并归一化 iOS probe 路径
 - [ ] 迁移并归一化 background-runtime / WireGuard 功能
-- [ ] 建立 HyperOS Credential Fix companion module
+- [x] 建立 HyperOS Credential Fix companion module
 - [ ] 删除迁移期 source snapshot，退役同级 worktree/旧工程目录
 - [ ] 完成统一构建、静态检查和分域真机验证
 

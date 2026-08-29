@@ -40,9 +40,15 @@ android {
 val nativeBridgeAssetsDir = layout.buildDirectory.dir("generated/nativeBridgeAssets")
 val nativeBridgeSource = file("src/main/cpp/nfc_root_bridge.c")
 val androidSdkRoot = System.getenv("ANDROID_HOME")
+    ?: System.getenv("ANDROID_SDK_ROOT")
     ?: "${System.getProperty("user.home")}/Library/Android/sdk"
+val ndkHostTag = when {
+    System.getProperty("os.name").startsWith("Linux", ignoreCase = true) -> "linux-x86_64"
+    System.getProperty("os.name").startsWith("Mac", ignoreCase = true) -> "darwin-x86_64"
+    else -> error("Unsupported NDK host: ${System.getProperty("os.name")}")
+}
 val nativeBridgeClang = file(
-    "$androidSdkRoot/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android26-clang",
+    "$androidSdkRoot/ndk/28.2.13676358/toolchains/llvm/prebuilt/$ndkHostTag/bin/aarch64-linux-android26-clang",
 )
 val nativeBridgeOutput = nativeBridgeAssetsDir.map {
     it.file("rootbridge/arm64-v8a/nfc-root-bridge").asFile
@@ -110,4 +116,3 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
 }
-

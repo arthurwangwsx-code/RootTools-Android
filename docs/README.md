@@ -38,6 +38,8 @@
 | [28-root-tailscale-coexistence.md](./28-root-tailscale-coexistence.md) | Root Tailscale：与 Hiddify 共存的 Root overlay、认证、路由和恢复模型 |
 | [29-github-release.md](./29-github-release.md) | Android GitHub 仓库、固定签名、tag 驱动的 APK Release 流程 |
 | [adr/0004-consolidate-roottools-projects.md](./adr/0004-consolidate-roottools-projects.md) | RootTools 相关工程、功能与 Git 历史的归一化收口决策 |
+| [companion/nfc-tools/architecture.md](./companion/nfc-tools/architecture.md) | NFC Tools companion：Reader/HCE、OEM Provider、Root 只读诊断与数据边界 |
+| [companion/nfc-tools/technical-solution.md](./companion/nfc-tools/technical-solution.md) | NFC / eSE / HCE 技术方案与安全边界 |
 
 ## 工程原则
 

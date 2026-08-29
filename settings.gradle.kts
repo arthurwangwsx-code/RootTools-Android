@@ -18,4 +18,5 @@ dependencyResolutionManagement {
 rootProject.name = "RootTools"
 include(":app")
 include(":companion:hyperos-credential-fix")
+include(":companion:nfc-tools")
 include(":feature:network-inspection")

@@ -26,7 +26,7 @@
 
 - 一个能力只保留一个正式真值源；
 - 原始提交历史和未提交数据必须先有恢复点；
-- 主产品最终只有一个 RootTools Android App；
+- 主工具箱只保留一个 RootTools Android App；必须保留应用身份、私有数据或系统组件生命周期的能力使用同仓 companion APK；
 - Root / Shizuku / Sui 写操作继续进入 typed Controller / `PrivilegeRouter`；
 - NFC、网络检查、后台运行等大功能需要保留独立测试和依赖边界；
 - Xposed 模块必须维持独立 APK/runtime 边界，不能伪装为普通 RootTools 页面；
@@ -46,7 +46,7 @@
 - 缺点：丢失来源历史，巨型 `:app` 继续膨胀，原有独立测试和 native/runtime 边界消失。
 - 风险：高权限实现互相绕过，无法分批验证。
 
-### Option C：一个 canonical 仓库、一个主 App、少量有证据的模块
+### Option C：一个 canonical 仓库、一个主 App、少量有证据的 companion/module
 
 - 优点：历史完整；功能可以逐域迁移；最终发布和权限真值源唯一。
 - 缺点：迁移期会短暂保留只读 source snapshot；Gradle 与 package 边界需要逐批归一化。
@@ -62,11 +62,11 @@
 RootTools/
 ├── app/                              # 唯一主 RootTools App
 ├── feature/
-│   ├── network-inspection/           # 抓包、协议和 TLS 检查
-│   ├── nfc/                          # Reader/HCE/OEM NFC 诊断
-│   └── background-runtime/           # 长运行任务、功耗和 WireGuard server
+│   └── network-inspection/           # 主 App 内的抓包、协议和 TLS 检查
 ├── companion/
-│   └── hyperos-credential-fix/       # 独立 Xposed APK
+│   ├── hyperos-credential-fix/       # 独立 Xposed APK
+│   ├── nfc-tools/                    # 保留 com.arthur.nfclab / HCE / 自动化数据
+│   └── background-server/            # 保留 com.aibox.backgroundserver / Boot / VPN 数据
 ├── ios/NFCProbe/                     # 独立 Apple 探针，不进入 Android APK
 └── consolidation/sources/            # 迁移期只读来源，完成后删除
 ```
@@ -81,11 +81,16 @@ RootTools/
 6. Termux/Shizuku worktree 在确认 `main` 包含全部提交后退役；
 7. 最终源码树不得存在第二份可构建的同功能 App。
 
+补充判定：NFC Tools 和 Background Server 在导入后确认都不能安全改为主 App 页面。前者的
+`applicationId`、HostApduService、Reader Activity lifecycle、ADB 自动化文件和已安装数据需要连续；
+后者的 WireGuard key、RuntimePreferences、Boot receiver 与 VPN/foreground service 也绑定原应用身份。
+它们因此收为同仓 companion，而不是复制进 `:app` 后制造数据迁移和系统组件回归。
+
 ## Consequences
 
 ### Positive
 
-- RootTools 成为唯一工程、历史、构建和发布入口；
+- RootTools 成为唯一工程、历史和构建入口；主 APK 与 companion APK 的发布边界显式可见；
 - 专业功能保留独立测试/依赖边界，但共享权限、安全和 UI 契约；
 - Xposed 与 iOS 探针保留真实平台边界；
 - 原独立仓库历史可以通过 merge parent 和路径追踪继续审计。

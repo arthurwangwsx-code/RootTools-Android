@@ -205,7 +205,7 @@ install() {
   require python3
   require security
   local team device app
-  doctor || die "安装环境尚未满足；处理上面的项目后重新执行 ./scripts/ios-probe.sh install"
+  doctor || die "安装环境尚未满足；处理上面的项目后重新执行 ./scripts/nfc-ios-probe.sh install"
   team="$(detect_team)"
   if ! device="$(detect_device)"; then
     die "没有找到当前可用的物理 iPhone。请解锁 iPhone、确认已信任此 Mac，并保持 USB/Wi-Fi Developer Mode 连接；也可 DEVICE_ID=... 显式指定。"
@@ -238,4 +238,3 @@ EOF
     exit 2
     ;;
 esac
-

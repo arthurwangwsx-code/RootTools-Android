@@ -6,17 +6,17 @@
 2. **HCE Lab**：通过 Android `HostApduService` 模拟本应用自定义的 ISO-DEP 测试卡。
 3. **Root Diagnostics**：通过 `su` 读取 NFC service / HAL / SELinux / routing 状态，确认实际硬件栈能力。
 
-当前产品架构已改为 **Generic Android + Vendor Provider**：Compose UI 只消费统一的 `NfcDeviceProfile / NfcCard / NfcCapability`，Xiaomi/NXP/eSE 细节收敛在 `XiaomiNfcProfileProvider`，Samsung 通过独立 Provider/Diagnostics Contributor 做保守的只读能力映射。后续兼容其他厂商时新增 Provider，不需要重写首页、读卡、测试或系统页面。详见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
+当前产品架构已改为 **Generic Android + Vendor Provider**：Compose UI 只消费统一的 `NfcDeviceProfile / NfcCard / NfcCapability`，Xiaomi/NXP/eSE 细节收敛在 `XiaomiNfcProfileProvider`，Samsung 通过独立 Provider/Diagnostics Contributor 做保守的只读能力映射。后续兼容其他厂商时新增 Provider，不需要重写首页、读卡、测试或系统页面。详见 [`docs/companion/nfc-tools/architecture.md`](../../docs/companion/nfc-tools/architecture.md)。
 
 卡片来源采用多钱包模型：`NfcDeviceProfile.wallets` 可以同时描述 OEM Wallet、Google Wallet 或其他已授权卡片源；每张 `NfcCard` 通过 `sourceId/sourceLabel` 关联来源。自动化 JSON 仍保留单数 `wallet` 作为兼容字段，同时输出正式的 `wallets[]`。
 
 MCP/非交互 shell 环境如果没有继承 Java/Android SDK 环境变量，可以统一使用：
 
 ```bash
-sh scripts/android-build.sh testDebugUnitTest assembleDebug lintDebug
+./gradlew :companion:nfc-tools:testDebugUnitTest :companion:nfc-tools:assembleDebug :companion:nfc-tools:lintDebug
 ```
 
-当前产品化方向已经增加 Xiaomi 专项适配：首页会读取这台 Xiaomi 14 的 Root / eSE / NXP / MIFARE off-host 能力，并以卡片形式展示小米钱包中已经由官方 provision 的 M1 门卡状态。设备基线见 [`docs/XIAOMI14_BASELINE.md`](docs/XIAOMI14_BASELINE.md)。
+当前产品化方向已经增加 Xiaomi 专项适配：首页会读取这台 Xiaomi 14 的 Root / eSE / NXP / MIFARE off-host 能力，并以卡片形式展示小米钱包中已经由官方 provision 的 M1 门卡状态。设备基线见 [`docs/companion/nfc-tools/xiaomi14-baseline.md`](../../docs/companion/nfc-tools/xiaomi14-baseline.md)。
 
 Root Diagnostics 采用 Generic Core + Vendor Contributor：通用层读取 Framework / HAL / SELinux / routing；Xiaomi contributor 只读探测官方钱包的 **off-host MIFARE / eSE 路由**，Samsung contributor 只读探测 Type-4/NXP 扩展。诊断输出会主动隐藏 VC UID / CID 等凭证标识，不读取或导出门禁密钥与受保护扇区。
 
@@ -150,7 +150,7 @@ adb -s <serial> shell am start -W \
 构建、签名、安装和启动：
 
 ```bash
-./scripts/ios-probe.sh install
+./scripts/nfc-ios-probe.sh install
 ```
 
 如果 iPhone 当前未被 Xcode/CoreDevice 识别为可用物理设备，脚本会停止并给出连接提示，不会误装到模拟器。
@@ -180,5 +180,4 @@ app/src/main/cpp/nfc_root_bridge.c
 
 需要特别区分两条模拟路径：Android `HostApduService` 仍然是 ISO-DEP/APDU HCE；某些小米机型的官方“实体门卡”能力则可能由 NFC Controller 把 MIFARE technology **off-host 路由到 eSE**，由 OEM/TSM 已下发的安全元件应用完成。这种官方路径的存在不意味着第三方 Root App 能直接取得其中的密钥或复制 provisioning 权限。
 
-完整调研与架构见 [`docs/TECHNICAL_SOLUTION.md`](docs/TECHNICAL_SOLUTION.md)。
-
+完整调研与架构见 [`docs/companion/nfc-tools/technical-solution.md`](../../docs/companion/nfc-tools/technical-solution.md)。

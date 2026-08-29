@@ -32,6 +32,9 @@ jobs:
         with:
           gradle-version: '9.4.1'
 
+      - name: Install NFC native bridge NDK
+        run: sdkmanager "ndk;28.2.13676358"
+
       - name: Repository quality guard
         run: python3 scripts/quality_guard.py
 
@@ -56,6 +59,9 @@ jobs:
           :feature:network-inspection:test
           :companion:hyperos-credential-fix:lintDebug
           :companion:hyperos-credential-fix:assembleDebug
+          :companion:nfc-tools:testDebugUnitTest
+          :companion:nfc-tools:lintDebug
+          :companion:nfc-tools:assembleDebug
 
       - name: JVM coverage report
         run: gradle :app:koverXmlReportDebug
