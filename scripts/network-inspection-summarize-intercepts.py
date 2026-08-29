@@ -23,14 +23,14 @@ def load_session(directory: Path):
                 continue
             kinds[event.get("kind", "unknown")] += 1
             if event.get("kind") in {"http_req", "http_rep", "tls_err"} and len(samples) < 12:
-                # `preview` is already redacted by Net Tools. Raw payload blobs are never read here.
+                # `preview` is already redacted by RootTools. Raw payload blobs are never read here.
                 samples.append((event.get("kind"), event.get("preview", "").splitlines()[0][:240]))
     return data, kinds, samples
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Summarize Net Tools decrypted sessions without reading raw payload blobs"
+        description="Summarize RootTools decrypted sessions without reading raw payload blobs"
     )
     parser.add_argument("directory", type=Path)
     parser.add_argument("--output", type=Path)
@@ -61,7 +61,7 @@ def main():
 
     report = "\n".join(
         [
-            "# Net Tools decryption summary",
+            "# RootTools Network Inspection decryption summary",
             "",
             "This report reads only `session.json` and already-redacted `events.jsonl`; raw payload blobs are deliberately excluded.",
             "",

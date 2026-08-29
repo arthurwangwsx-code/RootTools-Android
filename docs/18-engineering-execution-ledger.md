@@ -94,7 +94,8 @@ Feature module 不按卡片数量创建。
 - [x] NFC 保持 `com.arthur.nfclab` 收为 companion，并归一化 iOS probe 路径
 - [x] Background Server 保持 `com.aibox.backgroundserver` 收为 companion，保留 WireGuard key / Boot / VPN 数据
 - [x] 建立 HyperOS Credential Fix companion module
-- [ ] 删除迁移期 source snapshot，退役同级 worktree/旧工程目录
+- [x] 删除迁移期 source snapshot；来源提交仍由合并历史可达
+- [ ] 统一验收后将同级旧工程目录移入可恢复归档，根目录只保留 canonical repository
 - [ ] 完成统一构建、静态检查和分域真机验证
 
 收口契约与完成条件见 `adr/0004-consolidate-roottools-projects.md`。

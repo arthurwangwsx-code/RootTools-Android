@@ -41,6 +41,7 @@
 | [companion/nfc-tools/architecture.md](./companion/nfc-tools/architecture.md) | NFC Tools companion：Reader/HCE、OEM Provider、Root 只读诊断与数据边界 |
 | [companion/nfc-tools/technical-solution.md](./companion/nfc-tools/technical-solution.md) | NFC / eSE / HCE 技术方案与安全边界 |
 | [companion/background-server/architecture.md](./companion/background-server/architecture.md) | Background Server companion：长运行任务、功耗、Boot 与 WireGuard server 边界 |
+| [network-inspection/README.md](./network-inspection/README.md) | Network Inspection：Root 抓包、协议/Flow、TLS 明文、CA 与审计边界 |
 
 ## 工程原则
 

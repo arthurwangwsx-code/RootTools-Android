@@ -2,7 +2,7 @@
 
 ## Product goal
 
-Net Tools must support a full drill-down path:
+RootTools Network Inspection must support a full drill-down path:
 
 `Capture session → Summary / Packets / Flows → Individual packet → protocol-aware fields → text/hex payload`
 
@@ -10,7 +10,7 @@ Raw PCAP remains the source of truth. The UI builds a bounded local packet index
 
 ## Interaction architecture
 
-The top-level structure remains **Overview / Traffic / Decrypt / Settings**. Top-level pages keep bottom navigation visible; detail destinations use the standard Back action and hide bottom navigation to maximize inspection space.
+Within the RootTools **Network** destination, the structure is **Diagnostics / Capture / TLS inspection**. Detail destinations use the standard Back action and maximize inspection space.
 
 The Traffic workflow is: choose target → capture → stop/analyze → open session → switch between Summary, Packets and Flows → tap a packet for protocol-aware detail. Historical sessions created before packet indexing are lazily rebuilt from their PCAP when first opened, so users do not need to recapture traffic.
 

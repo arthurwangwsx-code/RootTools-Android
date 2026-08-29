@@ -1,12 +1,14 @@
-# Net Tools Review Checklist
+# RootTools Network Inspection Review Checklist
+
+> Raw/TLS device evidence below was produced by the imported legacy package. Canonical `com.arthur.roottools` acceptance remains open until explicitly rerun and recorded in [validation.md](./validation.md).
 
 Use this file as the entry point for code/product review.
 
 ## Source quality
 
 - [x] Kotlin + Jetpack Compose + Material 3 application
-- [x] Navigation 3 top-level and nested navigation
-- [x] `ViewModel` + repositories/engines + `StateFlow` state model
+- [x] RootTools domain navigation and nested inspection tabs
+- [x] Dedicated ViewModels + repositories/engines + `StateFlow` state model
 - [x] Debug and Release builds succeed
 - [x] Android Lint succeeds
 - [x] Unit tests cover PCAP parsing and plaintext/redaction parsing
@@ -36,7 +38,7 @@ Use this file as the entry point for code/product review.
 
 - [x] Official PCAPdroid MITM add-on managed as an independent runtime
 - [x] Add-on CA requested through Messenger IPC
-- [x] Add-on CA imported into Net Tools
+- [x] Add-on CA imported into the legacy Net Tools device path
 - [x] PEM CA staged through reversible Magisk system overlay
 - [x] System trust verified after reboot on Mi 9T Pro
 - [x] Per-UID transparent TCP redirect implemented
@@ -46,7 +48,7 @@ Use this file as the entry point for code/product review.
 - [x] Common secret-bearing headers/query values redacted in UI/metadata
 - [x] Raw payload storage explicitly marked sensitive
 - [x] Interception history persisted and reviewable after app restart
-- [ ] Final newest-build Chrome plaintext request/response acceptance run (execution environment blocked the final device action; see `docs/validation.md`)
+- [ ] Final newest RootTools build Chrome plaintext request/response acceptance run (see [validation.md](./validation.md))
 
 ## Navigation / interaction
 
@@ -71,7 +73,7 @@ Use this file as the entry point for code/product review.
 
 ```text
 artifacts/validation/       raw 18-app validation
-artifacts/device-export/    pulled on-device Net Tools data
+artifacts/device-export/    pulled on-device RootTools data
 artifacts/runtime/          MITM add-on/runtime artifacts
 artifacts/product-review/   product screenshots which passed page validation
 artifacts/decryption/       reserved for final plaintext acceptance evidence

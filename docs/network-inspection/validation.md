@@ -1,4 +1,6 @@
-# Net Tools Validation Ledger
+# RootTools Network Inspection Validation Ledger
+
+> 历史设备证据来自合并前的 `com.arthur.nettools` 包，只证明被导入能力的旧运行路径。当前 `com.arthur.roottools` 已完成定向单测、编译与安全门禁；最新 APK 的真机抓包/TLS 明文闭环仍必须作为独立验收项，不以旧包证据代替。
 
 This ledger separates **verified on-device facts** from implementation that has only passed build/unit tests.
 
@@ -6,7 +8,7 @@ This ledger separates **verified on-device facts** from implementation that has 
 
 The current source now implements the full capture drill-down `Session → Summary / Packets / Flows → Packet Detail`. Older saved PCAP sessions are lazily re-indexed the first time they are opened, so packet inspection does not require a new capture.
 
-Packet details differentiate DNS, HTTP/1.x, TLS, QUIC, TCP, UDP and ICMP using protocol-specific field sets, with text and 256-byte hex previews as appropriate. Unsupported traffic retains a generic raw-byte fallback. The interaction and extension rules are documented in `docs/packet-inspection-ux.md`.
+Packet details differentiate DNS, HTTP/1.x, TLS, QUIC, TCP, UDP and ICMP using protocol-specific field sets, with text and 256-byte hex previews as appropriate. Unsupported traffic retains a generic raw-byte fallback. The interaction and extension rules are documented in [packet-inspection-ux.md](./packet-inspection-ux.md).
 
 Parser regression tests cover HTTP request/header packet indexing and DNS transaction/query fields.
 
@@ -43,7 +45,7 @@ YouTube, Bilibili, Chrome, Google Play, WeChat, WeType, Google Search, Maps, Gma
 Verified on the same Redmi device:
 
 - official stable PCAPdroid MITM add-on installed as `com.pcapdroid.mitm`
-- add-on Messenger service successfully bound from Net Tools
+- add-on Messenger service successfully bound from the legacy Net Tools package
 - add-on-generated mitmproxy CA successfully requested and imported
 - PEM CA staged into a reversible Magisk system-trust module
 - after reboot, the CA was visible in the active Android system trust store as `81c450f1.0`
@@ -58,10 +60,10 @@ That failure produced concrete fixes in the current source:
 1. the live add-on CA is requested before proxy startup, which also warms the runtime;
 2. the live CA fingerprint is compared against the certificate trusted by Android;
 3. the cold-start readiness deadline is 60 seconds;
-4. interrupted/closed plaintext sockets no longer crash the Net Tools process;
+4. interrupted/closed plaintext sockets no longer crash the legacy Net Tools process;
 5. stable add-on v1.4 uses its default mitmproxy option set instead of options introduced/fixed only in newer source.
 
-**Final rerun status:** the Redmi later returned to an unlocked state and the installed product build still showed a healthy Overview screen, active system CA, and “Transparent interception ready”. However, the execution environment subsequently blocked both replacement installation of the newest APK and another programmatic interception-start action. Net Tools does not attempt to evade that execution-layer restriction.
+**Legacy rerun status:** the Redmi later returned to an unlocked state and the installed legacy build still showed a healthy Overview screen, active system CA, and “Transparent interception ready”. However, the execution environment subsequently blocked both replacement installation and another programmatic interception-start action. RootTools does not attempt to evade that execution-layer restriction.
 
 The final plaintext rerun therefore remains the only unclosed acceptance item. When device-write/interception execution is available again, use the newest APK and Chrome with a neutral HTTPS endpoint, then optionally YouTube to characterize QUIC/pinning behavior.
 
@@ -73,10 +75,10 @@ Expected evidence location:
 
 ## Build / unit-test acceptance
 
-The current source is expected to pass:
+Canonical RootTools source is verified with:
 
 ```bash
-./gradlew :app:testDebugUnitTest :app:assembleDebug
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 ```
 
 Unit tests cover:
@@ -104,7 +106,7 @@ Navigation implemented in the current source:
 - Diagnostics
 - About / licenses
 
-Final screenshots of the newest build belong under `artifacts/product-review/`. Existing package screenshots in `artifacts/validation/` demonstrate traffic-triggering applications, not the final Net Tools UI.
+Final screenshots of the newest build belong under `artifacts/product-review/`. Existing package screenshots in `artifacts/validation/` demonstrate traffic-triggering applications, not the final RootTools UI.
 
 ## Acceptance boundary
 
