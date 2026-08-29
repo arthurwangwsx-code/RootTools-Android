@@ -1,5 +1,6 @@
 package com.aibox.backgroundserver.platform.network
 
+import com.arthur.roottools.core.privilege.RootCommandResult
 import com.aibox.backgroundserver.platform.root.RootCommandGateway
 
 class RootRoutingController(
@@ -16,10 +17,10 @@ class RootRoutingController(
     fun applyNat(tunnelInterface: String, egressInterface: String, subnet: String = "10.77.0.0/24") =
         RootRoutingCommandPolicy.natRules(tunnelInterface, egressInterface, subnet)
             ?.let { root.execute(it.apply) }
-            ?: com.aibox.backgroundserver.platform.root.RootCommandResult(2, "", "invalid routing input")
+            ?: RootCommandResult(2, "", "invalid routing input")
 
     fun removeNat(tunnelInterface: String, egressInterface: String, subnet: String = "10.77.0.0/24") =
         RootRoutingCommandPolicy.natRules(tunnelInterface, egressInterface, subnet)
             ?.let { root.execute(it.remove) }
-            ?: com.aibox.backgroundserver.platform.root.RootCommandResult(2, "", "invalid routing input")
+            ?: RootCommandResult(2, "", "invalid routing input")
 }

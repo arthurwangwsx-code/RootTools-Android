@@ -1,5 +1,6 @@
 package com.arthur.roottools.root
 
+import com.arthur.roottools.core.privilege.RootCommandResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,7 +20,7 @@ data class RootAuthorizationSnapshot(
 }
 
 internal object RootAuthorizationPolicy {
-    fun fromProbe(result: RootShell.Result): RootAuthorizationSnapshot {
+    fun fromProbe(result: RootCommandResult): RootAuthorizationSnapshot {
         val uid = result.output.trim()
         return when {
             result.success && uid == "0" -> RootAuthorizationSnapshot(RootAuthorizationStatus.GRANTED)

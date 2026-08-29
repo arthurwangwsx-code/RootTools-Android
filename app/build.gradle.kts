@@ -90,6 +90,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:privilege"))
     implementation(project(":feature:network-inspection"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

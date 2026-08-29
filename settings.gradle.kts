@@ -17,6 +17,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "RootTools"
 include(":app")
+include(":core:privilege")
 include(":companion:hyperos-credential-fix")
 include(":companion:background-server")
 include(":companion:nfc-tools")

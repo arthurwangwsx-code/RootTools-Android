@@ -65,6 +65,7 @@ DIRECT_COMPANION_DEPENDENCY = re.compile(
 
 REQUIRED_GRADLE_MODULES = (
     ":app",
+    ":core:privilege",
     ":feature:network-inspection",
     ":companion:nfc-tools",
     ":companion:background-server",

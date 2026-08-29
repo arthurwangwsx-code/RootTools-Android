@@ -1,5 +1,7 @@
 package com.arthur.roottools.root
 
+import com.arthur.roottools.core.privilege.PosixShell
+import com.arthur.roottools.core.privilege.RootCommandResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
@@ -27,18 +29,10 @@ import java.util.concurrent.atomic.AtomicLong
 class RootShell internal constructor(
     private val session: PersistentRootSession = SHARED_SESSION,
 ) {
-    data class Result(
-        val exitCode: Int,
-        val output: String,
-        val timedOut: Boolean = false,
-    ) {
-        val success: Boolean get() = !timedOut && exitCode == 0
-    }
-
-    suspend fun execute(command: String, timeoutSeconds: Long = 8): Result =
+    suspend fun execute(command: String, timeoutSeconds: Long = 8): RootCommandResult =
         session.execute(command, timeoutSeconds)
 
-    suspend fun executeBatch(commands: List<String>, timeoutSeconds: Long = 8): Result =
+    suspend fun executeBatch(commands: List<String>, timeoutSeconds: Long = 8): RootCommandResult =
         execute(commands.joinToString("\n"), timeoutSeconds)
 
     suspend fun isAvailable(timeoutSeconds: Long = 4): Boolean {
@@ -70,7 +64,7 @@ internal class PersistentRootSession(
     internal var processLaunchCount: Int = 0
         private set
 
-    suspend fun execute(command: String, timeoutSeconds: Long): RootShell.Result = withContext(Dispatchers.IO) {
+    suspend fun execute(command: String, timeoutSeconds: Long): RootCommandResult = withContext(Dispatchers.IO) {
         mutex.withLock {
             try {
                 executeLocked(command, timeoutSeconds)
@@ -79,12 +73,12 @@ internal class PersistentRootSession(
                 throw cancelled
             } catch (error: Throwable) {
                 invalidateSession()
-                RootShell.Result(-1, error.message ?: error.javaClass.simpleName)
+                RootCommandResult(-1, error.message ?: error.javaClass.simpleName)
             }
         }
     }
 
-    private suspend fun executeLocked(command: String, timeoutSeconds: Long): RootShell.Result {
+    private suspend fun executeLocked(command: String, timeoutSeconds: Long): RootCommandResult {
         ensureSession()
         val activeWriter = writer ?: error("Root shell stdin unavailable")
         val activeQueue = outputQueue ?: error("Root shell output queue unavailable")
@@ -95,7 +89,7 @@ internal class PersistentRootSession(
         // --foreground is requested. Running the actual payload under `sh -c` preserves isolation
         // for exit/cd/local variables, and -k guarantees a TERM-ignoring descendant cannot survive.
         activeWriter.write(
-            "timeout -k ${TIMEOUT_KILL_GRACE_SECONDS}s ${effectiveTimeoutSeconds}s sh -c ${shellQuote(command)}\n",
+            "timeout -k ${TIMEOUT_KILL_GRACE_SECONDS}s ${effectiveTimeoutSeconds}s sh -c ${PosixShell.quote(command)}\n",
         )
         activeWriter.write("__roottools_code=\$?\n")
         activeWriter.write("printf '\\n${marker}:%s\\n' \"\$__roottools_code\"\n")
@@ -108,7 +102,7 @@ internal class PersistentRootSession(
             val remaining = deadline - System.nanoTime()
             if (remaining <= 0L) {
                 invalidateSession()
-                return RootShell.Result(-1, "Command timed out", timedOut = true)
+                return RootCommandResult(-1, "Command timed out", timedOut = true)
             }
             val event = runInterruptible(Dispatchers.IO) {
                 activeQueue.poll(remaining, TimeUnit.NANOSECONDS)
@@ -118,14 +112,14 @@ internal class PersistentRootSession(
                     // We never retry the same command automatically because a write action may
                     // have partially run before the timeout.
                     invalidateSession()
-                    return RootShell.Result(-1, "Command timed out", timedOut = true)
+                    return RootCommandResult(-1, "Command timed out", timedOut = true)
                 }
                 is SessionEvent.Line -> {
                     val line = event.value
                     if (line.startsWith("$marker:")) {
                         val exitCode = line.substringAfter(':').trim().toIntOrNull()
                             ?: error("Root shell returned an invalid exit code")
-                        return RootShell.Result(
+                        return RootCommandResult(
                             exitCode = exitCode,
                             output = outputLines.joinToString("\n"),
                             timedOut = exitCode == TIMEOUT_EXIT_CODE || exitCode == TIMEOUT_KILLED_EXIT_CODE,
@@ -182,9 +176,6 @@ internal class PersistentRootSession(
         readerThread = null
         process = null
     }
-
-    private fun shellQuote(value: String): String =
-        "'" + value.replace("'", "'\"'\"'") + "'"
 
     private sealed interface SessionEvent {
         data class Line(val value: String) : SessionEvent

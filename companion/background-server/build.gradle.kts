@@ -32,6 +32,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:privilege"))
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
     androidTestImplementation(composeBom)
