@@ -27,6 +27,10 @@ import com.arthur.roottools.feature.network.tailscale.RootTailscaleAuditSink
 import com.arthur.roottools.feature.network.tailscale.RootTailscaleController
 import com.arthur.roottools.feature.network.tailscale.data.RootTailscaleRepository
 import com.arthur.roottools.feature.network.inspection.data.NetworkCaptureRepository
+import com.arthur.roottools.feature.network.inspection.intercept.InterceptionNetworkController
+import com.arthur.roottools.feature.network.inspection.intercept.InterceptionAuditSink
+import com.arthur.roottools.feature.network.inspection.intercept.InterceptionStore
+import com.arthur.roottools.feature.network.inspection.intercept.MitmAddonRepository
 import com.arthur.roottools.feature.network.tailscale.data.RootTailscaleRuntimeInstaller
 import com.arthur.roottools.feature.assistant.data.AssistantRepository
 import com.arthur.roottools.app.assistant.AssistantController
@@ -112,6 +116,25 @@ internal class AppContainer(private val application: Application) {
     val networkCaptureRepository by lazy {
         NetworkCaptureRepository(application, shell) { rootAuthorizationManager.state.value.granted }
     }
+    val interceptionNetworkController by lazy {
+        InterceptionNetworkController(
+            shell = shell,
+            auditSink = InterceptionAuditSink { record ->
+                auditStore.record(
+                    source = UI_AUDIT_SOURCE,
+                    feature = "network_interception",
+                    action = record.action,
+                    target = record.target,
+                    before = record.before,
+                    after = record.after,
+                    success = record.success,
+                    rollbackHint = record.rollbackHint,
+                )
+            },
+        )
+    }
+    val mitmAddonRepository by lazy { MitmAddonRepository(application) }
+    val interceptionStore by lazy { InterceptionStore(application) }
     val rootTailscaleRepository by lazy {
         RootTailscaleRepository(shell) { rootAuthorizationManager.state.value.granted }
     }
