@@ -30,6 +30,7 @@ import com.arthur.roottools.feature.network.inspection.data.NetworkCaptureReposi
 import com.arthur.roottools.feature.network.inspection.intercept.InterceptionNetworkController
 import com.arthur.roottools.feature.network.inspection.intercept.InterceptionAuditSink
 import com.arthur.roottools.feature.network.inspection.intercept.InterceptionStore
+import com.arthur.roottools.feature.network.inspection.intercept.InterceptionCertificateManager
 import com.arthur.roottools.feature.network.inspection.intercept.MitmAddonRepository
 import com.arthur.roottools.feature.network.tailscale.data.RootTailscaleRuntimeInstaller
 import com.arthur.roottools.feature.assistant.data.AssistantRepository
@@ -135,6 +136,24 @@ internal class AppContainer(private val application: Application) {
     }
     val mitmAddonRepository by lazy { MitmAddonRepository(application) }
     val interceptionStore by lazy { InterceptionStore(application) }
+    val interceptionCertificateManager by lazy {
+        InterceptionCertificateManager(
+            context = application,
+            shell = shell,
+            auditSink = InterceptionAuditSink { record ->
+                auditStore.record(
+                    source = UI_AUDIT_SOURCE,
+                    feature = "network_interception",
+                    action = record.action,
+                    target = record.target,
+                    before = record.before,
+                    after = record.after,
+                    success = record.success,
+                    rollbackHint = record.rollbackHint,
+                )
+            },
+        )
+    }
     val rootTailscaleRepository by lazy {
         RootTailscaleRepository(shell) { rootAuthorizationManager.state.value.granted }
     }

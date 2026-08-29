@@ -17,10 +17,13 @@ object CertificateCommandPolicy {
                 appendLine("chmod 0644 ${quote(canonicalCertificate)}")
                 append("chown 0:0 ${quote(canonicalCertificate)}")
             },
-            remove = "rm -r -- ${quote(CANONICAL_MODULE)} 2>/dev/null || true\n" +
-                "rm -r -- ${quote(LEGACY_MODULE)} 2>/dev/null || true",
+            remove = removeModules(),
         )
     }
+
+    fun removeModules(): String =
+        "rm -r -- ${quote(CANONICAL_MODULE)} 2>/dev/null || true\n" +
+            "rm -r -- ${quote(LEGACY_MODULE)} 2>/dev/null || true"
 
     private fun safeAbsolutePath(value: String): String? = value.takeIf {
         it.startsWith('/') && '\u0000' !in it && '\n' !in it && '\r' !in it
