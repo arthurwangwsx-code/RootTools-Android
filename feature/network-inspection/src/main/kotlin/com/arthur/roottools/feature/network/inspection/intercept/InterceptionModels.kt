@@ -4,6 +4,19 @@ import com.arthur.roottools.feature.network.inspection.capture.AppTarget
 
 enum class InterceptionPhase { IDLE, STARTING, RUNNING, STOPPING, ERROR }
 
+enum class InterceptionStatus {
+    IDLE,
+    STARTING,
+    VERIFYING_CA,
+    STARTING_PROXY,
+    RUNNING,
+    STOPPING,
+    STOPPED,
+    ADDON_DISCONNECTED,
+    PLAINTEXT_STREAM_INTERRUPTED,
+    ERROR,
+}
+
 enum class DecryptedKind(val wireName: String) {
     RUNNING("running"),
     TLS_ERROR("tls_err"),
@@ -94,5 +107,5 @@ data class InterceptionState(
     val httpExchanges: List<HttpExchangeSummary> = emptyList(),
     val proxyPort: Int = 7780,
     val lastError: String? = null,
-    val message: String = "Interception idle",
+    val status: InterceptionStatus = InterceptionStatus.IDLE,
 )
