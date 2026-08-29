@@ -33,7 +33,12 @@ jobs:
           gradle-version: '9.5.0'
 
       - name: Install NFC native bridge NDK
-        run: sdkmanager "ndk;28.2.13676358"
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          "$SDKMANAGER" "ndk;28.2.13676358"
 
       - name: Repository quality guard
         run: python3 scripts/quality_guard.py
