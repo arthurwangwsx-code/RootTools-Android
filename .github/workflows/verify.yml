@@ -53,6 +53,7 @@ jobs:
       - name: Unit tests, lint, and debug APK
         run: >-
           gradle
+          :core:privilege:test
           :app:testDebugUnitTest
           :app:lintDebug
           :app:assembleDebug

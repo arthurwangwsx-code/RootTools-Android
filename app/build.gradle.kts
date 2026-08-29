@@ -4,15 +4,6 @@ plugins {
     id("org.jetbrains.kotlinx.kover")
 }
 
-val releaseKeystorePath = System.getenv("ROOTTOOLS_KEYSTORE_PATH")
-val releaseKeystorePassword = System.getenv("ROOTTOOLS_KEYSTORE_PASSWORD")
-val releaseKeyAlias = System.getenv("ROOTTOOLS_KEY_ALIAS")
-val releaseSigningConfigured = listOf(
-    releaseKeystorePath,
-    releaseKeystorePassword,
-    releaseKeyAlias,
-).all { !it.isNullOrBlank() }
-
 android {
     namespace = "com.arthur.roottools"
     compileSdk = 36
@@ -21,9 +12,6 @@ android {
         applicationId = "com.arthur.roottools"
         minSdk = 30
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.4.0-beta.1"
-
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
@@ -48,20 +36,8 @@ android {
         disable += "UnsafeIntentLaunch"
     }
 
-    signingConfigs {
-        if (releaseSigningConfigured) {
-            create("rootToolsRelease") {
-                storeFile = file(requireNotNull(releaseKeystorePath))
-                storePassword = requireNotNull(releaseKeystorePassword)
-                keyAlias = requireNotNull(releaseKeyAlias)
-                keyPassword = requireNotNull(releaseKeystorePassword)
-            }
-        }
-    }
-
     buildTypes {
         release {
-            signingConfigs.findByName("rootToolsRelease")?.let { signingConfig = it }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

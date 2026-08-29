@@ -112,6 +112,8 @@
 
 后续新增 Root 功能时，先在 `ToolRegistry` 与文档路线图注册，再增加独立详情页和 Repository / Controller；不要继续向首页塞完整控制表单。
 
+首页的“RootTools 全量功能”入口统一展示主应用与 companion 的安装状态和职责。这里的“统一”不是把所有 APK 强行合成一个进程：需要独立 package 数据、Boot/VPN 前台服务或 Xposed 生命周期的能力继续作为 companion，但必须由同一注册表、同一版本和同一 Release 维护。
+
 ## 权限模型
 
 首次启动按以下顺序自动触发：
@@ -145,6 +147,7 @@
 | Gradle / platform | 应用身份 | 维护与发布边界 |
 |---|---|---|
 | `:app` | `com.arthur.roottools` | 唯一 RootTools 主 APK；通用工具、导航、特权路由和 Network Inspection UI |
+| `:core:privilege` | 无 APK | 主应用与 Background Server 共用的命令结果、POSIX quoting、超时及有界进程执行契约 |
 | `:feature:network-inspection` | 无 APK | 纯 JVM model/policy/parser 测试边界，由 `:app` 消费 |
 | `:companion:nfc-tools` | `com.arthur.nfclab` | 保留 Reader/HCE、OEM Provider、ADB 自动化数据和已安装身份 |
 | `:companion:background-server` | `com.aibox.backgroundserver` | 保留 Boot/VPN/foreground service、WireGuard key 与运行数据 |
@@ -157,13 +160,13 @@
 bash scripts/build.sh
 ```
 
-依赖版本统一登记在 `gradle/libs.versions.toml`。主 APK 与 companion 可以因 package 数据、系统组件和目标平台约束使用不同 SDK/API 版本，但不得恢复各自的 Gradle wrapper、根 settings 或第二份 shared RootShell。
+依赖版本统一登记在 `gradle/libs.versions.toml`；套件的 `versionCode` / `versionName` 只在根 `gradle.properties` 维护；Release signing 只在根 `build.gradle.kts` 配置。主 APK 与 companion 可以因 package 数据、系统组件和目标平台约束使用不同 SDK/API 版本，但不得恢复各自的 Gradle wrapper、根 settings、独立版本/签名配置或第二份 shared RootShell。`quality_guard.py` 会阻止这些边界回退。
 
 ## GitHub Release
 
-Android 发布仓库为 `RootTools-Android`。推送 `v*` tag 后，GitHub Actions 会运行质量/安全门禁、单测和 lint，使用仓库 Secrets 中的固定 Android signing key 构建可覆盖升级的签名 Release APK，并上传 APK 与 SHA-256 到 GitHub Releases。
+Android 发布仓库为 `RootTools-Android`。推送与根版本完全匹配的 `v*` tag 后，GitHub Actions 会运行质量/安全门禁、共享 Core 与各模块测试、lint，使用仓库 Secrets 中的固定 Android signing key 构建四个可覆盖升级的签名 Release APK，并逐个上传 APK 与 SHA-256 到同一个 GitHub Release。
 
-首个远程测试版本为 `v0.4.0-beta.1`。详细流程与签名边界见 [`docs/29-github-release.md`](./docs/29-github-release.md)。
+首个全量套件版本为 `v0.5.0-beta.1`。详细流程与签名边界见 [`docs/29-github-release.md`](./docs/29-github-release.md)。
 
 ### 工程开发基线
 

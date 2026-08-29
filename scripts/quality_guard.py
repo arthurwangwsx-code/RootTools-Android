@@ -76,6 +76,16 @@ COMPANION_APPLICATION_IDS = {
     "companion/background-server/build.gradle.kts": "com.aibox.backgroundserver",
     "companion/hyperos-credential-fix/build.gradle.kts": "com.arthur.hyperos.credentialfix",
 }
+APPLICATION_BUILD_FILES = (
+    "app/build.gradle.kts",
+    *COMPANION_APPLICATION_IDS.keys(),
+)
+SUITE_RELEASE_TASKS = (
+    ":app:assembleRelease",
+    ":companion:background-server:assembleRelease",
+    ":companion:hyperos-credential-fix:assembleRelease",
+    ":companion:nfc-tools:assembleRelease",
+)
 
 LEGACY_FEATURE_DEPENDENCY_CEILINGS = {
     "app/src/main/java/com/arthur/roottools/feature/integrity/data/IntegrityRepository.kt": 2,
@@ -248,6 +258,39 @@ def main() -> int:
             errors.append(
                 f"companion dependency bypasses gradle/libs.versions.toml: {rel_path}"
             )
+
+    root_build_source = (ROOT / "build.gradle.kts").read_text(encoding="utf-8")
+    for marker in (
+        'plugins.withId("com.android.application")',
+        'signingConfigs.create("rootToolsRelease")',
+        'ROOTTOOLS_KEYSTORE_PATH',
+        'providers.gradleProperty("rootToolsVersionCode")',
+        'providers.gradleProperty("rootToolsVersionName")',
+    ):
+        if marker not in root_build_source:
+            errors.append(f"central suite signing contract is missing: {marker}")
+    for rel_path in APPLICATION_BUILD_FILES:
+        source = (ROOT / rel_path).read_text(encoding="utf-8")
+        if "ROOTTOOLS_KEYSTORE_" in source or "rootToolsRelease" in source:
+            errors.append(
+                f"application module owns release signing directly: {rel_path}. "
+                "Keep the signing contract in the root build."
+            )
+        if "versionCode =" in source or "versionName =" in source:
+            errors.append(
+                f"application module owns a separate product version: {rel_path}. "
+                "Keep the suite version in gradle.properties."
+            )
+
+    release_workflow = (ROOT / ".github" / "workflows" / "release-android.yml").read_text(encoding="utf-8")
+    build_script = (ROOT / "scripts" / "build.sh").read_text(encoding="utf-8")
+    for task in SUITE_RELEASE_TASKS:
+        if task not in release_workflow:
+            errors.append(f"GitHub Release no longer builds the suite task: {task}")
+        if task not in build_script:
+            errors.append(f"local full build no longer builds the suite task: {task}")
+    if ":core:privilege:test" not in release_workflow or ":core:privilege:test" not in build_script:
+        errors.append("shared privilege core tests must gate local and GitHub suite releases")
 
     default_strings_path = ROOT / "app" / "src" / "main" / "res" / "values" / "strings.xml"
     zh_strings_path = ROOT / "app" / "src" / "main" / "res" / "values-zh-rCN" / "strings.xml"
