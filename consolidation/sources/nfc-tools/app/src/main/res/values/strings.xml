@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">NFC Tools</string>
+    <string name="hce_service_name">NFC Tools 测试卡</string>
+</resources>
+
