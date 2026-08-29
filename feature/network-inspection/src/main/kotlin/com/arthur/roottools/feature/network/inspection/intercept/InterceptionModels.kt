@@ -1,6 +1,6 @@
-package com.arthur.nettools.intercept
+package com.arthur.roottools.feature.network.inspection.intercept
 
-import com.arthur.nettools.capture.AppTarget
+import com.arthur.roottools.feature.network.inspection.capture.AppTarget
 
 enum class InterceptionPhase { IDLE, STARTING, RUNNING, STOPPING, ERROR }
 

@@ -1,4 +1,4 @@
-package com.arthur.nettools.intercept
+package com.arthur.roottools.feature.network.inspection.intercept
 
 data class ParsedHttpMessage(
     val firstLine: String,

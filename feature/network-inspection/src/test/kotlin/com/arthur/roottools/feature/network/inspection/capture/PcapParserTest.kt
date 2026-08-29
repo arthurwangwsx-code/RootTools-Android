@@ -1,4 +1,4 @@
-package com.arthur.nettools.capture
+package com.arthur.roottools.feature.network.inspection.capture
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

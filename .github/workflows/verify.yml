@@ -53,6 +53,7 @@ jobs:
           :app:testDebugUnitTest
           :app:lintDebug
           :app:assembleDebug
+          :feature:network-inspection:test
           :companion:hyperos-credential-fix:lintDebug
           :companion:hyperos-credential-fix:assembleDebug
 

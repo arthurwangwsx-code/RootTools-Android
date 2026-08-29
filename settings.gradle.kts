@@ -18,3 +18,4 @@ dependencyResolutionManagement {
 rootProject.name = "RootTools"
 include(":app")
 include(":companion:hyperos-credential-fix")
+include(":feature:network-inspection")

@@ -1,4 +1,4 @@
-package com.arthur.nettools.intercept
+package com.arthur.roottools.feature.network.inspection.intercept
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

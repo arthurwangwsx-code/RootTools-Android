@@ -12,6 +12,7 @@ python3 scripts/security_guard.py
   :app:assembleDebug \
   :app:assembleRelease \
   :app:koverXmlReportDebug \
+  :feature:network-inspection:test \
   :companion:hyperos-credential-fix:lintDebug \
   :companion:hyperos-credential-fix:assembleDebug \
   :companion:hyperos-credential-fix:assembleRelease

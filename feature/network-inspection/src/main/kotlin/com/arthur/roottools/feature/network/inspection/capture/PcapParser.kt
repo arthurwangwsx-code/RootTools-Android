@@ -1,4 +1,4 @@
-package com.arthur.nettools.capture
+package com.arthur.roottools.feature.network.inspection.capture
 
 import java.io.File
 import java.net.InetAddress

@@ -1,4 +1,4 @@
-package com.arthur.nettools.capture
+package com.arthur.roottools.feature.network.inspection.capture
 
 data class AppTarget(
     val label: String,
