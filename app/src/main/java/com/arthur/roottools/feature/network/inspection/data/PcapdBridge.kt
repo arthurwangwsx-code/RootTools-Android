@@ -4,6 +4,7 @@ import android.content.Context
 import com.arthur.roottools.feature.network.inspection.capture.CaptureSignal
 import com.arthur.roottools.feature.network.inspection.capture.NetworkCaptureCommandPolicy
 import com.arthur.roottools.root.RootShell
+import kotlinx.coroutines.delay
 import java.io.File
 
 /**
@@ -56,9 +57,9 @@ class PcapdBridge(
         val pid = pidFile.takeIf(File::exists)?.readText()?.trim()?.toLongOrNull()
         if (pid != null) {
             signal(pid, CaptureSignal.TERMINATE)
-            repeat(20) {
-                if (!processAlive(pid)) return@repeat
-                Thread.sleep(80)
+            for (attempt in 0 until 20) {
+                if (!processAlive(pid)) break
+                delay(80)
             }
             if (processAlive(pid)) signal(pid, CaptureSignal.KILL)
         }

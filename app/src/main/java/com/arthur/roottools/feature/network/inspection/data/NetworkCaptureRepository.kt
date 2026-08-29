@@ -18,6 +18,7 @@ import com.arthur.roottools.feature.network.inspection.capture.PcapParser
 import com.arthur.roottools.feature.network.inspection.capture.ProtocolCount
 import com.arthur.roottools.root.RootShell
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -129,14 +130,14 @@ class NetworkCaptureRepository(
         val pidFile = File(capturesDir, "${active.id}.pid")
         if (pcapd.isRunning()) {
             pcapd.stop()
-            Thread.sleep(180)
+            delay(180)
         }
         val pid = pidFile.takeIf { it.exists() }?.readText()?.trim()?.toLongOrNull()
         if (pid != null) {
             signal(pid, CaptureSignal.INTERRUPT)
-            repeat(10) {
-                if (!processAlive(pid)) return@repeat
-                Thread.sleep(100)
+            for (attempt in 0 until 10) {
+                if (!processAlive(pid)) break
+                delay(100)
             }
             if (processAlive(pid)) signal(pid, CaptureSignal.TERMINATE)
         }
@@ -187,7 +188,7 @@ class NetworkCaptureRepository(
             val pidFile = File(capturesDir, "${session.id}.pid")
             val pid = pidFile.takeIf { it.exists() }?.readText()?.trim()?.toLongOrNull()
             if (pid != null && processAlive(pid)) signal(pid, CaptureSignal.INTERRUPT)
-            Thread.sleep(120)
+            delay(120)
             val analysis = PcapParser.parse(File(session.pcapPath))
             writeMetadata(session.copy(stoppedAt = System.currentTimeMillis(), analysis = analysis))
             pidFile.delete()
