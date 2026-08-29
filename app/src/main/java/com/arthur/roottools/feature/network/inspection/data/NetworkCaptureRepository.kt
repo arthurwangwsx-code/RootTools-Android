@@ -5,9 +5,11 @@ import android.content.pm.ApplicationInfo
 import com.arthur.roottools.feature.network.inspection.capture.AppTarget
 import com.arthur.roottools.feature.network.inspection.capture.CaptureAnalysis
 import com.arthur.roottools.feature.network.inspection.capture.CaptureBinary
+import com.arthur.roottools.feature.network.inspection.capture.CaptureReadinessPolicy
 import com.arthur.roottools.feature.network.inspection.capture.CaptureSession
 import com.arthur.roottools.feature.network.inspection.capture.CaptureSignal
 import com.arthur.roottools.feature.network.inspection.capture.CaptureState
+import com.arthur.roottools.feature.network.inspection.capture.CaptureStatus
 import com.arthur.roottools.feature.network.inspection.capture.FlowSummary
 import com.arthur.roottools.feature.network.inspection.capture.NetworkCaptureCommandPolicy
 import com.arthur.roottools.feature.network.inspection.capture.PacketField
@@ -51,13 +53,12 @@ class NetworkCaptureRepository(
             tcpdumpPath = tcpdump,
             active = active,
             sessions = refreshedSessions.filter { it.stoppedAt != null },
-            message = when {
-                !root -> "Root permission is required"
-                pcapd.binaryPath == null && tcpdump == null -> "No root capture backend found"
-                active != null -> "Recovered active capture: ${active.appLabel}"
-                pcapd.binaryPath != null -> "Root capture ready · pcapd UID filtering"
-                else -> "Root capture ready · tcpdump fallback"
-            },
+            status = CaptureReadinessPolicy.status(
+                rootAvailable = root,
+                pcapdAvailable = pcapd.binaryPath != null,
+                tcpdumpAvailable = tcpdump != null,
+                activeSessionRecovered = active != null,
+            ),
         )
     }
 
@@ -84,13 +85,13 @@ class NetworkCaptureRepository(
         val log = File(capturesDir, "$id.log")
         if (pcapd.binaryPath != null) {
             pcapd.start(pcap, target?.uid).onFailure {
-                stateMutable.value = current.copy(message = "pcapd capture failed: ${it.message}")
+                stateMutable.value = current.copy(status = CaptureStatus.ERROR, technicalDetail = it.message)
                 return@withContext
             }
             log.writeText("backend=pcapd\nuid=${target?.uid ?: -1}\npackage=$packageName\n")
         } else {
             if (tcpdump == null) {
-                stateMutable.value = current.copy(message = "No capture backend found")
+                stateMutable.value = current.copy(status = CaptureStatus.BACKEND_UNAVAILABLE, technicalDetail = null)
                 return@withContext
             }
             val pid = File(capturesDir, "$id.pid")
@@ -101,18 +102,25 @@ class NetworkCaptureRepository(
                 pidFile = pid.absolutePath,
             )
             if (command == null) {
-                stateMutable.value = current.copy(message = "Capture paths failed validation")
+                stateMutable.value = current.copy(
+                    status = CaptureStatus.ERROR,
+                    technicalDetail = "capture paths failed validation",
+                )
                 return@withContext
             }
             val result = shell.execute(command)
             if (!result.success) {
-                stateMutable.value = current.copy(message = "Capture failed: ${result.output}")
+                stateMutable.value = current.copy(status = CaptureStatus.ERROR, technicalDetail = result.output)
                 return@withContext
             }
         }
         val session = CaptureSession(id, label, packageName, uid, System.currentTimeMillis(), pcapPath = pcap.absolutePath)
         writeMetadata(session)
-        stateMutable.value = current.copy(active = session, message = "Capturing $label")
+        stateMutable.value = current.copy(
+            active = session,
+            status = CaptureStatus.CAPTURING,
+            technicalDetail = null,
+        )
     }
 
     suspend fun stop() = withContext(Dispatchers.IO) {
@@ -139,7 +147,8 @@ class NetworkCaptureRepository(
         stateMutable.value = current.copy(
             active = null,
             sessions = listOf(completed) + current.sessions.filterNot { it.id == completed.id },
-            message = "Captured ${analysis.packetCount} packets / ${formatBytes(analysis.byteCount)}",
+            status = CaptureStatus.CAPTURE_COMPLETE,
+            technicalDetail = null,
         )
     }
 

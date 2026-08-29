@@ -56,10 +56,23 @@ data class CaptureSession(
     val analysis: CaptureAnalysis? = null,
 )
 
+enum class CaptureStatus {
+    IDLE,
+    ROOT_REQUIRED,
+    BACKEND_UNAVAILABLE,
+    READY_PCAPD,
+    READY_TCPDUMP,
+    ACTIVE_RECOVERED,
+    CAPTURING,
+    CAPTURE_COMPLETE,
+    ERROR,
+}
+
 data class CaptureState(
     val rootAvailable: Boolean = false,
     val tcpdumpPath: String? = null,
     val active: CaptureSession? = null,
     val sessions: List<CaptureSession> = emptyList(),
-    val message: String = "Ready",
+    val status: CaptureStatus = CaptureStatus.IDLE,
+    val technicalDetail: String? = null,
 )
