@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
     signal(SIGPIPE, SIG_IGN);
 
     char workdir[160];
-    snprintf(workdir, sizeof(workdir), "/data/local/tmp/nettools-capture-%d", getpid());
+    snprintf(workdir, sizeof(workdir), "/data/local/tmp/roottools-capture-%d", getpid());
     if (mkdir(workdir, 0700) != 0 && errno != EEXIST) {
         perror("mkdir workdir");
         return 65;

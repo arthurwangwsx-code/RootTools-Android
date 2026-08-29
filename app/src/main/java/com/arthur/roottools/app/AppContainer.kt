@@ -26,6 +26,7 @@ import com.arthur.roottools.feature.agent.data.AgentSessionStore
 import com.arthur.roottools.feature.network.tailscale.RootTailscaleAuditSink
 import com.arthur.roottools.feature.network.tailscale.RootTailscaleController
 import com.arthur.roottools.feature.network.tailscale.data.RootTailscaleRepository
+import com.arthur.roottools.feature.network.inspection.data.NetworkCaptureRepository
 import com.arthur.roottools.feature.network.tailscale.data.RootTailscaleRuntimeInstaller
 import com.arthur.roottools.feature.assistant.data.AssistantRepository
 import com.arthur.roottools.app.assistant.AssistantController
@@ -108,6 +109,9 @@ internal class AppContainer(private val application: Application) {
     val lagForensicsMonitor by lazy { LagForensicsMonitor(shell, lagForensicsStore) }
     val moduleCenterRepository by lazy { ModuleCenterRepository(shell, auditStore, UI_AUDIT_SOURCE) }
     val networkRepository by lazy { NetworkRepository(shell) }
+    val networkCaptureRepository by lazy {
+        NetworkCaptureRepository(application, shell) { rootAuthorizationManager.state.value.granted }
+    }
     val rootTailscaleRepository by lazy {
         RootTailscaleRepository(shell) { rootAuthorizationManager.state.value.granted }
     }

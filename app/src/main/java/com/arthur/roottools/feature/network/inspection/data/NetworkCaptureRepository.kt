@@ -1,7 +1,20 @@
-package com.arthur.nettools.capture
+package com.arthur.roottools.feature.network.inspection.data
 
 import android.content.Context
 import android.content.pm.ApplicationInfo
+import com.arthur.roottools.feature.network.inspection.capture.AppTarget
+import com.arthur.roottools.feature.network.inspection.capture.CaptureAnalysis
+import com.arthur.roottools.feature.network.inspection.capture.CaptureBinary
+import com.arthur.roottools.feature.network.inspection.capture.CaptureSession
+import com.arthur.roottools.feature.network.inspection.capture.CaptureSignal
+import com.arthur.roottools.feature.network.inspection.capture.CaptureState
+import com.arthur.roottools.feature.network.inspection.capture.FlowSummary
+import com.arthur.roottools.feature.network.inspection.capture.NetworkCaptureCommandPolicy
+import com.arthur.roottools.feature.network.inspection.capture.PacketField
+import com.arthur.roottools.feature.network.inspection.capture.PacketSummary
+import com.arthur.roottools.feature.network.inspection.capture.PcapParser
+import com.arthur.roottools.feature.network.inspection.capture.ProtocolCount
+import com.arthur.roottools.root.RootShell
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,17 +27,23 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class CaptureRepository(private val context: Context) {
+class NetworkCaptureRepository(
+    private val context: Context,
+    private val shell: RootShell,
+    private val rootAvailable: () -> Boolean,
+) {
     private val capturesDir = File(context.getExternalFilesDir(null), "captures").apply { mkdirs() }
-    private val pcapd = PcapdBridge(context)
+    private val pcapd = PcapdBridge(context, shell)
     private val stateMutable = MutableStateFlow(CaptureState())
     val state: StateFlow<CaptureState> = stateMutable.asStateFlow()
 
     suspend fun initialize() = withContext(Dispatchers.IO) {
-        val root = RootShell.hasRoot()
-        val tcpdump = if (root) RootShell.commandPath("tcpdump") else null
+        val root = rootAvailable()
+        val tcpdump = if (root) findCommandPath(CaptureBinary.TCPDUMP) else null
         val sessions = loadSessions()
-        val active = sessions.firstOrNull { it.stoppedAt == null && (pcapd.isRunning() || isCaptureAlive(it.id)) }
+        val pending = sessions.firstOrNull { it.stoppedAt == null }
+        val pcapdRunning = root && pcapd.isRunning()
+        val active = pending?.takeIf { pcapdRunning || isCaptureAlive(it.id) }
         if (root) recoverAbandonedSessions(sessions.filter { it.stoppedAt == null && it.id != active?.id })
         val refreshedSessions = loadSessions()
         stateMutable.value = CaptureState(
@@ -75,9 +94,18 @@ class CaptureRepository(private val context: Context) {
                 return@withContext
             }
             val pid = File(capturesDir, "$id.pid")
-            val cmd = "$tcpdump -i any -s 0 -U -w '${pcap.absolutePath}' >'${log.absolutePath}' 2>&1 & echo \$! > '${pid.absolutePath}'"
-            val result = RootShell.exec(cmd)
-            if (result.code != 0) {
+            val command = NetworkCaptureCommandPolicy.tcpdumpLaunch(
+                binaryPath = tcpdump,
+                outputPcap = pcap.absolutePath,
+                outputLog = log.absolutePath,
+                pidFile = pid.absolutePath,
+            )
+            if (command == null) {
+                stateMutable.value = current.copy(message = "Capture paths failed validation")
+                return@withContext
+            }
+            val result = shell.execute(command)
+            if (!result.success) {
                 stateMutable.value = current.copy(message = "Capture failed: ${result.output}")
                 return@withContext
             }
@@ -97,12 +125,12 @@ class CaptureRepository(private val context: Context) {
         }
         val pid = pidFile.takeIf { it.exists() }?.readText()?.trim()?.toLongOrNull()
         if (pid != null) {
-            RootShell.exec("kill -2 $pid")
+            signal(pid, CaptureSignal.INTERRUPT)
             repeat(10) {
                 if (!processAlive(pid)) return@repeat
                 Thread.sleep(100)
             }
-            if (processAlive(pid)) RootShell.exec("kill $pid")
+            if (processAlive(pid)) signal(pid, CaptureSignal.TERMINATE)
         }
         val analysis = PcapParser.parse(File(active.pcapPath))
         val completed = active.copy(stoppedAt = System.currentTimeMillis(), analysis = analysis)
@@ -135,23 +163,36 @@ class CaptureRepository(private val context: Context) {
         ?.sortedByDescending { it.startedAt }
         ?: emptyList()
 
-    private fun isCaptureAlive(id: String): Boolean {
+    private suspend fun isCaptureAlive(id: String): Boolean {
         val pid = File(capturesDir, "$id.pid").takeIf { it.exists() }?.readText()?.trim()?.toLongOrNull() ?: return false
         return processAlive(pid)
     }
 
-    private fun processAlive(pid: Long): Boolean = RootShell.exec("kill -0 $pid 2>/dev/null").code == 0
+    private suspend fun processAlive(pid: Long): Boolean {
+        val command = NetworkCaptureCommandPolicy.processAlive(pid) ?: return false
+        return shell.execute(command, timeoutSeconds = 3).success
+    }
 
-    private fun recoverAbandonedSessions(sessions: List<CaptureSession>) {
+    private suspend fun recoverAbandonedSessions(sessions: List<CaptureSession>) {
         sessions.forEach { session ->
             val pidFile = File(capturesDir, "${session.id}.pid")
             val pid = pidFile.takeIf { it.exists() }?.readText()?.trim()?.toLongOrNull()
-            if (pid != null && processAlive(pid)) RootShell.exec("kill -2 $pid")
+            if (pid != null && processAlive(pid)) signal(pid, CaptureSignal.INTERRUPT)
             Thread.sleep(120)
             val analysis = PcapParser.parse(File(session.pcapPath))
             writeMetadata(session.copy(stoppedAt = System.currentTimeMillis(), analysis = analysis))
             pidFile.delete()
         }
+    }
+
+    private suspend fun signal(pid: Long, signal: CaptureSignal) {
+        val command = NetworkCaptureCommandPolicy.signal(pid, signal) ?: return
+        shell.execute(command, timeoutSeconds = 3)
+    }
+
+    private suspend fun findCommandPath(binary: CaptureBinary): String? {
+        val result = shell.execute(NetworkCaptureCommandPolicy.commandPath(binary), timeoutSeconds = 3)
+        return result.output.trim().takeIf { result.success && it.startsWith('/') && '\n' !in it && '\r' !in it }
     }
 
     private fun writeMetadata(s: CaptureSession) {

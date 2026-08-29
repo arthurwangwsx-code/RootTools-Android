@@ -82,9 +82,15 @@ android {
             version = "3.22.1"
         }
     }
+
+    packaging {
+        jniLibs.useLegacyPackaging = true
+        jniLibs.keepDebugSymbols += "**/libpcapd.so"
+    }
 }
 
 dependencies {
+    implementation(project(":feature:network-inspection"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
