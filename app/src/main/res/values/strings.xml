@@ -1003,6 +1003,7 @@
     <string name="network_interception_status_running">Transparent TLS inspection is running</string>
     <string name="network_interception_status_stopping">Stopping proxy and removing rules</string>
     <string name="network_interception_status_stopped">Interception stopped and rules removed</string>
+    <string name="network_interception_status_rule_cleanup_failed">Proxy stopped, but redirect rule cleanup failed</string>
     <string name="network_interception_status_addon_disconnected">MITM add-on disconnected unexpectedly</string>
     <string name="network_interception_status_stream_interrupted">Decrypted event stream was interrupted</string>
     <string name="network_interception_status_error">Interception setup failed</string>

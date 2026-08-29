@@ -137,7 +137,7 @@ class InterceptionEngine(
 
     private suspend fun stopInternal(markComplete: Boolean) {
         expectedSocketClose = true
-        networkController.cleanupRules()
+        val cleanup = networkController.cleanupRules()
         client?.stopProxy()
         socket?.close()
         socket = null
@@ -149,12 +149,14 @@ class InterceptionEngine(
         val completed = old.session?.copy(stoppedAt = System.currentTimeMillis())
         if (completed != null) writeSessionSummary(completed, old)
         if (markComplete) {
+            val outcome = InterceptionStopPolicy.outcome(cleanup.success, cleanup.technicalDetail)
             InterceptionRuntime.update {
                 it.copy(
-                    phase = InterceptionPhase.IDLE,
-                    status = InterceptionStatus.STOPPED,
+                    phase = outcome.phase,
+                    status = outcome.status,
                     session = completed,
                     target = null,
+                    lastError = outcome.lastError,
                 )
             }
         }

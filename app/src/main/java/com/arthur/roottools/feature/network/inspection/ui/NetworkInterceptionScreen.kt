@@ -422,6 +422,7 @@ private fun interceptionStatusText(status: InterceptionStatus): String = stringR
         InterceptionStatus.RUNNING -> R.string.network_interception_status_running
         InterceptionStatus.STOPPING -> R.string.network_interception_status_stopping
         InterceptionStatus.STOPPED -> R.string.network_interception_status_stopped
+        InterceptionStatus.RULE_CLEANUP_FAILED -> R.string.network_interception_status_rule_cleanup_failed
         InterceptionStatus.ADDON_DISCONNECTED -> R.string.network_interception_status_addon_disconnected
         InterceptionStatus.PLAINTEXT_STREAM_INTERRUPTED -> R.string.network_interception_status_stream_interrupted
         InterceptionStatus.ERROR -> R.string.network_interception_status_error

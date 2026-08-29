@@ -837,6 +837,7 @@
     <string name="network_interception_status_running">透明 TLS 检查正在运行</string>
     <string name="network_interception_status_stopping">正在停止代理并移除规则</string>
     <string name="network_interception_status_stopped">拦截已停止，规则已移除</string>
+    <string name="network_interception_status_rule_cleanup_failed">代理已停止，但重定向规则清理失败</string>
     <string name="network_interception_status_addon_disconnected">MITM add-on 意外断开</string>
     <string name="network_interception_status_stream_interrupted">解密事件流已中断</string>
     <string name="network_interception_status_error">拦截配置失败</string>

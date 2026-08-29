@@ -12,6 +12,7 @@ enum class InterceptionStatus {
     RUNNING,
     STOPPING,
     STOPPED,
+    RULE_CLEANUP_FAILED,
     ADDON_DISCONNECTED,
     PLAINTEXT_STREAM_INTERRUPTED,
     ERROR,
@@ -108,4 +109,10 @@ data class InterceptionState(
     val proxyPort: Int = 7780,
     val lastError: String? = null,
     val status: InterceptionStatus = InterceptionStatus.IDLE,
+)
+
+data class InterceptionStopOutcome(
+    val phase: InterceptionPhase,
+    val status: InterceptionStatus,
+    val lastError: String?,
 )
