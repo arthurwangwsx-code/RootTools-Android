@@ -944,4 +944,12 @@
     <string name="network_capture_status_capturing">Capturing traffic</string>
     <string name="network_capture_status_complete">Capture completed and analyzed</string>
     <string name="network_capture_status_error">Capture action failed</string>
+    <string name="network_capture_show_details">Show parsed details</string>
+    <string name="network_capture_hide_details">Hide details</string>
+    <string name="network_capture_flows_title">Top flows</string>
+    <string name="network_capture_packets_title">Packet summaries</string>
+    <string name="network_capture_flow_summary">%1$s · %2$s → %3$s · %4$d packets</string>
+    <string name="network_capture_packet_title">#%1$d · %2$s · %3$s</string>
+    <string name="network_capture_packet_route">%1$s → %2$s · %3$d bytes</string>
+    <string name="network_capture_details_empty">No packet details were parsed from this capture.</string>
 </resources>

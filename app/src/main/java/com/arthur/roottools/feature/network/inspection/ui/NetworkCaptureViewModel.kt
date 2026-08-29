@@ -70,6 +70,10 @@ class NetworkCaptureViewModel(application: Application) : AndroidViewModel(appli
 
     fun stopCapture() = runCaptureAction(repository::stop)
 
+    fun inspectSession(id: String) = runCaptureAction {
+        repository.ensurePacketAnalysis(id)
+    }
+
     private fun runCaptureAction(action: suspend () -> Unit) {
         if (mutableState.value.runningAction) return
         viewModelScope.launch {

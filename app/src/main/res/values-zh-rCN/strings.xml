@@ -778,4 +778,12 @@
     <string name="network_capture_status_capturing">正在抓取流量</string>
     <string name="network_capture_status_complete">抓包已停止并完成分析</string>
     <string name="network_capture_status_error">抓包操作失败</string>
+    <string name="network_capture_show_details">查看解析详情</string>
+    <string name="network_capture_hide_details">收起详情</string>
+    <string name="network_capture_flows_title">主要流</string>
+    <string name="network_capture_packets_title">数据包摘要</string>
+    <string name="network_capture_flow_summary">%1$s · %2$s → %3$s · %4$d 个包</string>
+    <string name="network_capture_packet_title">#%1$d · %2$s · %3$s</string>
+    <string name="network_capture_packet_route">%1$s → %2$s · %3$d 字节</string>
+    <string name="network_capture_details_empty">这个抓包文件没有解析出数据包详情。</string>
 </resources>

@@ -45,6 +45,7 @@ import com.arthur.roottools.R
 import com.arthur.roottools.feature.network.inspection.capture.AppTarget
 import com.arthur.roottools.feature.network.inspection.capture.CaptureSession
 import com.arthur.roottools.feature.network.inspection.capture.CaptureStatus
+import com.arthur.roottools.feature.network.inspection.capture.PacketSummary
 import com.arthur.roottools.feature.network.inspection.data.NetworkCaptureRepository
 
 @Composable
@@ -60,6 +61,7 @@ fun NetworkCaptureRoute(
         onSelectTarget = viewModel::selectTarget,
         onStart = viewModel::startCapture,
         onStop = viewModel::stopCapture,
+        onInspectSession = viewModel::inspectSession,
     )
 }
 
@@ -71,9 +73,11 @@ private fun NetworkCaptureScreen(
     onSelectTarget: (AppTarget?) -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
+    onInspectSession: (String) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var confirmStart by remember { mutableStateOf(false) }
+    var expandedSessionId by rememberSaveable { mutableStateOf<String?>(null) }
     val active = state.capture.active
     val filteredApps = remember(query, state.installedApps) {
         val needle = query.trim()
@@ -187,7 +191,18 @@ private fun NetworkCaptureScreen(
                 }
             } else {
                 items(state.capture.sessions, key = CaptureSession::id) { session ->
-                    CaptureSessionCard(session)
+                    CaptureSessionCard(
+                        session = session,
+                        expanded = expandedSessionId == session.id,
+                        onToggle = {
+                            if (expandedSessionId == session.id) {
+                                expandedSessionId = null
+                            } else {
+                                expandedSessionId = session.id
+                                onInspectSession(session.id)
+                            }
+                        },
+                    )
                 }
             }
         }
@@ -298,7 +313,11 @@ private fun ActiveCaptureCard(session: CaptureSession, busy: Boolean, onStop: ()
 }
 
 @Composable
-private fun CaptureSessionCard(session: CaptureSession) {
+private fun CaptureSessionCard(
+    session: CaptureSession,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+) {
     val analysis = session.analysis
     Card(shape = RoundedCornerShape(20.dp)) {
         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -316,6 +335,59 @@ private fun CaptureSessionCard(session: CaptureSession) {
             if (protocols.isNotBlank()) {
                 Text(protocols, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
+            TextButton(onClick = onToggle) {
+                Text(stringResource(if (expanded) R.string.network_capture_hide_details else R.string.network_capture_show_details))
+            }
+            if (expanded) {
+                val flows = analysis?.flows.orEmpty().take(12)
+                if (flows.isNotEmpty()) {
+                    Text(stringResource(R.string.network_capture_flows_title), fontWeight = FontWeight.SemiBold)
+                    flows.forEach { flow ->
+                        Text(
+                            stringResource(
+                                R.string.network_capture_flow_summary,
+                                flow.protocol,
+                                flow.source,
+                                flow.destination,
+                                flow.packets,
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                val packets = analysis?.packets.orEmpty().take(20)
+                if (packets.isNotEmpty()) {
+                    Text(stringResource(R.string.network_capture_packets_title), fontWeight = FontWeight.SemiBold)
+                    packets.forEach { packet -> PacketSummaryRow(packet) }
+                } else {
+                    Text(
+                        stringResource(R.string.network_capture_details_empty),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun PacketSummaryRow(packet: PacketSummary) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+        Text(
+            stringResource(R.string.network_capture_packet_title, packet.id, packet.protocol, packet.title),
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            stringResource(R.string.network_capture_packet_route, packet.source, packet.destination, packet.capturedLength),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
