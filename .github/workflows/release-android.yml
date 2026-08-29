@@ -122,7 +122,8 @@ jobs:
             "$APKSIGNER" verify --verbose --print-certs "$apk"
             out="dist/${product}-${RELEASE_TAG}.apk"
             cp "$apk" "$out"
-            sha256sum "$out" > "${out}.sha256"
+            filename="$(basename "$out")"
+            (cd dist && sha256sum "$filename" > "${filename}.sha256")
           done
 
       - name: Publish GitHub Release
