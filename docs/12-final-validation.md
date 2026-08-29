@@ -2,6 +2,10 @@
 
 ## 当前状态
 
+2026-08-30 当前基线：Mi 9T Pro `f27e2c0f` 已安装主应用 Release
+`0.5.0-beta.1`；首页 Root、全量套件入口、Background、Network Inspection 三页签均已真机
+验收。当前证据见 [`validation/2026-08-30-suite.md`](./validation/2026-08-30-suite.md)。
+
 工程侧已经完成：
 
 - Debug build
@@ -44,7 +48,7 @@ adb -s 100.91.126.56:5555 install -r \
 - Root 由前台 Activity 触发 Magisk 授权
 - 授权完成后首页显示 `ROOT`
 - 同一 App 进程连续刷新 Dashboard、进入 Performance/Startup/Diagnostics/Modules，以及 CPU policy 低频后台采样时，
-  Magisk grant toast 不应按命令/采样周期重复出现；只允许进程首次创建 root session 时出现一次
+  不得留下 `su` / `timeout` / payload orphan；Magisk 授权必须保持稳定，不得重复弹出授权确认
 - CPU Policy Service 只在 Root 成功后启动
 
 ## 4. 设备看板
@@ -72,7 +76,7 @@ adb shell top -b -n 1 -p $(adb shell pidof com.arthur.roottools)
 - Auto / Cool / Performance 可切换
 - Thermal > 0 时不得把系统当前 `scaling_max_freq` 向上抬高
 - Cool Responsive：效率簇保持完整峰值，性能簇/Prime 仅削高频尾段；Vendor cap 更低时不得向上覆盖
-- RootShell timeout：超时 payload 必须结束，下一条命令可继续复用共享 root session
+- RootShell timeout：超时 payload 必须结束，下一条串行隔离命令仍可执行
 - Xiaomi / Toybox process-group：timeout 后后台 child PID 不得继续运行
 - 多次 Diagnostics root attribution 后不得出现长期高 CPU 的 `tr` / root shell orphan
 
