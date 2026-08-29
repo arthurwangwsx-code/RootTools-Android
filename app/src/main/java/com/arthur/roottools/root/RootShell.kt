@@ -1,36 +1,26 @@
 package com.arthur.roottools.root
 
-import com.arthur.roottools.core.privilege.PosixShell
+import com.arthur.roottools.core.privilege.BoundedProcessRunner
 import com.arthur.roottools.core.privilege.RootCommandResult
-import kotlinx.coroutines.CancellationException
+import com.arthur.roottools.core.privilege.RootExecutionPolicy
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import java.io.BufferedReader
-import java.io.BufferedWriter
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Root command executor backed by one process-wide `su` session.
+ * Root command executor backed by the shared privilege Core contract.
  *
- * Magisk emits its superuser grant notification when a new `su` process is created. The old
- * implementation used `su -c` for every collector/action, so normal dashboard sampling could
- * trigger that notification repeatedly, including while a foreground policy service was alive.
- *
- * Every RootShell instance now shares the same serialized root session. Each command is executed
- * through the platform `timeout` utility, which creates a dedicated process group and terminates
- * the whole group on timeout. This prevents timed-out pipelines from becoming orphan root
- * processes while keeping privilege acquisition out of normal hot paths.
+ * Every RootShell instance shares one serialized executor. Commands use isolated `su -c` processes
+ * because some Magisk/device combinations close long-lived interactive `su` stdin immediately.
+ * The shared Core transport applies quoting, timeout process-group isolation, concurrent stream
+ * draining, and output bounds consistently with companion apps.
  */
 class RootShell internal constructor(
-    private val session: PersistentRootSession = SHARED_SESSION,
+    private val executor: SerializedRootExecutor = SHARED_EXECUTOR,
 ) {
     suspend fun execute(command: String, timeoutSeconds: Long = 8): RootCommandResult =
-        session.execute(command, timeoutSeconds)
+        executor.execute(command, timeoutSeconds)
 
     suspend fun executeBatch(commands: List<String>, timeoutSeconds: Long = 8): RootCommandResult =
         execute(commands.joinToString("\n"), timeoutSeconds)
@@ -41,151 +31,24 @@ class RootShell internal constructor(
     }
 
     private companion object {
-        val SHARED_SESSION = PersistentRootSession(listOf("su"))
+        val SHARED_EXECUTOR = SerializedRootExecutor()
     }
 }
 
-/**
- * Serialized interactive shell transport. Internal so host JVM tests can exercise the protocol
- * with `/bin/sh` without requiring root.
- */
-internal class PersistentRootSession(
-    private val processCommand: List<String>,
+internal class SerializedRootExecutor(
+    private val runProcess: (List<String>, Long) -> RootCommandResult = BoundedProcessRunner()::run,
 ) {
     private val mutex = Mutex()
-    private val sequence = AtomicLong(0)
-
-    private var process: Process? = null
-    private var writer: BufferedWriter? = null
-    private var reader: BufferedReader? = null
-    private var outputQueue: LinkedBlockingQueue<SessionEvent>? = null
-    private var readerThread: Thread? = null
-
-    internal var processLaunchCount: Int = 0
-        private set
 
     suspend fun execute(command: String, timeoutSeconds: Long): RootCommandResult = withContext(Dispatchers.IO) {
         mutex.withLock {
-            try {
-                executeLocked(command, timeoutSeconds)
-            } catch (cancelled: CancellationException) {
-                invalidateSession()
-                throw cancelled
-            } catch (error: Throwable) {
-                invalidateSession()
-                RootCommandResult(-1, error.message ?: error.javaClass.simpleName)
-            }
+            val transport = RootExecutionPolicy.isolatedSuCommand(command, timeoutSeconds)
+                ?: return@withLock RootCommandResult(2, "", "invalid root command input")
+            runProcess(transport, (timeoutSeconds + TRANSPORT_GRACE_SECONDS) * 1_000)
         }
-    }
-
-    private suspend fun executeLocked(command: String, timeoutSeconds: Long): RootCommandResult {
-        ensureSession()
-        val activeWriter = writer ?: error("Root shell stdin unavailable")
-        val activeQueue = outputQueue ?: error("Root shell output queue unavailable")
-        val marker = "__ROOTTOOLS_END_${sequence.incrementAndGet()}_${System.nanoTime()}__"
-        val effectiveTimeoutSeconds = timeoutSeconds.coerceAtLeast(1)
-
-        // Android's toybox timeout (API 30+ target) creates a separate process group unless
-        // --foreground is requested. Running the actual payload under `sh -c` preserves isolation
-        // for exit/cd/local variables, and -k guarantees a TERM-ignoring descendant cannot survive.
-        activeWriter.write(
-            "timeout -k ${TIMEOUT_KILL_GRACE_SECONDS}s ${effectiveTimeoutSeconds}s sh -c ${PosixShell.quote(command)}\n",
-        )
-        activeWriter.write("__roottools_code=\$?\n")
-        activeWriter.write("printf '\\n${marker}:%s\\n' \"\$__roottools_code\"\n")
-        activeWriter.flush()
-
-        val outputLines = mutableListOf<String>()
-        val deadline = System.nanoTime() +
-            TimeUnit.SECONDS.toNanos(effectiveTimeoutSeconds + TRANSPORT_GRACE_SECONDS)
-        while (true) {
-            val remaining = deadline - System.nanoTime()
-            if (remaining <= 0L) {
-                invalidateSession()
-                return RootCommandResult(-1, "Command timed out", timedOut = true)
-            }
-            val event = runInterruptible(Dispatchers.IO) {
-                activeQueue.poll(remaining, TimeUnit.NANOSECONDS)
-            }
-            when (event) {
-                null -> {
-                    // We never retry the same command automatically because a write action may
-                    // have partially run before the timeout.
-                    invalidateSession()
-                    return RootCommandResult(-1, "Command timed out", timedOut = true)
-                }
-                is SessionEvent.Line -> {
-                    val line = event.value
-                    if (line.startsWith("$marker:")) {
-                        val exitCode = line.substringAfter(':').trim().toIntOrNull()
-                            ?: error("Root shell returned an invalid exit code")
-                        return RootCommandResult(
-                            exitCode = exitCode,
-                            output = outputLines.joinToString("\n"),
-                            timedOut = exitCode == TIMEOUT_EXIT_CODE || exitCode == TIMEOUT_KILLED_EXIT_CODE,
-                        )
-                    }
-                    outputLines += line
-                }
-                is SessionEvent.Closed -> error(event.reason)
-            }
-        }
-    }
-
-    private fun ensureSession() {
-        val current = process
-        if (current?.isAlive == true && writer != null && reader != null && outputQueue != null && readerThread?.isAlive == true) return
-
-        invalidateSession()
-        val created = ProcessBuilder(processCommand)
-            .redirectErrorStream(true)
-            .start()
-        val createdReader = created.inputStream.bufferedReader()
-        val createdQueue = LinkedBlockingQueue<SessionEvent>()
-        val createdReaderThread = Thread({
-            try {
-                while (true) {
-                    val line = createdReader.readLine() ?: break
-                    createdQueue.offer(SessionEvent.Line(line))
-                }
-                createdQueue.offer(SessionEvent.Closed("Root shell closed before command completed"))
-            } catch (error: Throwable) {
-                createdQueue.offer(SessionEvent.Closed(error.message ?: "Root shell reader stopped"))
-            }
-        }, "RootTools-su-reader").apply {
-            isDaemon = true
-            start()
-        }
-        process = created
-        writer = created.outputStream.bufferedWriter()
-        reader = createdReader
-        outputQueue = createdQueue
-        readerThread = createdReaderThread
-        processLaunchCount += 1
-    }
-
-    private fun invalidateSession() {
-        runCatching { writer?.close() }
-        runCatching { reader?.close() }
-        runCatching { process?.destroyForcibly() }
-        runCatching { readerThread?.interrupt() }
-        outputQueue?.clear()
-        writer = null
-        reader = null
-        outputQueue = null
-        readerThread = null
-        process = null
-    }
-
-    private sealed interface SessionEvent {
-        data class Line(val value: String) : SessionEvent
-        data class Closed(val reason: String) : SessionEvent
     }
 
     private companion object {
-        const val TIMEOUT_EXIT_CODE = 124
-        const val TIMEOUT_KILLED_EXIT_CODE = 137
-        const val TIMEOUT_KILL_GRACE_SECONDS = "0.2"
         const val TRANSPORT_GRACE_SECONDS = 2L
     }
 }

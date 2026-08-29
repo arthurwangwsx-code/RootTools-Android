@@ -1,5 +1,5 @@
 {
-  "com/arthur/roottools/root/PersistentRootSession": 90.0,
+  "com/arthur/roottools/root/SerializedRootExecutor": 90.0,
   "com/arthur/roottools/privilege/PrivilegeInputValidator": 100.0,
   "com/arthur/roottools/privilege/PrivilegeRoutingPolicy": 85.0,
   "com/arthur/roottools/policy/AppOpsMutationPolicy": 80.0,

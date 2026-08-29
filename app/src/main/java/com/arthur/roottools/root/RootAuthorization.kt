@@ -1,5 +1,6 @@
 package com.arthur.roottools.root
 
+import android.util.Log
 import com.arthur.roottools.core.privilege.RootCommandResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,10 +53,17 @@ class RootAuthorizationManager(private val shell: RootShell) {
 
     suspend fun request(timeoutSeconds: Long = 60): RootAuthorizationSnapshot {
         _state.value = RootAuthorizationSnapshot(RootAuthorizationStatus.REQUESTING)
-        val snapshot = RootAuthorizationPolicy.fromProbe(
-            shell.execute("id -u", timeoutSeconds = timeoutSeconds.coerceIn(10, 120)),
+        val probe = shell.execute("id -u", timeoutSeconds = timeoutSeconds.coerceIn(10, 120))
+        Log.i(
+            LOG_TAG,
+            "probe exit=${probe.exitCode} timedOut=${probe.timedOut} output=${probe.output.trim().take(80)}",
         )
+        val snapshot = RootAuthorizationPolicy.fromProbe(probe)
         _state.value = snapshot
         return snapshot
+    }
+
+    private companion object {
+        const val LOG_TAG = "RootToolsRootAuth"
     }
 }
