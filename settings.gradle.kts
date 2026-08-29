@@ -11,8 +11,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven(url = "https://api.xposed.info/")
     }
 }
 
 rootProject.name = "RootTools"
 include(":app")
+include(":companion:hyperos-credential-fix")

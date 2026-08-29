@@ -48,7 +48,13 @@ jobs:
           fi
 
       - name: Unit tests, lint, and debug APK
-        run: gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+        run: >-
+          gradle
+          :app:testDebugUnitTest
+          :app:lintDebug
+          :app:assembleDebug
+          :companion:hyperos-credential-fix:lintDebug
+          :companion:hyperos-credential-fix:assembleDebug
 
       - name: JVM coverage report
         run: gradle :app:koverXmlReportDebug
