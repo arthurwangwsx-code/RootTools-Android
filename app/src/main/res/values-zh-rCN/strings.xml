@@ -786,4 +786,10 @@
     <string name="network_capture_packet_title">#%1$d · %2$s · %3$s</string>
     <string name="network_capture_packet_route">%1$s → %2$s · %3$d 字节</string>
     <string name="network_capture_details_empty">这个抓包文件没有解析出数据包详情。</string>
+    <string name="network_interception_notification_channel">TLS 拦截</string>
+    <string name="network_interception_notification_channel_desc">保持用户明确启动的透明拦截会话运行</string>
+    <string name="network_interception_notification_title">RootTools · TLS 拦截</string>
+    <string name="network_interception_notification_starting">正在为 %1$s 启动拦截</string>
+    <string name="network_interception_notification_running">正在解密 %1$s 的已授权流量</string>
+    <string name="network_interception_notification_failed">无法启动拦截</string>
 </resources>

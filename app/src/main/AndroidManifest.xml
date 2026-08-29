@@ -118,6 +118,15 @@
         </service>
 
         <service
+            android:name=".feature.network.inspection.intercept.InterceptionService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-authorized local application traffic interception and evidence collection" />
+        </service>
+
+        <service
             android:name=".tiles.PerformanceTileService"
             android:exported="true"
             android:icon="@drawable/ic_speed"

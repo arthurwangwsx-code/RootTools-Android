@@ -31,6 +31,7 @@ import com.arthur.roottools.feature.network.inspection.intercept.InterceptionNet
 import com.arthur.roottools.feature.network.inspection.intercept.InterceptionAuditSink
 import com.arthur.roottools.feature.network.inspection.intercept.InterceptionStore
 import com.arthur.roottools.feature.network.inspection.intercept.InterceptionCertificateManager
+import com.arthur.roottools.feature.network.inspection.intercept.InterceptionEngine
 import com.arthur.roottools.feature.network.inspection.intercept.MitmAddonRepository
 import com.arthur.roottools.feature.network.tailscale.data.RootTailscaleRuntimeInstaller
 import com.arthur.roottools.feature.assistant.data.AssistantRepository
@@ -154,6 +155,13 @@ internal class AppContainer(private val application: Application) {
             },
         )
     }
+    fun createInterceptionEngine() = InterceptionEngine(
+        context = application,
+        rootAvailable = { rootAuthorizationManager.state.value.granted },
+        addonRepository = mitmAddonRepository,
+        certificateManager = interceptionCertificateManager,
+        networkController = interceptionNetworkController,
+    )
     val rootTailscaleRepository by lazy {
         RootTailscaleRepository(shell) { rootAuthorizationManager.state.value.granted }
     }

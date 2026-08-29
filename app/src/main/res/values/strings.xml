@@ -952,4 +952,10 @@
     <string name="network_capture_packet_title">#%1$d · %2$s · %3$s</string>
     <string name="network_capture_packet_route">%1$s → %2$s · %3$d bytes</string>
     <string name="network_capture_details_empty">No packet details were parsed from this capture.</string>
+    <string name="network_interception_notification_channel">TLS interception</string>
+    <string name="network_interception_notification_channel_desc">Keeps an explicitly started transparent interception session active</string>
+    <string name="network_interception_notification_title">RootTools · TLS interception</string>
+    <string name="network_interception_notification_starting">Starting interception for %1$s</string>
+    <string name="network_interception_notification_running">Decrypting authorized traffic for %1$s</string>
+    <string name="network_interception_notification_failed">Interception could not be started</string>
 </resources>
