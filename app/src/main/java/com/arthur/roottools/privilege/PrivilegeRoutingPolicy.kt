@@ -3,6 +3,7 @@ package com.arthur.roottools.privilege
 import com.arthur.roottools.model.PrivilegeBackendType
 import com.arthur.roottools.model.PrivilegeCapability
 import com.arthur.roottools.model.PrivilegeRouteBackend
+import com.arthur.roottools.model.FrameworkPrivilegePreference
 import com.arthur.roottools.model.ShizukuBridgeState
 
 /**
@@ -29,7 +30,12 @@ object PrivilegeRoutingPolicy {
     }
 
     fun primaryBackend(bridge: ShizukuBridgeState, rootAvailable: Boolean): PrivilegeRouteBackend =
-        routesFor(PrivilegeCapability.FRAMEWORK_DIAGNOSTICS, bridge, rootAvailable).firstOrNull()
+        routesFor(
+            PrivilegeCapability.FRAMEWORK_DIAGNOSTICS,
+            bridge,
+            rootAvailable,
+            FrameworkPrivilegePreference.AUTO,
+        ).firstOrNull()
             ?: PrivilegeRouteBackend.NONE
 
     /**
@@ -43,12 +49,29 @@ object PrivilegeRoutingPolicy {
         capability: PrivilegeCapability,
         bridge: ShizukuBridgeState,
         rootAvailable: Boolean,
+        preference: FrameworkPrivilegePreference = FrameworkPrivilegePreference.AUTO,
     ): List<PrivilegeRouteBackend> {
         val result = mutableListOf<PrivilegeRouteBackend>()
-        if (capability in frameworkCapabilities && bridge.ready) {
-            bridge.backend.toRouteBackend().takeIf { it != PrivilegeRouteBackend.NONE }?.let(result::add)
+        if (capability !in frameworkCapabilities) {
+            if (rootAvailable) result += PrivilegeRouteBackend.ROOT_SHELL
+            return result
         }
-        if (rootAvailable) result += PrivilegeRouteBackend.ROOT_SHELL
+
+        val shizukuBackend = bridge.backend.toRouteBackend()
+            .takeIf { bridge.ready && it != PrivilegeRouteBackend.NONE }
+        when (preference) {
+            FrameworkPrivilegePreference.AUTO -> {
+                shizukuBackend?.let(result::add)
+                if (rootAvailable) result += PrivilegeRouteBackend.ROOT_SHELL
+            }
+            FrameworkPrivilegePreference.SHIZUKU_ONLY -> {
+                shizukuBackend?.let(result::add)
+            }
+            FrameworkPrivilegePreference.ROOT_FIRST -> {
+                if (rootAvailable) result += PrivilegeRouteBackend.ROOT_SHELL
+                shizukuBackend?.let(result::add)
+            }
+        }
         return result.distinct()
     }
 

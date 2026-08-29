@@ -897,4 +897,23 @@
     <string name="assistant_feedback_not_eligible">The selected app is not a qualified voice-assistant candidate.</string>
     <string name="assistant_feedback_write_failed">The system rejected the assistant-role change: %1$s</string>
     <string name="assistant_feedback_verify_failed">The write returned, but role verification did not match. Current holder: %1$s</string>
+
+    <!-- Root authorization and Framework privilege routing -->
+    <string name="root_auth_requesting">Waiting for Magisk authorization</string>
+    <string name="root_auth_requesting_detail">Confirm the RootTools request in the Magisk prompt. Root-only collectors stay paused until authorization completes.</string>
+    <string name="root_auth_not_authorized">Root not authorized</string>
+    <string name="root_auth_not_authorized_detail">RootTools can see the device but has not received a persistent Magisk grant. Tap Retry to request it again.</string>
+    <string name="root_auth_granted">Root authorized</string>
+    <string name="root_auth_retry">Retry Root authorization</string>
+    <string name="hub_status_requesting">REQUESTING</string>
+    <string name="hub_status_not_authorized">NOT AUTHORIZED</string>
+    <string name="framework_backend_preference_title">Framework privilege backend</string>
+    <string name="framework_backend_preference_desc">Controls Package, Activity, AppOps and Role operations. Linux, sysfs, Magisk, adbd and Root Tailscale always remain Root-only.</string>
+    <string name="framework_backend_auto">Auto</string>
+    <string name="framework_backend_auto_desc">Prefer Shizuku/Sui and safely fall back to Root when Root has already been authorized.</string>
+    <string name="framework_backend_shizuku_only">Shizuku only</string>
+    <string name="framework_backend_shizuku_only_desc">Framework operations never fall back to Root. Useful when you want RootTools to work without triggering Magisk.</string>
+    <string name="framework_backend_root_first">Root first</string>
+    <string name="framework_backend_root_first_desc">Prefer RootShell for Framework operations and use Shizuku/Sui as the fallback.</string>
+    <string name="framework_backend_current">Current policy</string>
 </resources>

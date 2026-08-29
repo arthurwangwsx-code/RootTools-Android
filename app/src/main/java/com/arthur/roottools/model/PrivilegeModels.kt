@@ -15,6 +15,19 @@ enum class PrivilegeRouteBackend(val displayName: String) {
     SUI_ROOT("Sui Root"),
 }
 
+/**
+ * User preference for Framework-level privileged operations only.
+ *
+ * Root-only Linux/sysfs/Magisk/adbd capabilities never use this preference and always remain on
+ * RootShell. This setting only changes ordering/fallback for PackageManager, ActivityManager,
+ * AppOps, RoleManager, and other Framework operations that Shizuku/Sui can represent safely.
+ */
+enum class FrameworkPrivilegePreference {
+    AUTO,
+    SHIZUKU_ONLY,
+    ROOT_FIRST,
+}
+
 enum class PrivilegeCapability {
     ROOT_LINUX,
     ROOT_FS,

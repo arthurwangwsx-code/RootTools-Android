@@ -3,6 +3,7 @@ package com.arthur.roottools.privilege
 import com.arthur.roottools.model.PrivilegeBackendType
 import com.arthur.roottools.model.PrivilegeCapability
 import com.arthur.roottools.model.PrivilegeRouteBackend
+import com.arthur.roottools.model.FrameworkPrivilegePreference
 import com.arthur.roottools.model.ShizukuBridgeState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -26,6 +27,62 @@ class PrivilegeRoutingPolicyTest {
             listOf(PrivilegeRouteBackend.SHIZUKU_ROOT, PrivilegeRouteBackend.ROOT_SHELL),
             PrivilegeRoutingPolicy.routesFor(PrivilegeCapability.PACKAGE_CONTROL, bridge, rootAvailable = true),
         )
+    }
+
+    @Test
+    fun shizukuOnlyNeverFallsBackToRootForFrameworkOperations() {
+        val bridge = readyBridge(PrivilegeBackendType.SHIZUKU_ADB)
+
+        assertEquals(
+            listOf(PrivilegeRouteBackend.SHIZUKU_ADB),
+            PrivilegeRoutingPolicy.routesFor(
+                PrivilegeCapability.PACKAGE_CONTROL,
+                bridge,
+                rootAvailable = true,
+                preference = FrameworkPrivilegePreference.SHIZUKU_ONLY,
+            ),
+        )
+        assertEquals(
+            emptyList<PrivilegeRouteBackend>(),
+            PrivilegeRoutingPolicy.routesFor(
+                PrivilegeCapability.PACKAGE_CONTROL,
+                ShizukuBridgeState(),
+                rootAvailable = true,
+                preference = FrameworkPrivilegePreference.SHIZUKU_ONLY,
+            ),
+        )
+    }
+
+    @Test
+    fun rootFirstChangesFrameworkPriorityButKeepsShizukuFallback() {
+        val bridge = readyBridge(PrivilegeBackendType.SUI_ROOT)
+
+        assertEquals(
+            listOf(PrivilegeRouteBackend.ROOT_SHELL, PrivilegeRouteBackend.SUI_ROOT),
+            PrivilegeRoutingPolicy.routesFor(
+                PrivilegeCapability.APP_OPS,
+                bridge,
+                rootAvailable = true,
+                preference = FrameworkPrivilegePreference.ROOT_FIRST,
+            ),
+        )
+    }
+
+    @Test
+    fun rootOnlyCapabilityIgnoresFrameworkPreference() {
+        val bridge = readyBridge(PrivilegeBackendType.SHIZUKU_ROOT)
+
+        FrameworkPrivilegePreference.entries.forEach { preference ->
+            assertEquals(
+                listOf(PrivilegeRouteBackend.ROOT_SHELL),
+                PrivilegeRoutingPolicy.routesFor(
+                    PrivilegeCapability.ADBD_CONTROL,
+                    bridge,
+                    rootAvailable = true,
+                    preference = preference,
+                ),
+            )
+        }
     }
 
     @Test

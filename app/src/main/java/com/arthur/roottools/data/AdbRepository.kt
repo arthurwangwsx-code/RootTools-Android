@@ -7,11 +7,12 @@ import com.arthur.roottools.root.RootShell
 class AdbRepository(
     context: Context,
     private val shell: RootShell,
+    private val rootAvailable: () -> Boolean = { true },
 ) {
     private val preferences = AdbPreferenceStore(context)
 
     suspend fun read(): AdbSnapshot {
-        val root = shell.isAvailable()
+        val root = rootAvailable()
         if (!root) return AdbSnapshot(bootPolicy = preferences.bootPolicy())
         val result = shell.execute(COLLECT_COMMAND, timeoutSeconds = 8)
         if (!result.success) return AdbSnapshot(rootAvailable = true, bootPolicy = preferences.bootPolicy())

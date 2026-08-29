@@ -1,6 +1,7 @@
 package com.arthur.roottools.privilege
 
 import com.arthur.roottools.model.PrivilegeCapability
+import com.arthur.roottools.model.FrameworkPrivilegePreference
 import com.arthur.roottools.model.PrivilegeRouteBackend
 import com.arthur.roottools.model.ShadowDisplayConfig
 import com.arthur.roottools.root.RootShell
@@ -17,6 +18,8 @@ class PrivilegeRouter(
     private val bridge: ShizukuBridge,
     private val shizukuClient: ShizukuUserServiceClient,
     private val rootShell: RootShell,
+    private val rootAvailable: () -> Boolean = { true },
+    private val frameworkPreference: () -> FrameworkPrivilegePreference = { FrameworkPrivilegePreference.AUTO },
 ) {
     suspend fun shadowDisplayStatus(): PrivilegeResult<String> = rootReadResult(
         command = shadowStatusCommand(),
@@ -279,7 +282,12 @@ class PrivilegeRouter(
     ): PrivilegeResult<Unit> {
         val state = bridge.state.value
         val failures = mutableListOf<String>()
-        val routes = PrivilegeRoutingPolicy.routesFor(capability, state, rootAvailable = true)
+        val routes = PrivilegeRoutingPolicy.routesFor(
+            capability = capability,
+            bridge = state,
+            rootAvailable = rootAvailable(),
+            preference = frameworkPreference(),
+        )
         routes.forEach { backend ->
             when (backend) {
                 PrivilegeRouteBackend.SHIZUKU_ADB,
@@ -308,7 +316,12 @@ class PrivilegeRouter(
     ): PrivilegeResult<T> {
         val state = bridge.state.value
         val failures = mutableListOf<String>()
-        val routes = PrivilegeRoutingPolicy.routesFor(capability, state, rootAvailable = true)
+        val routes = PrivilegeRoutingPolicy.routesFor(
+            capability = capability,
+            bridge = state,
+            rootAvailable = rootAvailable(),
+            preference = frameworkPreference(),
+        )
         routes.forEach { backend ->
             when (backend) {
                 PrivilegeRouteBackend.SHIZUKU_ADB,

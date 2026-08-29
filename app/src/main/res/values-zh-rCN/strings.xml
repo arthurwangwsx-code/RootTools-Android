@@ -731,4 +731,23 @@
     <string name="assistant_feedback_not_eligible">所选应用不是合格的语音助理候选。</string>
     <string name="assistant_feedback_write_failed">系统拒绝了 Assistant Role 切换：%1$s</string>
     <string name="assistant_feedback_verify_failed">写入已经返回，但回读校验不一致。当前 Holder：%1$s</string>
+
+    <!-- Root 授权与 Framework 特权路由 -->
+    <string name="root_auth_requesting">等待 Magisk Root 授权</string>
+    <string name="root_auth_requesting_detail">请在 Magisk 弹窗中确认 RootTools 的 Root 请求。授权完成前，Root-only 采集器会保持暂停。</string>
+    <string name="root_auth_not_authorized">Root 尚未授权</string>
+    <string name="root_auth_not_authorized_detail">RootTools 已识别设备，但还没有获得持久的 Magisk 授权。点击“重新申请”即可再次触发。</string>
+    <string name="root_auth_granted">Root 已授权</string>
+    <string name="root_auth_retry">重新申请 Root</string>
+    <string name="hub_status_requesting">等待授权</string>
+    <string name="hub_status_not_authorized">未授权</string>
+    <string name="framework_backend_preference_title">Framework 特权后端</string>
+    <string name="framework_backend_preference_desc">只影响 Package、Activity、AppOps、Role 等 Framework 操作。Linux、sysfs、Magisk、adbd、Root Tailscale 始终保持 Root-only。</string>
+    <string name="framework_backend_auto">自动</string>
+    <string name="framework_backend_auto_desc">优先 Shizuku/Sui；只有 Root 已经授权时，安全操作才允许回退到 Root。</string>
+    <string name="framework_backend_shizuku_only">仅 Shizuku</string>
+    <string name="framework_backend_shizuku_only_desc">Framework 操作绝不回退 Root，适合希望 RootTools 在未授权 Magisk 时仍使用 Shizuku 的场景。</string>
+    <string name="framework_backend_root_first">Root 优先</string>
+    <string name="framework_backend_root_first_desc">Framework 操作优先 RootShell，失败时再使用 Shizuku/Sui。</string>
+    <string name="framework_backend_current">当前策略</string>
 </resources>

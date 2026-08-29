@@ -50,6 +50,7 @@ import com.arthur.roottools.core.ui.token.RootToolsSpacing
 import com.arthur.roottools.core.ui.token.RootToolsStatusTone
 import com.arthur.roottools.feature.home.presentation.HomeHealthInput
 import com.arthur.roottools.feature.home.presentation.HomeHealthPolicy
+import com.arthur.roottools.root.RootAuthorizationStatus
 import com.arthur.roottools.ui.DashboardUiState
 import com.arthur.roottools.ui.capabilityAvailable
 
@@ -157,9 +158,15 @@ private fun DomainHero(tab: RootToolsTab, state: DashboardUiState) {
             titleRes = R.string.hub_system_title
             subtitleRes = R.string.hub_system_subtitle
             icon = Icons.Rounded.Settings
+            val rootStatus = when {
+                state.snapshot.rootAvailable -> stringResource(R.string.hub_status_ready)
+                state.rootAuthorization.status == RootAuthorizationStatus.REQUESTING -> stringResource(R.string.hub_status_requesting)
+                state.rootAuthorization.status == RootAuthorizationStatus.DENIED_OR_TIMEOUT -> stringResource(R.string.hub_status_not_authorized)
+                else -> stringResource(R.string.hub_status_unavailable)
+            }
             status = stringResource(
                 R.string.hub_system_status,
-                stringResource(if (state.snapshot.rootAvailable) R.string.hub_status_ready else R.string.hub_status_unavailable),
+                rootStatus,
                 stringResource(if (state.shizuku.ready) R.string.hub_status_ready else R.string.hub_status_off),
             )
         }

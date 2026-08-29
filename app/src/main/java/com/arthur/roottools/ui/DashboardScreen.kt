@@ -121,6 +121,7 @@ import com.arthur.roottools.model.AdbEndpoint
 import com.arthur.roottools.model.AdbEndpointType
 import com.arthur.roottools.model.DeviceHealthSnapshot
 import com.arthur.roottools.model.DeviceSnapshot
+import com.arthur.roottools.model.FrameworkPrivilegePreference
 import com.arthur.roottools.model.HealthHistoryPoint
 import com.arthur.roottools.model.MemoryPressureStatus
 import com.arthur.roottools.model.MagiskModuleInfo
@@ -134,6 +135,7 @@ import com.arthur.roottools.model.StorageStatus
 import com.arthur.roottools.model.SystemActionId
 import com.arthur.roottools.model.ThermalStage
 import com.arthur.roottools.model.VectorModuleInfo
+import com.arthur.roottools.root.RootAuthorizationStatus
 import com.arthur.roottools.core.ui.component.RootToolsErrorCard as ErrorCard
 import com.arthur.roottools.core.ui.component.RootToolsDetailHeader as DetailHeader
 import com.arthur.roottools.core.ui.component.RootToolsKeyValueRow as SummaryRow
@@ -311,6 +313,7 @@ fun DashboardRoute(
             onRefresh = viewModel::refreshShizuku,
             onRequestPermission = viewModel::requestShizukuPermission,
             onSelfTest = viewModel::runShizukuSelfTest,
+            onFrameworkPreferenceChange = viewModel::setFrameworkPrivilegePreference,
         )
         ToolboxRoute.COMPONENTS -> ComponentManagerScreen(
             state = state,
@@ -2023,6 +2026,7 @@ internal fun PermissionScreen(
     onRequestRoot: () -> Unit,
     onRequestShizuku: () -> Unit,
 ) {
+    val rootRequesting = state.rootAuthorization.status == RootAuthorizationStatus.REQUESTING
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -2032,10 +2036,15 @@ internal fun PermissionScreen(
             item { DetailHeader("权限中心", "首次启动会主动触发所需授权", onBack, state.loading, onRefresh) }
             item {
                 PermissionItem(
-                    title = "Root 权限",
-                    description = "性能控制和 Root ADB 都通过 Magisk su 执行",
+                    title = stringResource(R.string.common_root),
+                    description = when {
+                        state.snapshot.rootAvailable -> stringResource(R.string.root_auth_granted)
+                        rootRequesting -> stringResource(R.string.root_auth_requesting_detail)
+                        state.rootAuthorization.status == RootAuthorizationStatus.DENIED_OR_TIMEOUT -> stringResource(R.string.root_auth_not_authorized_detail)
+                        else -> stringResource(R.string.root_auth_not_authorized_detail)
+                    },
                     granted = state.snapshot.rootAvailable,
-                    action = if (!state.snapshot.rootAvailable) "重新申请" else null,
+                    action = if (!state.snapshot.rootAvailable && !rootRequesting) stringResource(R.string.root_auth_retry) else null,
                     onAction = onRequestRoot,
                 )
             }
@@ -2464,6 +2473,7 @@ internal fun ShizukuSuiScreen(
     onRefresh: () -> Unit,
     onRequestPermission: () -> Unit,
     onSelfTest: () -> Unit,
+    onFrameworkPreferenceChange: (FrameworkPrivilegePreference) -> Unit,
 ) {
     val context = LocalContext.current
     val bridge = state.shizuku
@@ -2512,6 +2522,43 @@ internal fun ShizukuSuiScreen(
                     ) { Text(if (bridge.permissionDeniedPermanently) "需要在 Manager 中重新授权" else "授权 Root Tools 使用 Shizuku") }
                 }
             }
+            item {
+                SectionLabel(
+                    stringResource(R.string.framework_backend_preference_title),
+                    stringResource(R.string.framework_backend_preference_desc),
+                )
+            }
+            item {
+                Card(
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                ) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        FrameworkPrivilegePreference.entries.forEach { preference ->
+                            val label = when (preference) {
+                                FrameworkPrivilegePreference.AUTO -> stringResource(R.string.framework_backend_auto)
+                                FrameworkPrivilegePreference.SHIZUKU_ONLY -> stringResource(R.string.framework_backend_shizuku_only)
+                                FrameworkPrivilegePreference.ROOT_FIRST -> stringResource(R.string.framework_backend_root_first)
+                            }
+                            val description = when (preference) {
+                                FrameworkPrivilegePreference.AUTO -> stringResource(R.string.framework_backend_auto_desc)
+                                FrameworkPrivilegePreference.SHIZUKU_ONLY -> stringResource(R.string.framework_backend_shizuku_only_desc)
+                                FrameworkPrivilegePreference.ROOT_FIRST -> stringResource(R.string.framework_backend_root_first_desc)
+                            }
+                            FilterChip(
+                                selected = state.frameworkPrivilegePreference == preference,
+                                onClick = { onFrameworkPreferenceChange(preference) },
+                                label = { Text(label) },
+                            )
+                            Text(
+                                description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
             item { SectionLabel("快速入口", "Shizuku Manager 负责服务本身，Root Tools 只消费 API") }
             item {
                 Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
@@ -2530,6 +2577,14 @@ internal fun ShizukuSuiScreen(
             item {
                 Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        SummaryRow(
+                            stringResource(R.string.framework_backend_current),
+                            when (state.frameworkPrivilegePreference) {
+                                FrameworkPrivilegePreference.AUTO -> stringResource(R.string.framework_backend_auto)
+                                FrameworkPrivilegePreference.SHIZUKU_ONLY -> stringResource(R.string.framework_backend_shizuku_only)
+                                FrameworkPrivilegePreference.ROOT_FIRST -> stringResource(R.string.framework_backend_root_first)
+                            },
+                        )
                         SummaryRow("应用 / 组件 / AppOps", if (bridge.ready) bridge.backend.displayName else "RootShell fallback")
                         SummaryRow("CPU / Thermal sysfs", "RootShell")
                         SummaryRow("Root ADB", "RootShell")

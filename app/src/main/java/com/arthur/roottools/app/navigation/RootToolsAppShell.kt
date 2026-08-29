@@ -345,6 +345,7 @@ private fun RootToolsNavHost(
                     onRefresh = viewModel::refreshShizuku,
                     onRequestPermission = viewModel::requestShizukuPermission,
                     onSelfTest = viewModel::runShizukuSelfTest,
+                    onFrameworkPreferenceChange = viewModel::setFrameworkPrivilegePreference,
                 )
             }
             composable(RootToolsDestination.DEVELOPER_RUNTIME.route) {

@@ -20,12 +20,14 @@ import com.arthur.roottools.model.NetworkSnapshot
 import com.arthur.roottools.model.PermissionAppOpsSnapshot
 import com.arthur.roottools.model.PerformanceMode
 import com.arthur.roottools.model.PingResult
+import com.arthur.roottools.model.FrameworkPrivilegePreference
 import com.arthur.roottools.model.RootActionAuditRecord
 import com.arthur.roottools.model.RootShellDetails
 import com.arthur.roottools.model.ShizukuBridgeState
 import com.arthur.roottools.model.StartupAnalysis
 import com.arthur.roottools.model.StorageSnapshot
 import com.arthur.roottools.model.SystemActionId
+import com.arthur.roottools.root.RootAuthorizationSnapshot
 
 /**
  * Temporary aggregate state for the legacy dashboard host.
@@ -45,6 +47,8 @@ data class DashboardUiState(
     val cpuPolicyEvents: List<CpuPolicyEvent> = emptyList(),
     val mode: PerformanceMode = PerformanceMode.AUTO,
     val notificationsGranted: Boolean = false,
+    val rootAuthorization: RootAuthorizationSnapshot = RootAuthorizationSnapshot(),
+    val frameworkPrivilegePreference: FrameworkPrivilegePreference = FrameworkPrivilegePreference.AUTO,
     val startup: StartupAnalysis = StartupAnalysis(),
     val startupLoading: Boolean = false,
     val diagnostics: DiagnosticsSnapshot = DiagnosticsSnapshot(),

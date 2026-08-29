@@ -10,6 +10,7 @@ import com.arthur.roottools.model.AdbSnapshot
 import com.arthur.roottools.model.AppComponentRecord
 import com.arthur.roottools.model.AppPolicyProfileId
 import com.arthur.roottools.model.DeviceSnapshot
+import com.arthur.roottools.model.FrameworkPrivilegePreference
 import com.arthur.roottools.model.PerformanceMode
 import com.arthur.roottools.model.CapabilityProbeResult
 import com.arthur.roottools.model.PrivilegeCapability
@@ -27,6 +28,7 @@ import kotlinx.coroutines.launch
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as RootToolsApp).container
     private val shell = container.shell
+    private val rootAuthorizationManager = container.rootAuthorizationManager
     private val shizukuBridge = container.shizukuBridge
     private val shizukuUserService = container.shizukuUserService
     private val appControlRepository = container.appControlRepository
@@ -58,6 +60,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     private val appOpsPolicyController = container.appOpsPolicyController
     private val permissionPolicyController = container.permissionPolicyController
     private val favoritesStore = container.favoritesStore
+    private val privilegePreferenceStore = container.privilegePreferenceStore
     private val _state = MutableStateFlow(
         DashboardUiState(
             mode = store.mode,
@@ -68,6 +71,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             appBatchLastApplied = appBatchPolicyEngine.lastApplied(),
             cpuPolicyEvents = policyEventStore.read(30),
             auditRecords = auditStore.read(30),
+            rootAuthorization = rootAuthorizationManager.state.value,
+            frameworkPrivilegePreference = privilegePreferenceStore.frameworkPreference,
         )
     )
     val state: StateFlow<DashboardUiState> = _state.asStateFlow()
@@ -76,6 +81,11 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     private var dashboardSamplingActive = false
 
     init {
+        viewModelScope.launch {
+            rootAuthorizationManager.state.collect { authorization ->
+                _state.update { it.copy(rootAuthorization = authorization) }
+            }
+        }
         viewModelScope.launch {
             shizukuBridge.state.collect { bridgeState ->
                 _state.update { it.copy(shizuku = bridgeState) }
@@ -105,7 +115,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         bootstrapStarted = true
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null, notificationsGranted = notificationsGranted(getApplication())) }
-            val rootGranted = shell.isAvailable(timeoutSeconds = 30)
+            val rootGranted = rootAuthorizationManager.request(timeoutSeconds = 60).granted
             val adb = if (rootGranted) adbRepository.read() else AdbSnapshot()
             val snapshot = if (rootGranted) mergeAdbIntoSnapshot(repository.readSnapshot(), adb) else DeviceSnapshot(rootAvailable = false)
             if (rootGranted) {
@@ -155,7 +165,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     fun requestRoot() {
         viewModelScope.launch {
             _state.update { it.copy(actionInProgress = true, error = null) }
-            val rootGranted = shell.isAvailable(timeoutSeconds = 30)
+            val rootGranted = rootAuthorizationManager.request(timeoutSeconds = 60).granted
             val adb = if (rootGranted) adbRepository.read() else AdbSnapshot()
             val snapshot = if (rootGranted) mergeAdbIntoSnapshot(repository.readSnapshot(), adb) else DeviceSnapshot(rootAvailable = false)
             if (rootGranted) {
@@ -175,6 +185,11 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 )
             }
         }
+    }
+
+    fun setFrameworkPrivilegePreference(preference: FrameworkPrivilegePreference) {
+        privilegePreferenceStore.frameworkPreference = preference
+        _state.update { it.copy(frameworkPrivilegePreference = preference) }
     }
 
     fun setMode(mode: PerformanceMode) {

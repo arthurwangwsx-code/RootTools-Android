@@ -8,8 +8,10 @@ import com.arthur.roottools.root.RootShell
 
 class DeviceRepository(
     private val shell: RootShell,
+    private val rootAvailable: () -> Boolean = { true },
 ) {
     suspend fun readSnapshot(): DeviceSnapshot {
+        if (!rootAvailable()) return DeviceSnapshot(rootAvailable = false)
         val command = """
             echo '__MODEL__'
             getprop ro.product.model

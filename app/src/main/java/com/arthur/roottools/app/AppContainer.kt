@@ -44,8 +44,10 @@ import com.arthur.roottools.policy.PolicyStore
 import com.arthur.roottools.policy.SystemActionController
 import com.arthur.roottools.policy.ShadowDisplayController
 import com.arthur.roottools.privilege.PrivilegeRouter
+import com.arthur.roottools.privilege.PrivilegePreferenceStore
 import com.arthur.roottools.privilege.ShizukuBridge
 import com.arthur.roottools.privilege.ShizukuUserServiceClient
+import com.arthur.roottools.root.RootAuthorizationManager
 import com.arthur.roottools.root.RootShell
 
 /**
@@ -57,9 +59,19 @@ import com.arthur.roottools.root.RootShell
  */
 internal class AppContainer(private val application: Application) {
     val shell by lazy { RootShell() }
+    val rootAuthorizationManager by lazy { RootAuthorizationManager(shell) }
     val shizukuBridge by lazy { ShizukuBridge(application) }
     val shizukuUserService by lazy { ShizukuUserServiceClient(application) }
-    val privilegeRouter by lazy { PrivilegeRouter(shizukuBridge, shizukuUserService, shell) }
+    val privilegePreferenceStore by lazy { PrivilegePreferenceStore(application) }
+    val privilegeRouter by lazy {
+        PrivilegeRouter(
+            bridge = shizukuBridge,
+            shizukuClient = shizukuUserService,
+            rootShell = shell,
+            rootAvailable = { rootAuthorizationManager.state.value.granted },
+            frameworkPreference = { privilegePreferenceStore.frameworkPreference },
+        )
+    }
 
     val auditStore by lazy { RootActionAuditStore(application) }
     val policyStore by lazy { PolicyStore(application) }
@@ -79,8 +91,12 @@ internal class AppContainer(private val application: Application) {
             auditSource = auditSource,
         )
 
-    val deviceRepository by lazy { DeviceRepository(shell) }
-    val adbRepository by lazy { AdbRepository(application, shell) }
+    val deviceRepository by lazy {
+        DeviceRepository(shell) { rootAuthorizationManager.state.value.granted }
+    }
+    val adbRepository by lazy {
+        AdbRepository(application, shell) { rootAuthorizationManager.state.value.granted }
+    }
     val adbController by lazy { createAdbController(UI_AUDIT_SOURCE) }
 
     fun createAdbController(auditSource: String) =
@@ -92,7 +108,9 @@ internal class AppContainer(private val application: Application) {
     val lagForensicsMonitor by lazy { LagForensicsMonitor(shell, lagForensicsStore) }
     val moduleCenterRepository by lazy { ModuleCenterRepository(shell, auditStore, UI_AUDIT_SOURCE) }
     val networkRepository by lazy { NetworkRepository(shell) }
-    val rootTailscaleRepository by lazy { RootTailscaleRepository(shell) }
+    val rootTailscaleRepository by lazy {
+        RootTailscaleRepository(shell) { rootAuthorizationManager.state.value.granted }
+    }
     val rootTailscaleRuntimeInstaller by lazy { RootTailscaleRuntimeInstaller(application) }
     val rootTailscaleController by lazy {
         RootTailscaleController(

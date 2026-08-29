@@ -3,10 +3,12 @@ package com.arthur.roottools.feature.network.tailscale.data
 import com.arthur.roottools.feature.network.tailscale.model.RootTailscaleSnapshot
 import com.arthur.roottools.root.RootShell
 
-class RootTailscaleRepository(private val shell: RootShell) {
+class RootTailscaleRepository(
+    private val shell: RootShell,
+    private val rootAvailable: () -> Boolean = { true },
+) {
     suspend fun read(): RootTailscaleSnapshot {
-        val rootAvailable = shell.isAvailable()
-        if (!rootAvailable) return RootTailscaleSnapshot(collectedAtMs = System.currentTimeMillis())
+        if (!rootAvailable()) return RootTailscaleSnapshot(collectedAtMs = System.currentTimeMillis())
         val result = shell.execute(PROBE_COMMAND, timeoutSeconds = 10)
         if (!result.success && result.output.isBlank()) {
             return RootTailscaleSnapshot(rootAvailable = true, collectedAtMs = System.currentTimeMillis())
