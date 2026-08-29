@@ -72,7 +72,7 @@
 
 ## Gradle module decision gate
 
-当前仍保持单 `:app` module。只有满足 `17-engineering-governance-and-ai-workflow.md` 的 extraction 条件后，才评估：
+主工具能力仍优先保持在 `:app`；当前仅将纯策略/解析拆为 `:feature:network-inspection`，并保留三个具有独立应用身份/runtime 的 companion。未来只有满足 `17-engineering-governance-and-ai-workflow.md` 的 extraction 条件后，才继续评估：
 
 ```text
 :core:model

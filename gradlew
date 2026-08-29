@@ -81,8 +81,17 @@ if [ -z "${ANDROID_SDK_ROOT:-}" ] && [ -n "${ANDROID_HOME:-}" ]; then
   ANDROID_SDK_ROOT="$ANDROID_HOME"
   export ANDROID_SDK_ROOT
 fi
-if [ -z "${ANDROID_HOME:-}" ] || [ ! -d "$ANDROID_HOME/platforms/android-36" ]; then
-  echo "RootTools build requires Android SDK 36; set ANDROID_HOME to a valid SDK." >&2
+SDK_37_FOUND=0
+if [ -n "${ANDROID_HOME:-}" ]; then
+  for sdk_platform in "$ANDROID_HOME"/platforms/android-37 "$ANDROID_HOME"/platforms/android-37.*; do
+    if [ -d "$sdk_platform" ]; then
+      SDK_37_FOUND=1
+      break
+    fi
+  done
+fi
+if [ -z "${ANDROID_HOME:-}" ] || [ ! -d "$ANDROID_HOME/platforms/android-36" ] || [ "$SDK_37_FOUND" != "1" ]; then
+  echo "RootTools build requires Android SDK platforms 36 and 37; set ANDROID_HOME to a valid SDK." >&2
   exit 3
 fi
 

@@ -134,11 +134,30 @@
 
 ## 构建
 
-当前构建基线：Android SDK 36、AGP 9.2、Gradle 9.5、JDK 17+。项目自带 `./gradlew` 启动入口，会优先复用本机 Gradle 缓存，并在常见 macOS 开发环境自动发现 JDK 21 与 Android SDK。
+当前构建基线：Android SDK 36 + 37、AGP 9.2、Gradle 9.5、JDK 17+；NFC companion 还需要 NDK `28.2.13676358`。项目自带 `./gradlew` 启动入口，会优先复用本机 Gradle 缓存，并在常见 macOS 开发环境自动发现 JDK 21 与 Android SDK。
 
 ```bash
 ./gradlew :app:assembleDebug
 ```
+
+仓库的正式交付边界：
+
+| Gradle / platform | 应用身份 | 维护与发布边界 |
+|---|---|---|
+| `:app` | `com.arthur.roottools` | 唯一 RootTools 主 APK；通用工具、导航、特权路由和 Network Inspection UI |
+| `:feature:network-inspection` | 无 APK | 纯 JVM model/policy/parser 测试边界，由 `:app` 消费 |
+| `:companion:nfc-tools` | `com.arthur.nfclab` | 保留 Reader/HCE、OEM Provider、ADB 自动化数据和已安装身份 |
+| `:companion:background-server` | `com.aibox.backgroundserver` | 保留 Boot/VPN/foreground service、WireGuard key 与运行数据 |
+| `:companion:hyperos-credential-fix` | `com.arthur.hyperos.credentialfix` | 独立 Xposed APK，仅在明确 scope 下加载 |
+| `ios/NFCProbe` | iOS target | NFC 真机探针；不进入 Android Gradle/APK |
+
+所有 Android 产物统一验证：
+
+```bash
+bash scripts/build.sh
+```
+
+依赖版本统一登记在 `gradle/libs.versions.toml`。主 APK 与 companion 可以因 package 数据、系统组件和目标平台约束使用不同 SDK/API 版本，但不得恢复各自的 Gradle wrapper、根 settings 或第二份 shared RootShell。
 
 ## GitHub Release
 
@@ -195,7 +214,7 @@ python3 scripts/coverage_guard.py
 python3 scripts/commit_guard.py --subject "feat(adb): add endpoint health check"
 ```
 
-当前工程坚持 **单 `:app` Gradle module + `app/core/feature` 逻辑边界**。公共 UI token、组件和 Android UI actions 放在 `core/ui`；Feature 不直接依赖其它 Feature 的实现，也不反向依赖 legacy `ui` host。只有出现明确复用、编译隔离、稳定 API 或持续并行冲突时，才评估拆出物理 Gradle module。完整规则见 [`docs/17-engineering-governance-and-ai-workflow.md`](./docs/17-engineering-governance-and-ai-workflow.md)。
+当前工程坚持 **一个主 `:app` + 证据充分的 companion / pure-JVM module**。公共 UI token、组件和 Android UI actions 放在 `core/ui`；Feature 不直接依赖其它 Feature 的实现，也不反向依赖 legacy `ui` host。新增物理 module 必须具备独立应用身份、平台/runtime 边界、稳定 API、独立测试或明确编译隔离价值。完整规则见 [`docs/17-engineering-governance-and-ai-workflow.md`](./docs/17-engineering-governance-and-ai-workflow.md)。
 
 完整工程校验：
 

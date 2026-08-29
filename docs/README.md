@@ -45,7 +45,7 @@
 
 ## 工程原则
 
-1. **单 app 模块优先**：文档和 feature 分层不等于 Gradle 多模块化。除非后续出现明确编译、复用或发布边界，否则不新增 Android 子模块。
+1. **一个主 App、少量有证据的边界**：普通能力继续在 `:app` 内按 package 分层；只有独立应用身份、系统组件/runtime、稳定 API、测试或编译隔离边界才使用 companion / JVM module。
 2. **首页只做结论与高频触达**：首页优先回答“设备现在怎么样”，再提供少量 Quick Actions；完整能力按 `首页 / 应用 / 设备 / 诊断 / 系统` 五个一级领域组织。
 3. **一个能力一个真值源**：例如 CPU sysfs 只由 `CpuPolicyController` 写；MacroDroid、Quick Tile、ADB 都只能调用统一 Controller，不能各自直接写系统节点。
 4. **读写分离**：监控采集器尽量只读；Root 修改必须通过明确的 Action / Controller。
