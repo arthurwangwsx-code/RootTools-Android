@@ -81,3 +81,20 @@
 ```
 
 Feature module 不按卡片数量创建。
+
+## Phase F — RootTools 工程收口
+
+- [x] RootTools 主工作树 WIP 建立原子恢复提交 `5ed5b33`
+- [x] NFC Tools 建立原始基线提交 `a2f5895`
+- [x] Background Server 建立原始基线提交 `f3cd30c`
+- [x] HyperOS Credential Fix 建立原始基线提交 `32923ba`
+- [x] 确认 Termux / Shizuku 分支已被 `main` 完整包含且无独有提交
+- [ ] 不 squash 导入 Net / NFC / Background / HyperOS 来源历史
+- [ ] 迁移并归一化 network-inspection 功能
+- [ ] 迁移并归一化 NFC 功能及 iOS probe 路径
+- [ ] 迁移并归一化 background-runtime / WireGuard 功能
+- [ ] 建立 HyperOS Credential Fix companion module
+- [ ] 删除迁移期 source snapshot，退役同级 worktree/旧工程目录
+- [ ] 完成统一构建、静态检查和分域真机验证
+
+收口契约与完成条件见 `adr/0004-consolidate-roottools-projects.md`。

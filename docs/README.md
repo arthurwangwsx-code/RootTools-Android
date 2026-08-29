@@ -37,7 +37,7 @@
 | [25-agent-session-presence.md](./25-agent-session-presence.md) | Agent Session Presence：统一任务状态、持续通知、悬浮窗、详情页、Shadow Preview 与 OEM 顶部状态适配边界 |
 | [28-root-tailscale-coexistence.md](./28-root-tailscale-coexistence.md) | Root Tailscale：与 Hiddify 共存的 Root overlay、认证、路由和恢复模型 |
 | [29-github-release.md](./29-github-release.md) | Android GitHub 仓库、固定签名、tag 驱动的 APK Release 流程 |
-| [28-root-tailscale-coexistence.md](./28-root-tailscale-coexistence.md) | Root Tailscale：Root `tailscale0`、Android VPN 共存、固定哈希 Runtime、认证、启停与开机恢复 |
+| [adr/0004-consolidate-roottools-projects.md](./adr/0004-consolidate-roottools-projects.md) | RootTools 相关工程、功能与 Git 历史的归一化收口决策 |
 
 ## 工程原则
 

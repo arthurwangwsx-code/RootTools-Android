@@ -2,7 +2,7 @@
 
 ## 1. 总体结构
 
-工程继续保持 **单 `app` Gradle 模块**，通过 package 分层，而不是拆成大量 Android library module。
+主产品继续保持 **单一 RootTools App**。普通工具卡优先通过 package 分层，不按卡片拆 Gradle module；从历史独立工程收口、且具有独立 native/runtime/测试依赖边界的 NFC、网络检查和后台运行能力，允许按 ADR-0004 使用少量 feature module。Xposed companion 保持独立 APK module。
 
 建议逐步演进为：
 
