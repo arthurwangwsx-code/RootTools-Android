@@ -1,0 +1,38 @@
+name: NFCProbe
+
+options:
+  bundleIdPrefix: com.arthur.nfctools
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+targets:
+  NFCProbe:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.arthur.nfctools.nfcprobe
+        PRODUCT_NAME: NFC Probe
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Info.plist
+        CODE_SIGN_ENTITLEMENTS: NFCProbe.entitlements
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: NO
+        SWIFT_VERSION: "5.0"
+    attributes:
+      SystemCapabilities:
+        com.apple.NearFieldCommunication:
+          enabled: 1
+
+schemes:
+  NFCProbe:
+    build:
+      targets:
+        NFCProbe: all
+    run:
+      config: Debug
+
