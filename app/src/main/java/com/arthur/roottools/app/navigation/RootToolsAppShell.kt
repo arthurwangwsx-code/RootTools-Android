@@ -38,6 +38,7 @@ import com.arthur.roottools.app.home.DomainLandingScreen
 import com.arthur.roottools.app.home.ProductHomeScreen
 import com.arthur.roottools.app.shadow.ShadowDisplayRoute
 import com.arthur.roottools.feature.dashboard.ui.HealthDashboardScreen
+import com.arthur.roottools.feature.companions.CompanionSuiteRoute
 import com.arthur.roottools.feature.developer.DeveloperRuntimeRoute
 import com.arthur.roottools.feature.home.presentation.HomeHealthInput
 import com.arthur.roottools.feature.home.presentation.HomeHealthPolicy
@@ -349,6 +350,9 @@ private fun RootToolsNavHost(
             }
             composable(RootToolsDestination.DEVELOPER_RUNTIME.route) {
                 DeveloperRuntimeRoute(onBack = back)
+            }
+            composable(RootToolsDestination.COMPANION_SUITE.route) {
+                CompanionSuiteRoute(onBack = back)
             }
             composable(RootToolsDestination.ASSISTANT.route) {
                 AssistantSettingsRoute(onBack = back)

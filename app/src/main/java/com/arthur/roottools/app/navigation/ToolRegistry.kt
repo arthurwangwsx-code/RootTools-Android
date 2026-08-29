@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.DesktopWindows
+import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Security
@@ -44,6 +45,7 @@ enum class ToolId {
     AD_GOVERNANCE,
     ASSISTANT,
     ROOT_TAILSCALE,
+    COMPANION_SUITE,
 }
 
 enum class ToolCategory {
@@ -96,6 +98,7 @@ object ToolRegistry {
         ToolDefinition(ToolId.BATTERY, ToolCategory.DAILY, R.string.tool_battery_title, Icons.Rounded.Thermostat, Color(0xFFFFC98B), setOf(ToolCapability.ROOT)),
         ToolDefinition(ToolId.SHIZUKU, ToolCategory.SYSTEM, R.string.tool_shizuku_title, Icons.Rounded.Share, Color(0xFF8FD8FF), setOf(ToolCapability.SHIZUKU)),
         ToolDefinition(ToolId.DEVELOPER_RUNTIME, ToolCategory.SYSTEM, R.string.developer_runtime_title, Icons.Rounded.Terminal, Color(0xFF9BD9C7)),
+        ToolDefinition(ToolId.COMPANION_SUITE, ToolCategory.SYSTEM, R.string.companion_suite_title, Icons.Rounded.Extension, Color(0xFFB8C7FF)),
         ToolDefinition(ToolId.ASSISTANT, ToolCategory.SYSTEM, R.string.tool_assistant_title, Icons.Rounded.ChatBubble, Color(0xFFC5B3FF), setOf(ToolCapability.PACKAGE_CONTROL)),
     )
 }

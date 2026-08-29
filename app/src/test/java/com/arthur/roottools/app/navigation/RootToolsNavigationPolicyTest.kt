@@ -24,6 +24,7 @@ class RootToolsNavigationPolicyTest {
         assertEquals(RootToolsTab.DIAGNOSTICS, RootToolsNavigationPolicy.destinationFor(ToolId.INTEGRITY).tab)
         assertEquals(RootToolsTab.SYSTEM, RootToolsNavigationPolicy.destinationFor(ToolId.MODULES).tab)
         assertEquals(RootToolsTab.SYSTEM, RootToolsNavigationPolicy.destinationFor(ToolId.ASSISTANT).tab)
+        assertEquals(RootToolsTab.SYSTEM, RootToolsNavigationPolicy.destinationFor(ToolId.COMPANION_SUITE).tab)
     }
 
     @Test
@@ -34,6 +35,7 @@ class RootToolsNavigationPolicyTest {
         assertEquals(RootToolsDestination.AGENT_SESSION, RootToolsNavigationPolicy.externalScreen("agent-session"))
         assertEquals(RootToolsDestination.SHADOW_DISPLAY, RootToolsNavigationPolicy.externalScreen("shadow-display"))
         assertEquals(RootToolsDestination.ASSISTANT, RootToolsNavigationPolicy.externalScreen("default-assistant"))
+        assertEquals(RootToolsDestination.COMPANION_SUITE, RootToolsNavigationPolicy.externalScreen("companions"))
         assertNull(RootToolsNavigationPolicy.externalScreen("unknown"))
     }
 

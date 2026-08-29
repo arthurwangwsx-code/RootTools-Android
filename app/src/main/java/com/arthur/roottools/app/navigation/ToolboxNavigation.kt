@@ -24,6 +24,7 @@ internal enum class ToolboxRoute {
     COMPONENTS,
     PERMISSION_OPS,
     INTEGRITY,
+    COMPANION_SUITE,
     ASSISTANT,
     DEVELOPER_RUNTIME,
     AD_GOVERNANCE,
@@ -58,6 +59,7 @@ internal fun routeFor(id: ToolId): ToolboxRoute = when (id) {
     ToolId.COMPONENTS -> ToolboxRoute.COMPONENTS
     ToolId.PERMISSION_OPS -> ToolboxRoute.PERMISSION_OPS
     ToolId.INTEGRITY -> ToolboxRoute.INTEGRITY
+    ToolId.COMPANION_SUITE -> ToolboxRoute.COMPANION_SUITE
     ToolId.ASSISTANT -> ToolboxRoute.ASSISTANT
     ToolId.DEVELOPER_RUNTIME -> ToolboxRoute.DEVELOPER_RUNTIME
     ToolId.AD_GOVERNANCE -> ToolboxRoute.AD_GOVERNANCE

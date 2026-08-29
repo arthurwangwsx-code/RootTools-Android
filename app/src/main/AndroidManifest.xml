@@ -17,6 +17,9 @@
     <queries>
         <package android:name="com.termux" />
         <package android:name="com.pcapdroid.mitm" />
+        <package android:name="com.aibox.backgroundserver" />
+        <package android:name="com.arthur.hyperos.credentialfix" />
+        <package android:name="com.arthur.nfclab" />
         <intent>
             <action android:name="com.termux.RUN_COMMAND" />
         </intent>

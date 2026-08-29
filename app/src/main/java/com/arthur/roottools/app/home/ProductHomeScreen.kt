@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.ChatBubble
+import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Security
@@ -121,6 +122,7 @@ internal fun ProductHomeScreen(
                 )
             }
             item { QuickActions(onNavigate) }
+            item { SuiteOverviewCard(onNavigate) }
             item {
                 RootToolsSectionHeader(
                     title = stringResource(R.string.home_attention_title),
@@ -371,6 +373,46 @@ private fun QuickActions(onNavigate: (RootToolsDestination) -> Unit) {
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SuiteOverviewCard(onNavigate: (RootToolsDestination) -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable { onNavigate(RootToolsDestination.COMPANION_SUITE) },
+        shape = RoundedCornerShape(RootToolsRadius.card),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(RootToolsSpacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(RootToolsSpacing.sm),
+        ) {
+            Surface(
+                modifier = Modifier.size(44.dp),
+                shape = RoundedCornerShape(RootToolsRadius.chip),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.Extension, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.companion_suite_home_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = stringResource(R.string.companion_suite_home_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Icon(Icons.Rounded.ChevronRight, contentDescription = stringResource(R.string.companion_suite_open))
         }
     }
 }

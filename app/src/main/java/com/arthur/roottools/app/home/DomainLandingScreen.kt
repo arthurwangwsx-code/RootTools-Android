@@ -316,5 +316,6 @@ private fun toolStatus(toolId: ToolId, state: DashboardUiState): String = when (
     )
     ToolId.SHIZUKU -> stringResource(R.string.hub_tool_shizuku_desc)
     ToolId.DEVELOPER_RUNTIME -> stringResource(R.string.hub_tool_developer_desc)
+    ToolId.COMPANION_SUITE -> stringResource(R.string.companion_suite_home_desc)
     ToolId.ASSISTANT -> stringResource(R.string.hub_tool_assistant_desc)
 }

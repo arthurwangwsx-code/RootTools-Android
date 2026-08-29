@@ -112,6 +112,7 @@ import com.arthur.roottools.feature.dashboard.ui.DailyHealthHistoryCard
 import com.arthur.roottools.feature.dashboard.ui.HealthDashboardScreen
 import com.arthur.roottools.feature.dashboard.ui.SamplingIntervalCard
 import com.arthur.roottools.feature.diagnostics.ui.LagForensicsCard
+import com.arthur.roottools.feature.companions.CompanionSuiteRoute
 import com.arthur.roottools.feature.performance.ui.PerformanceScreen as FeaturePerformanceScreen
 import com.arthur.roottools.model.AppPolicyCategory
 import com.arthur.roottools.model.AppComponentRecord
@@ -330,6 +331,9 @@ fun DashboardRoute(
         ToolboxRoute.INTEGRITY -> EnvironmentIntegrityRoute(
             onBack = { route = ToolboxRoute.HOME },
         )
+        ToolboxRoute.COMPANION_SUITE -> CompanionSuiteRoute(
+            onBack = { route = ToolboxRoute.HOME },
+        )
         ToolboxRoute.ASSISTANT -> AssistantSettingsRoute(
             onBack = { route = ToolboxRoute.HOME },
         )
@@ -502,6 +506,7 @@ private fun buildToolboxCard(
                 if (info.appOpsBackendAvailable) "EDIT" else "READ"
         } ?: ("Runtime Permission · AppOps · Special Access" to "PERM")
         ToolId.INTEGRITY -> "Fast · Deep · Native · Attestation" to "SCAN"
+        ToolId.COMPANION_SUITE -> "Background Server · HyperOS Fix · NFC Lab" to "SUITE"
         ToolId.ASSISTANT -> "Default assistant · power button" to "ASSIST"
         ToolId.DEVELOPER_RUNTIME -> "Termux · CLI · Managed Tasks" to "DEV"
         ToolId.AD_GOVERNANCE -> adGovernanceSubtitle to adGovernanceBadge

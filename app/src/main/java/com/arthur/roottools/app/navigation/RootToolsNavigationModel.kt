@@ -42,6 +42,7 @@ enum class RootToolsDestination(
     COMPONENTS("apps/components", RootToolsTab.APPS, ToolId.COMPONENTS),
     PERMISSION_OPS("apps/appops", RootToolsTab.APPS, ToolId.PERMISSION_OPS),
     DEVELOPER_RUNTIME("system/developer-runtime", RootToolsTab.SYSTEM, ToolId.DEVELOPER_RUNTIME),
+    COMPANION_SUITE("system/companion-suite", RootToolsTab.SYSTEM, ToolId.COMPANION_SUITE),
     ASSISTANT("system/assistant", RootToolsTab.SYSTEM, ToolId.ASSISTANT),
 }
 object RootToolsNavigationPolicy {
@@ -69,6 +70,7 @@ object RootToolsNavigationPolicy {
         "shadow", "shadow-display" -> RootToolsDestination.SHADOW_DISPLAY
         "agent", "agent-session" -> RootToolsDestination.AGENT_SESSION
         "assistant", "default-assistant" -> RootToolsDestination.ASSISTANT
+        "suite", "companions", "companion-suite" -> RootToolsDestination.COMPANION_SUITE
         else -> null
     }
 }
