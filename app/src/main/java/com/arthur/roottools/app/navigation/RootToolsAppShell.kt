@@ -53,7 +53,6 @@ import com.arthur.roottools.ui.DashboardUiState
 import com.arthur.roottools.ui.DashboardViewModel
 import com.arthur.roottools.ui.DiagnosticsScreen
 import com.arthur.roottools.ui.ModuleCenterScreen
-import com.arthur.roottools.ui.NetworkDiagnosticsScreen
 import com.arthur.roottools.ui.PermissionAppOpsScreen
 import com.arthur.roottools.ui.PermissionScreen
 import com.arthur.roottools.ui.ShizukuSuiScreen
@@ -263,10 +262,10 @@ private fun RootToolsNavHost(
                 RootTailscaleRoute(onBack = back)
             }
             composable(RootToolsDestination.NETWORK.route) {
-                NetworkDiagnosticsScreen(
-                    state = state,
+                NetworkInspectionRoute(
+                    dashboardState = state,
                     onBack = back,
-                    onRefresh = viewModel::loadNetwork,
+                    onRefreshDiagnostics = viewModel::loadNetwork,
                     onPing = viewModel::pingNetworkTarget,
                 )
             }
