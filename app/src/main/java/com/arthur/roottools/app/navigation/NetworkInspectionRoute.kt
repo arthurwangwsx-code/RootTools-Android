@@ -3,10 +3,10 @@ package com.arthur.roottools.app.navigation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,12 +19,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.arthur.roottools.R
 import com.arthur.roottools.feature.network.inspection.ui.NetworkCaptureRoute
+import com.arthur.roottools.feature.network.inspection.ui.NetworkInterceptionRoute
 import com.arthur.roottools.ui.DashboardUiState
 import com.arthur.roottools.ui.NetworkDiagnosticsScreen
 
 private enum class NetworkInspectionTab {
     DIAGNOSTICS,
     CAPTURE,
+    INTERCEPTION,
 }
 
 @Composable
@@ -37,20 +39,31 @@ internal fun NetworkInspectionRoute(
     var tab by rememberSaveable { mutableStateOf(NetworkInspectionTab.DIAGNOSTICS) }
 
     Column(Modifier.fillMaxSize()) {
-        Row(
+        LazyRow(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            FilterChip(
-                selected = tab == NetworkInspectionTab.DIAGNOSTICS,
-                onClick = { tab = NetworkInspectionTab.DIAGNOSTICS },
-                label = { Text(stringResource(R.string.network_inspection_tab_diagnostics)) },
-            )
-            FilterChip(
-                selected = tab == NetworkInspectionTab.CAPTURE,
-                onClick = { tab = NetworkInspectionTab.CAPTURE },
-                label = { Text(stringResource(R.string.network_inspection_tab_capture)) },
-            )
+            item {
+                FilterChip(
+                    selected = tab == NetworkInspectionTab.DIAGNOSTICS,
+                    onClick = { tab = NetworkInspectionTab.DIAGNOSTICS },
+                    label = { Text(stringResource(R.string.network_inspection_tab_diagnostics)) },
+                )
+            }
+            item {
+                FilterChip(
+                    selected = tab == NetworkInspectionTab.CAPTURE,
+                    onClick = { tab = NetworkInspectionTab.CAPTURE },
+                    label = { Text(stringResource(R.string.network_inspection_tab_capture)) },
+                )
+            }
+            item {
+                FilterChip(
+                    selected = tab == NetworkInspectionTab.INTERCEPTION,
+                    onClick = { tab = NetworkInspectionTab.INTERCEPTION },
+                    label = { Text(stringResource(R.string.network_inspection_tab_interception)) },
+                )
+            }
         }
         Box(Modifier.fillMaxWidth().weight(1f)) {
             when (tab) {
@@ -61,6 +74,7 @@ internal fun NetworkInspectionRoute(
                     onPing = onPing,
                 )
                 NetworkInspectionTab.CAPTURE -> NetworkCaptureRoute(onBack = onBack)
+                NetworkInspectionTab.INTERCEPTION -> NetworkInterceptionRoute(onBack = onBack)
             }
         }
     }
