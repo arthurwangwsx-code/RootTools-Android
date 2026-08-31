@@ -4,7 +4,7 @@
 
 - Feature / Change：Root Tailscale userspace Serve、root TUN 原生路由、强健康判定、显式第三方 VPN 边界和可撤销启动恢复
 - Commit / Branch：`main`，实现与测试 `1cd8a71`
-- APK / Version：真机阶段使用 `0.5.0-beta.1` / versionCode 5 同签名候选包；正式版本待红米验收后递增
+- APK / Version：下一轮真机使用 `0.6.0-beta.1` / versionCode 6 同签名发布候选；tag / Release 仍须等待红米验收
 
 ## 2. Environment
 
@@ -24,7 +24,7 @@
 | Quality guard | PASS | legacy debt warnings only，zh-rCN 无缺失 key |
 | Security guard | PASS | no blocking findings |
 | Debug build | PASS | `:app:assembleDebug` |
-| Release build | PASS | 本地发布签名包，V2 证书 SHA-256 `58b74d...e186e` |
+| Release signing preflight | PASS | `0.5.0-beta.1` 四个 APK 已验证使用同一 V2 证书 SHA-256 `58b74d...e186e`；最终 `0.6.0-beta.1` 包待红米上线前重建 |
 | Project baseline | PASS | 212 JVM tests / 61 suites，0 failure/error；`:app:lintDebug :app:assembleDebug` 通过 |
 | Full `scripts/build.sh` delivery gate | PASS | 2026-08-31：416 tasks，质量/安全、全模块测试、Lint、Debug/Release 与 Core coverage guard 全部通过 |
 | Emulator UI smoke | PASS | `emulator-5554` 冷启动直达 Root Tailscale；无 Root 状态、入口布局、返回/刷新 accessibility tree 与进程稳定性通过 |
