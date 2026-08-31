@@ -24,10 +24,10 @@
 | Quality guard | PASS | legacy debt warnings only，zh-rCN 无缺失 key |
 | Security guard | PASS | no blocking findings |
 | Debug build | PASS | `:app:assembleDebug` |
-| Release signing preflight | PASS | `0.5.0-beta.1` 四个 APK 已验证使用同一 V2 证书 SHA-256 `58b74d...e186e`；最终 `0.6.0-beta.1` 包待红米上线前重建 |
+| Final signed candidate | PASS | `0.6.0-beta.1` / versionCode 6 四个 APK 全部通过 V2 验签，并使用同一证书 SHA-256 `58b74d...e186e` |
 | Project baseline | PASS | 212 JVM tests / 61 suites，0 failure/error；`:app:lintDebug :app:assembleDebug` 通过 |
-| Full `scripts/build.sh` delivery gate | PASS | 2026-08-31：416 tasks，质量/安全、全模块测试、Lint、Debug/Release 与 Core coverage guard 全部通过 |
-| Emulator UI smoke | PASS | `emulator-5554` 冷启动直达 Root Tailscale；无 Root 状态、入口布局、返回/刷新 accessibility tree 与进程稳定性通过 |
+| Full `scripts/build.sh` delivery gate | PASS | 2026-09-01：416 tasks，质量/安全、全模块测试、Lint、Debug/Release 与 Core coverage guard 全部通过 |
+| Emulator UI smoke | PASS | `0.6.0-beta.1` / versionCode 6 覆盖安装；`emulator-5554` 冷启动直达 Root Tailscale，无 Root 状态、入口布局、返回/刷新 accessibility tree 与进程稳定性通过 |
 
 ## 4. Device Verification
 
@@ -60,6 +60,7 @@
 - 未授权重试路径已检查：新 App 未被 pre-auth state 陷住，重试会生成新 URL 并启动最长 10 分钟的身份 marker watcher；授权后 Mac 侧已观察到节点 online。
 - 2026-08-31 重新核验：Mac 当前仍可看到 `roottools-raphael` online；`tailscale ping` 先经新加坡 DERP、随后协商到 `10.1.1.75` 局域网直连；tailnet `5555/8765` 均关闭，`adb devices -l` 仅有模拟器，因此没有把“节点在线”误写为“远程控制已建立”。
 - 2026-08-31 代码审批补强：缓存 tailnet IP 必须同时满足 `BackendState=Running` 才算认证在线；真正共存必须存在非官方 Android VPN；PID 文件只接受纯数字；Root runtime/state 目录在使用前强制 `0700`；所有生成命令通过 `sh -n`。
+- 2026-09-01 发布候选核验：四个 `0.6.0-beta.1` / versionCode 6 Release APK 均通过 V2 验签且证书一致；同版本 Debug APK 在模拟器冷启动直达页面，进程存活且无 FATAL / ANR，截图和 accessibility tree 已人工检查。
 - 登录 URL 和 state 内容不写入报告；仅保留 backend 状态与无凭据 marker 证据。
 - 待补：设备重新接入 ADB 后的 marker / backend 回读、Surfboard active 截图 / connectivity owner、userspace Serve 页面、Mac ADB receipt、root TUN 页面与回滚差分。
 
