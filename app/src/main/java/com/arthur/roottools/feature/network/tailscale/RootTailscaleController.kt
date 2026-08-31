@@ -6,6 +6,7 @@ import com.arthur.roottools.feature.network.tailscale.data.RootTailscaleRuntimeI
 import com.arthur.roottools.feature.network.tailscale.data.RootTailscaleRuntimeSpec
 import com.arthur.roottools.feature.network.tailscale.model.RootTailscaleActionCode
 import com.arthur.roottools.feature.network.tailscale.model.RootTailscaleActionResult
+import com.arthur.roottools.feature.network.tailscale.model.RootTailscaleMode
 import com.arthur.roottools.feature.network.tailscale.policy.RootTailscalePolicy
 import com.arthur.roottools.privilege.PrivilegeRouter
 import com.arthur.roottools.root.RootShell
@@ -74,34 +75,40 @@ class RootTailscaleController(
         )
     }
 
-    suspend fun enableRootOverlay(releaseOfficialVpnSlot: Boolean = true): RootTailscaleActionResult {
+    suspend fun enableUserspaceServe(): RootTailscaleActionResult {
         val before = repository.read()
         if (!before.rootAvailable) return result(false, RootTailscaleActionCode.NO_ROOT, before)
         if (!before.runtimeInstalled) return result(false, RootTailscaleActionCode.RUNTIME_MISSING, before)
-        if (!before.authenticated && !before.hasSavedIdentity) {
+        if (requiresAuthentication(before)) {
+            return result(false, RootTailscaleActionCode.AUTH_REQUIRED, before, authUrl = before.authUrl)
+        }
+
+        val shellResult = shell.execute(RootTailscaleCommands.enableUserspaceServe(hostname), timeoutSeconds = 45)
+        val after = repository.read()
+        val success = shellResult.success && after.userspaceServeReady
+        return auditedResult(
+            success = success,
+            code = if (success) RootTailscaleActionCode.USERSPACE_SERVE_ENABLED else RootTailscaleActionCode.USERSPACE_SERVE_FAILED,
+            before = before,
+            after = after,
+            action = "enable_userspace_serve",
+            target = after.tailnetIpv4.orEmpty(),
+            detail = shellResult.output.takeLast(1200),
+            rollbackHint = "Disable Root Tailscale; the saved node identity is preserved",
+        )
+    }
+
+    suspend fun enableRootOverlay(): RootTailscaleActionResult {
+        val before = repository.read()
+        if (!before.rootAvailable) return result(false, RootTailscaleActionCode.NO_ROOT, before)
+        if (!before.runtimeInstalled) return result(false, RootTailscaleActionCode.RUNTIME_MISSING, before)
+        if (requiresAuthentication(before)) {
             return result(false, RootTailscaleActionCode.AUTH_REQUIRED, before, authUrl = before.authUrl)
         }
 
         val shellResult = shell.execute(RootTailscaleCommands.enableKernel(hostname), timeoutSeconds = 40)
-        var after = repository.read()
-        var success = shellResult.success && after.tailscale0Present && after.authenticated && after.routeReady
-        if (success && releaseOfficialVpnSlot && after.officialVpnActive) {
-            val stop = privilegeRouter.forceStop(RootTailscaleRuntimeSpec.OFFICIAL_PACKAGE)
-            if (!stop.success) {
-                return auditedResult(
-                    success = false,
-                    code = RootTailscaleActionCode.OFFICIAL_APP_STOP_FAILED,
-                    before = before,
-                    after = after,
-                    action = "enable_root_overlay",
-                    detail = stop.detail,
-                    rollbackHint = "Root overlay remains running; stop the official Tailscale Android VPN manually",
-                )
-            }
-            shell.execute("sleep 2; ${RootTailscaleCommands.repairRoutes()}", timeoutSeconds = 6)
-            after = repository.read()
-            success = after.tailscale0Present && after.authenticated && after.routeReady
-        }
+        val after = repository.read()
+        val success = shellResult.success && after.kernelReady
         return auditedResult(
             success = success,
             code = if (success) RootTailscaleActionCode.ENABLED else RootTailscaleActionCode.ENABLE_FAILED,
@@ -134,16 +141,16 @@ class RootTailscaleController(
     suspend fun repair(): RootTailscaleActionResult {
         val before = repository.read()
         if (!before.rootAvailable) return result(false, RootTailscaleActionCode.NO_ROOT, before)
-        if (!before.authenticated && !before.hasSavedIdentity) {
+        if (requiresAuthentication(before)) {
             return result(false, RootTailscaleActionCode.AUTH_REQUIRED, before, authUrl = before.authUrl)
         }
-        val shellResult = if (before.tailscale0Present && before.daemonRunning) {
-            shell.execute(RootTailscaleCommands.repairRoutes(), timeoutSeconds = 8)
-        } else {
-            shell.execute(RootTailscaleCommands.enableKernel(hostname), timeoutSeconds = 40)
+        val shellResult = when (before.mode) {
+            RootTailscaleMode.USERSPACE, RootTailscaleMode.USERSPACE_SERVE ->
+                shell.execute(RootTailscaleCommands.enableUserspaceServe(hostname), timeoutSeconds = 45)
+            else -> shell.execute(RootTailscaleCommands.enableKernel(hostname), timeoutSeconds = 45)
         }
         val after = repository.read()
-        val success = shellResult.success && after.tailscale0Present && after.authenticated && after.routeReady
+        val success = shellResult.success && after.managementReady
         return auditedResult(
             success = success,
             code = if (success) RootTailscaleActionCode.REPAIRED else RootTailscaleActionCode.REPAIR_FAILED,
@@ -158,8 +165,10 @@ class RootTailscaleController(
     suspend fun setBootEnabled(enabled: Boolean): RootTailscaleActionResult {
         val before = repository.read()
         if (!before.rootAvailable) return result(false, RootTailscaleActionCode.NO_ROOT, before)
-        if (enabled && !before.authenticated) return result(false, RootTailscaleActionCode.AUTH_REQUIRED, before, authUrl = before.authUrl)
-        val command = if (enabled) RootTailscaleCommands.enableBoot(hostname) else RootTailscaleCommands.disableBoot()
+        if (enabled && !RootTailscalePolicy.decide(before).canEnableBoot) {
+            return result(false, RootTailscaleActionCode.BOOT_CHANGE_FAILED, before)
+        }
+        val command = if (enabled) RootTailscaleCommands.enableBoot(before.mode, hostname) else RootTailscaleCommands.disableBoot()
         val shellResult = shell.execute(command, timeoutSeconds = 8)
         val after = repository.read()
         val success = shellResult.success && after.bootEnabled == enabled
@@ -185,9 +194,9 @@ class RootTailscaleController(
             return result(false, RootTailscaleActionCode.OFFICIAL_APP_STOP_FAILED, before, detail = "Root overlay is not verified")
         }
         val stop = privilegeRouter.forceStop(RootTailscaleRuntimeSpec.OFFICIAL_PACKAGE)
-        shell.execute("sleep 2; ${RootTailscaleCommands.repairRoutes()}", timeoutSeconds = 6)
+        shell.execute("sleep 2", timeoutSeconds = 4)
         val after = repository.read()
-        val success = stop.success && after.tailscale0Present && after.authenticated && after.routeReady && !after.officialVpnActive
+        val success = stop.success && after.managementReady && !after.officialVpnActive
         return auditedResult(
             success = success,
             code = if (success) RootTailscaleActionCode.OFFICIAL_APP_STOPPED else RootTailscaleActionCode.OFFICIAL_APP_STOP_FAILED,
@@ -206,6 +215,11 @@ class RootTailscaleController(
         authUrl: String? = null,
         detail: String? = null,
     ) = RootTailscaleActionResult(success, code, snapshot, authUrl, detail)
+
+    private fun requiresAuthentication(
+        snapshot: com.arthur.roottools.feature.network.tailscale.model.RootTailscaleSnapshot,
+    ): Boolean = !snapshot.authenticated &&
+        (!snapshot.hasSavedIdentity || snapshot.backendState == "NeedsLogin")
 
     private fun auditedResult(
         success: Boolean,
@@ -232,7 +246,6 @@ class RootTailscaleController(
     }
 
     private companion object {
-        val AUTH_URL_REGEX = Regex("https://login\\.tailscale\\.com/a/[A-Za-z0-9]+")
+        val AUTH_URL_REGEX = Regex("https://login\\.tailscale\\.com/a/[A-Za-z0-9_-]+")
     }
 }
-

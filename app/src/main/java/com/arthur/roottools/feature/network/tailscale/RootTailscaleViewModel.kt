@@ -31,6 +31,7 @@ enum class RootTailscaleUiAction {
     REFRESH,
     INSTALL,
     AUTHENTICATE,
+    ENABLE_USERSPACE_SERVE,
     ENABLE,
     DISABLE,
     REPAIR,
@@ -62,9 +63,9 @@ class RootTailscaleViewModel(application: Application) : AndroidViewModel(applic
 
     fun beginAuthentication() = runAction(RootTailscaleUiAction.AUTHENTICATE, controller::beginAuthentication)
 
-    fun enableRootOverlay() = runAction(RootTailscaleUiAction.ENABLE) {
-        controller.enableRootOverlay(releaseOfficialVpnSlot = true)
-    }
+    fun enableUserspaceServe() = runAction(RootTailscaleUiAction.ENABLE_USERSPACE_SERVE, controller::enableUserspaceServe)
+
+    fun enableRootOverlay() = runAction(RootTailscaleUiAction.ENABLE, controller::enableRootOverlay)
 
     fun disableRootOverlay() = runAction(RootTailscaleUiAction.DISABLE, controller::disableRootOverlay)
 
@@ -119,4 +120,3 @@ class RootTailscaleViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 }
-

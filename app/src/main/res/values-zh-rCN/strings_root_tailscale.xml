@@ -12,6 +12,7 @@
     <string name="root_tailscale_vpn_owner_label">Android VPN 占用者</string>
     <string name="root_tailscale_not_installed">未安装</string>
     <string name="root_tailscale_vpn_slot_free">VPN 槽位空闲</string>
+    <string name="root_tailscale_vpn_owner_unavailable">VPN 已在线 · 无法读取占用者</string>
     <string name="root_tailscale_yes">是</string>
     <string name="root_tailscale_no">否</string>
     <string name="root_tailscale_cancel">取消</string>
@@ -27,13 +28,23 @@
     <string name="root_tailscale_mode_missing">未安装</string>
     <string name="root_tailscale_mode_stopped">已停止</string>
     <string name="root_tailscale_mode_userspace">Userspace / 认证模式</string>
+    <string name="root_tailscale_mode_userspace_serve">Userspace · ADB/MCP 转发</string>
     <string name="root_tailscale_mode_kernel" translatable="false">Root TUN · tailscale0</string>
+
+    <string name="root_tailscale_serve_section">管理转发</string>
+    <string name="root_tailscale_serve_section_desc">远程 ADB / MCP 的首选低风险模式：不占 Android VPN，也不写内核路由。</string>
+    <string name="root_tailscale_serve_title">Userspace Tailscale Serve</string>
+    <string name="root_tailscale_serve_body">把 tailnet TCP 5555 转发到本机 ADB；检测到 MCP 时再转发 TCP 8765。手机其他流量保持不变。</string>
+    <string name="root_tailscale_serve_enable">启用管理转发</string>
+    <string name="root_tailscale_serve_adb_required">请先在 ADB 控制中心启用 5555 端口的 Root TCP ADB。</string>
 
     <string name="root_tailscale_overlay_section">Root 私网</string>
     <string name="root_tailscale_overlay_section_desc">只把 tailnet 流量送进 tailscale0；普通互联网仍由 Android / Hiddify 管理。</string>
     <string name="root_tailscale_overlay_title">Root 管理的 Tailscale</string>
     <string name="root_tailscale_overlay_body">使用真实 Root TUN，而不是 Android VpnService；默认拒绝 Tailscale DNS 接管，避免和 Hiddify DNS 冲突。</string>
     <string name="root_tailscale_enable">启用 Root 私网</string>
+    <string name="root_tailscale_enable_confirm_title">启用 Root 网络接口？</string>
+    <string name="root_tailscale_enable_confirm_body">这会把受管 daemon 重启为 tailscale0，并由 Tailscale 安装原生 Linux 路由与防火墙规则。首次验证请保持 USB 恢复链路。</string>
     <string name="root_tailscale_disable">关闭 Root 私网</string>
     <string name="root_tailscale_repair">修复路由</string>
     <string name="root_tailscale_disable_confirm_title">关闭 Root Tailscale？</string>
@@ -51,9 +62,13 @@
     <string name="root_tailscale_coexistence_hiddify_ready">Hiddify 正在占用 Android VPN，同时 Root Tailscale 独立可用。这就是目标共存状态。</string>
     <string name="root_tailscale_coexistence_official_ready_to_release">Root Tailscale 已验证，可以安全停止官方 Tailscale Android VPN，释放系统 VPN 槽位。</string>
     <string name="root_tailscale_coexistence_official_blocking">官方 Tailscale Android App 仍占用 VPN。先完成 Root 节点认证并启用私网，再释放它。</string>
+    <string name="root_tailscale_coexistence_other_vpn_ready">其它 Android VPN 已在线，Root Tailscale 也已独立就绪；这是目标共存状态。</string>
+    <string name="root_tailscale_coexistence_other_vpn_waiting">其它 Android VPN 已在线。请先完成并验证 Root Tailscale 管理模式，再依赖两条链路。</string>
     <string name="root_tailscale_coexistence_slot_ready">Root Tailscale 已可用，Android VPN 槽位可以交给其他 VPN App。</string>
     <string name="root_tailscale_coexistence_waiting">先启用并验证 Root 私网，再进入双 VPN 共存状态。</string>
     <string name="root_tailscale_stop_official_app">释放官方 Tailscale VPN 槽位</string>
+    <string name="root_tailscale_stop_official_confirm_title">释放官方 VPN 槽位？</string>
+    <string name="root_tailscale_stop_official_confirm_body">RootTools 只会停止官方 Tailscale Android App。请先确认可信 tailnet 节点已能连接这台手机；Root 管理模式会继续运行。</string>
 
     <string name="root_tailscale_runtime_section">Runtime</string>
     <string name="root_tailscale_runtime_section_desc">特权网络 Runtime 固定版本并校验哈希，不直接下载未经验证的 latest。</string>
@@ -65,7 +80,7 @@
     <string name="root_tailscale_boot_section">开机恢复</string>
     <string name="root_tailscale_boot_section_desc">默认关闭；开启后也不会安装无限重试循环。</string>
     <string name="root_tailscale_boot_title">开机恢复 Root Tailscale</string>
-    <string name="root_tailscale_boot_body">只安装一个 RootTools 自有的 Magisk service.d 脚本。它会有限等待 tailscale0，并且只有 Root 私网拿到合法地址后才停止官方 Tailscale App。</string>
+    <string name="root_tailscale_boot_body">只安装一个 RootTools 自有的 Magisk service.d 脚本，恢复当前已验证模式；有限等待，并且绝不停止其他 VPN App。</string>
     <string name="root_tailscale_boot_confirm_title">启用开机恢复？</string>
     <string name="root_tailscale_boot_confirm_body">将写入 /data/adb/service.d/99-roottools-tailscale.sh；可通过同一开关完整删除，不修改其他 Magisk 启动脚本。</string>
     <string name="root_tailscale_boot_disable_confirm_title">关闭开机恢复？</string>
@@ -78,9 +93,14 @@
     <string name="root_tailscale_diag_daemon">tailscaled 运行</string>
     <string name="root_tailscale_diag_socket">控制 Socket</string>
     <string name="root_tailscale_diag_identity">已保存身份</string>
+    <string name="root_tailscale_diag_backend">Backend 状态</string>
+    <string name="root_tailscale_diag_online">Backend 在线</string>
     <string name="root_tailscale_diag_tun" translatable="false">tailscale0</string>
-    <string name="root_tailscale_diag_route">100.64/10 策略路由</string>
+    <string name="root_tailscale_diag_route">原生有效路由</string>
     <string name="root_tailscale_diag_adb" translatable="false">ADB :5555</string>
+    <string name="root_tailscale_diag_serve_adb">Serve ADB 转发</string>
+    <string name="root_tailscale_diag_serve_mcp">Serve MCP 转发</string>
+    <string name="root_tailscale_diag_vpn_active">Android VPN 在线</string>
     <string name="root_tailscale_diag_boot">开机恢复</string>
 
     <string name="root_tailscale_result_no_root">当前没有 Root，无法修改 Root Tailscale 的 Linux 网络状态。</string>
@@ -90,6 +110,8 @@
     <string name="root_tailscale_result_auth_required">这个 Root 节点还没有完成 Tailscale 认证。</string>
     <string name="root_tailscale_result_auth_started">已启动 Tailscale 认证。请在官方登录页完成授权后回到 RootTools。</string>
     <string name="root_tailscale_result_auth_complete">这个 Root 节点已经完成认证。</string>
+    <string name="root_tailscale_result_serve_enabled">Userspace ADB 管理转发已在线，未占用 Android VpnService，也没有写入内核路由。</string>
+    <string name="root_tailscale_result_serve_failed">Userspace 管理转发没有通过 Backend、监听端口与 Serve 回读检查。</string>
     <string name="root_tailscale_result_enabled">Root Tailscale 已启用，tailscale0 与策略路由回读验证通过。</string>
     <string name="root_tailscale_result_enable_failed">Root Tailscale 启用后未通过验证；已保留认证状态，便于继续修复。</string>
     <string name="root_tailscale_result_disabled">Root Tailscale 已关闭，认证状态仍保留。</string>
@@ -103,4 +125,3 @@
     <string name="root_tailscale_result_official_stop_failed">官方 Tailscale Android VPN 槽位没有成功释放；RootTools 保留了当前 Root 私网状态供继续恢复。</string>
     <string name="root_tailscale_unexpected_error">Root Tailscale 出现未预期错误：%1$s</string>
 </resources>
-

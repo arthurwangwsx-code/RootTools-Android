@@ -63,6 +63,8 @@ class RootTailscalePolicyTest {
                 socketReady = true,
                 tailscale0Present = true,
                 tailnetIpv4 = "100.100.20.30",
+                backendState = "Running",
+                backendOnline = true,
                 routeReady = true,
                 androidVpnOwner = RootTailscaleSnapshot.OFFICIAL_TAILSCALE_PACKAGE,
             ),
@@ -80,12 +82,30 @@ class RootTailscalePolicyTest {
                 rootAvailable = true,
                 runtimeInstalled = true,
                 statePresent = true,
+                identitySaved = true,
+                adb5555Listening = true,
             ),
         )
 
         assertEquals(RootTailscaleHealth.STOPPED, decision.health)
         assertTrue(decision.canEnableRootOverlay)
         assertFalse(decision.canBeginAuthentication)
+    }
+
+    @Test
+    fun savedIdentityStillRequiresLocalAdbBeforeUserspaceServe() {
+        val decision = RootTailscalePolicy.decide(
+            RootTailscaleSnapshot(
+                rootAvailable = true,
+                runtimeInstalled = true,
+                statePresent = true,
+                identitySaved = true,
+                adb5555Listening = false,
+            ),
+        )
+
+        assertFalse(decision.canEnableUserspaceServe)
+        assertTrue(decision.canEnableRootOverlay)
     }
 
     @Test
@@ -98,7 +118,10 @@ class RootTailscalePolicyTest {
                 socketReady = true,
                 tailscale0Present = true,
                 tailnetIpv4 = "100.100.20.30",
+                backendState = "Running",
+                backendOnline = true,
                 routeReady = true,
+                androidVpnActive = true,
                 androidVpnOwner = RootTailscaleSnapshot.HIDDIFY_PACKAGE,
             ),
         )
@@ -107,5 +130,150 @@ class RootTailscalePolicyTest {
         assertTrue(decision.coexistenceReady)
         assertFalse(decision.canStopOfficialApp)
     }
-}
 
+    @Test
+    fun cachedTailnetIpWithoutRunningBackendIsDegraded() {
+        val decision = RootTailscalePolicy.decide(
+            RootTailscaleSnapshot(
+                rootAvailable = true,
+                runtimeInstalled = true,
+                daemonRunning = true,
+                socketReady = true,
+                tailscale0Present = true,
+                tailnetIpv4 = "100.100.20.30",
+                backendState = "Stopped",
+                backendOnline = false,
+                routeReady = true,
+                androidVpnOwner = RootTailscaleSnapshot.OFFICIAL_TAILSCALE_PACKAGE,
+            ),
+        )
+
+        assertEquals(RootTailscaleHealth.DEGRADED, decision.health)
+        assertFalse(decision.canStopOfficialApp)
+        assertFalse(decision.coexistenceReady)
+    }
+
+    @Test
+    fun savedIdentityWithOfflineBackendOffersRepair() {
+        val decision = RootTailscalePolicy.decide(
+            RootTailscaleSnapshot(
+                rootAvailable = true,
+                runtimeInstalled = true,
+                daemonRunning = true,
+                socketReady = true,
+                identitySaved = true,
+                backendState = "Stopped",
+                backendOnline = false,
+            ),
+        )
+
+        assertEquals(RootTailscaleHealth.DEGRADED, decision.health)
+        assertTrue(decision.canRepair)
+        assertFalse(decision.canBeginAuthentication)
+    }
+
+    @Test
+    fun revokedSavedIdentityOffersReauthenticationInsteadOfRepairOrEnable() {
+        val decision = RootTailscalePolicy.decide(
+            RootTailscaleSnapshot(
+                rootAvailable = true,
+                runtimeInstalled = true,
+                daemonRunning = true,
+                socketReady = true,
+                statePresent = true,
+                identitySaved = true,
+                backendState = "NeedsLogin",
+                adb5555Listening = true,
+            ),
+        )
+
+        assertEquals(RootTailscaleHealth.NEEDS_LOGIN, decision.health)
+        assertTrue(decision.canBeginAuthentication)
+        assertFalse(decision.canEnableUserspaceServe)
+        assertFalse(decision.canEnableRootOverlay)
+        assertFalse(decision.canRepair)
+    }
+
+    @Test
+    fun userspaceServeIsReadyWithoutKernelRoute() {
+        val decision = RootTailscalePolicy.decide(
+            RootTailscaleSnapshot(
+                rootAvailable = true,
+                runtimeInstalled = true,
+                daemonRunning = true,
+                socketReady = true,
+                tailnetIpv4 = "100.100.20.30",
+                backendState = "Running",
+                backendOnline = true,
+                serveAdbReady = true,
+                adb5555Listening = true,
+                androidVpnActive = true,
+                androidVpnOwner = "com.getsurfboard",
+            ),
+        )
+
+        assertEquals(RootTailscaleHealth.READY, decision.health)
+        assertTrue(decision.coexistenceReady)
+        assertTrue(decision.canEnableBoot)
+        assertTrue(decision.canEnableRootOverlay)
+        assertFalse(decision.canEnableUserspaceServe)
+    }
+
+    @Test
+    fun readyRootModeWithoutAndroidVpnIsNotCoexistenceReady() {
+        val decision = RootTailscalePolicy.decide(
+            RootTailscaleSnapshot(
+                rootAvailable = true,
+                runtimeInstalled = true,
+                daemonRunning = true,
+                socketReady = true,
+                tailnetIpv4 = "100.83.208.27",
+                backendState = "Running",
+                backendOnline = true,
+                serveAdbReady = true,
+                adb5555Listening = true,
+                androidVpnActive = false,
+            ),
+        )
+
+        assertEquals(RootTailscaleHealth.READY, decision.health)
+        assertFalse(decision.coexistenceReady)
+    }
+
+    @Test
+    fun authenticatedStoppedRuntimeCanChooseUserspaceOrKernel() {
+        val decision = RootTailscalePolicy.decide(
+            RootTailscaleSnapshot(
+                rootAvailable = true,
+                runtimeInstalled = true,
+                statePresent = true,
+                identitySaved = true,
+                adb5555Listening = true,
+            ),
+        )
+
+        assertTrue(decision.canEnableUserspaceServe)
+        assertTrue(decision.canEnableRootOverlay)
+        assertFalse(decision.canEnableBoot)
+    }
+
+    @Test
+    fun unauthenticatedStateFileKeepsLoginRetryAvailable() {
+        val decision = RootTailscalePolicy.decide(
+            RootTailscaleSnapshot(
+                rootAvailable = true,
+                runtimeInstalled = true,
+                daemonRunning = true,
+                socketReady = true,
+                statePresent = true,
+                identitySaved = false,
+                backendState = "NeedsLogin",
+            ),
+        )
+
+        assertEquals(RootTailscaleHealth.NEEDS_LOGIN, decision.health)
+        assertTrue(decision.canBeginAuthentication)
+        assertFalse(decision.canEnableUserspaceServe)
+        assertFalse(decision.canEnableRootOverlay)
+    }
+}

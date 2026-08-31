@@ -88,6 +88,7 @@ fun RootTailscaleRoute(
         onRefresh = viewModel::refresh,
         onInstall = viewModel::installRuntime,
         onAuthenticate = viewModel::beginAuthentication,
+        onEnableUserspaceServe = viewModel::enableUserspaceServe,
         onEnable = viewModel::enableRootOverlay,
         onDisable = viewModel::disableRootOverlay,
         onRepair = viewModel::repair,
@@ -104,6 +105,7 @@ private fun RootTailscaleScreen(
     onRefresh: () -> Unit,
     onInstall: () -> Unit,
     onAuthenticate: () -> Unit,
+    onEnableUserspaceServe: () -> Unit,
     onEnable: () -> Unit,
     onDisable: () -> Unit,
     onRepair: () -> Unit,
@@ -113,7 +115,12 @@ private fun RootTailscaleScreen(
 ) {
     var bootConfirmation by remember { mutableStateOf<Boolean?>(null) }
     var disableConfirmation by remember { mutableStateOf(false) }
+    var enableKernelConfirmation by remember { mutableStateOf(false) }
+    var stopOfficialConfirmation by remember { mutableStateOf(false) }
     val busy = state.runningAction != null
+    val canOfferManagementMode = state.snapshot.rootAvailable && state.snapshot.runtimeInstalled &&
+        (state.snapshot.authenticated || state.snapshot.hasSavedIdentity) &&
+        state.snapshot.backendState != "NeedsLogin"
 
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         LazyColumn(
@@ -124,7 +131,10 @@ private fun RootTailscaleScreen(
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null)
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.common_back),
+                        )
                     }
                     Column(Modifier.weight(1f)) {
                         Text(
@@ -152,6 +162,38 @@ private fun RootTailscaleScreen(
 
             item {
                 RootToolsSectionHeader(
+                    title = stringResource(R.string.root_tailscale_serve_section),
+                    subtitle = stringResource(R.string.root_tailscale_serve_section_desc),
+                )
+            }
+            item {
+                ActionCard(
+                    icon = Icons.Rounded.Security,
+                    title = stringResource(R.string.root_tailscale_serve_title),
+                    body = stringResource(R.string.root_tailscale_serve_body),
+                ) {
+                    if (canOfferManagementMode && !state.snapshot.userspaceServeReady) {
+                        Button(onClick = onEnableUserspaceServe, enabled = !busy && state.decision.canEnableUserspaceServe) {
+                            Text(stringResource(R.string.root_tailscale_serve_enable))
+                        }
+                    }
+                    if (canOfferManagementMode && !state.snapshot.adb5555Listening) {
+                        Text(
+                            stringResource(R.string.root_tailscale_serve_adb_required),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    if (state.snapshot.mode == RootTailscaleMode.USERSPACE_SERVE && state.snapshot.daemonRunning) {
+                        OutlinedButton(onClick = { disableConfirmation = true }, enabled = !busy) {
+                            Text(stringResource(R.string.root_tailscale_disable))
+                        }
+                    }
+                }
+            }
+
+            item {
+                RootToolsSectionHeader(
                     title = stringResource(R.string.root_tailscale_overlay_section),
                     subtitle = stringResource(R.string.root_tailscale_overlay_section_desc),
                 )
@@ -162,16 +204,14 @@ private fun RootTailscaleScreen(
                     title = stringResource(R.string.root_tailscale_overlay_title),
                     body = stringResource(R.string.root_tailscale_overlay_body),
                 ) {
-                    when {
-                        state.decision.canEnableRootOverlay -> {
-                            Button(onClick = onEnable, enabled = !busy) {
-                                Text(stringResource(R.string.root_tailscale_enable))
-                            }
+                    if (state.decision.canEnableRootOverlay) {
+                        Button(onClick = { enableKernelConfirmation = true }, enabled = !busy) {
+                            Text(stringResource(R.string.root_tailscale_enable))
                         }
-                        state.snapshot.daemonRunning -> {
-                            OutlinedButton(onClick = { disableConfirmation = true }, enabled = !busy) {
-                                Text(stringResource(R.string.root_tailscale_disable))
-                            }
+                    }
+                    if (state.snapshot.mode == RootTailscaleMode.KERNEL_TUN && state.snapshot.daemonRunning) {
+                        OutlinedButton(onClick = { disableConfirmation = true }, enabled = !busy) {
+                            Text(stringResource(R.string.root_tailscale_disable))
                         }
                     }
                     if (state.decision.canRepair) {
@@ -182,7 +222,7 @@ private fun RootTailscaleScreen(
                 }
             }
 
-            if (!state.snapshot.authenticated && !state.snapshot.hasSavedIdentity) {
+            if (state.decision.canBeginAuthentication) {
                 item {
                     RootToolsSectionHeader(
                         title = stringResource(R.string.root_tailscale_auth_section),
@@ -197,7 +237,7 @@ private fun RootTailscaleScreen(
                     ) {
                         Button(
                             onClick = onAuthenticate,
-                            enabled = !busy && state.snapshot.runtimeInstalled && state.snapshot.rootAvailable,
+                            enabled = !busy,
                         ) {
                             Text(stringResource(R.string.root_tailscale_auth_action))
                         }
@@ -211,7 +251,7 @@ private fun RootTailscaleScreen(
                     subtitle = stringResource(R.string.root_tailscale_coexistence_section_desc),
                 )
             }
-            item { CoexistenceCard(state, onStopOfficial, busy) }
+            item { CoexistenceCard(state, { stopOfficialConfirmation = true }, busy) }
 
             item {
                 RootToolsSectionHeader(
@@ -261,7 +301,8 @@ private fun RootTailscaleScreen(
                         Switch(
                             checked = state.snapshot.bootEnabled,
                             onCheckedChange = { bootConfirmation = it },
-                            enabled = !busy && state.snapshot.rootAvailable && state.snapshot.authenticated,
+                            enabled = !busy && state.snapshot.rootAvailable &&
+                                (state.snapshot.bootEnabled || state.decision.canEnableBoot),
                         )
                     }
                 }
@@ -295,6 +336,24 @@ private fun RootTailscaleScreen(
             },
         )
     }
+    if (enableKernelConfirmation) {
+        AlertDialog(
+            onDismissRequest = { enableKernelConfirmation = false },
+            title = { Text(stringResource(R.string.root_tailscale_enable_confirm_title)) },
+            text = { Text(stringResource(R.string.root_tailscale_enable_confirm_body)) },
+            confirmButton = {
+                Button(onClick = {
+                    enableKernelConfirmation = false
+                    onEnable()
+                }) { Text(stringResource(R.string.root_tailscale_enable)) }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { enableKernelConfirmation = false }) {
+                    Text(stringResource(R.string.root_tailscale_cancel))
+                }
+            },
+        )
+    }
     if (disableConfirmation) {
         AlertDialog(
             onDismissRequest = { disableConfirmation = false },
@@ -308,6 +367,24 @@ private fun RootTailscaleScreen(
             },
             dismissButton = {
                 OutlinedButton(onClick = { disableConfirmation = false }) { Text(stringResource(R.string.root_tailscale_cancel)) }
+            },
+        )
+    }
+    if (stopOfficialConfirmation) {
+        AlertDialog(
+            onDismissRequest = { stopOfficialConfirmation = false },
+            title = { Text(stringResource(R.string.root_tailscale_stop_official_confirm_title)) },
+            text = { Text(stringResource(R.string.root_tailscale_stop_official_confirm_body)) },
+            confirmButton = {
+                Button(onClick = {
+                    stopOfficialConfirmation = false
+                    onStopOfficial()
+                }) { Text(stringResource(R.string.root_tailscale_stop_official_app)) }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { stopOfficialConfirmation = false }) {
+                    Text(stringResource(R.string.root_tailscale_cancel))
+                }
             },
         )
     }
@@ -372,7 +449,16 @@ private fun RootTailscaleOverviewCard(state: RootTailscaleUiState) {
             KeyValueRow(stringResource(R.string.root_tailscale_mode_label), stringResource(modeRes(state.snapshot.mode)))
             KeyValueRow(stringResource(R.string.root_tailscale_ip_label), state.snapshot.tailnetIpv4 ?: stringResource(R.string.common_dash))
             KeyValueRow(stringResource(R.string.root_tailscale_runtime_label), state.snapshot.runtimeVersion ?: stringResource(R.string.root_tailscale_not_installed))
-            KeyValueRow(stringResource(R.string.root_tailscale_vpn_owner_label), state.snapshot.androidVpnOwner ?: stringResource(R.string.root_tailscale_vpn_slot_free))
+            KeyValueRow(
+                stringResource(R.string.root_tailscale_vpn_owner_label),
+                state.snapshot.androidVpnOwner ?: stringResource(
+                    if (state.snapshot.androidVpnActive) {
+                        R.string.root_tailscale_vpn_owner_unavailable
+                    } else {
+                        R.string.root_tailscale_vpn_slot_free
+                    },
+                ),
+            )
         }
     }
 }
@@ -393,7 +479,10 @@ private fun CoexistenceCard(state: RootTailscaleUiState, onStopOfficial: () -> U
                     state.snapshot.hiddifyVpnActive && state.decision.coexistenceReady -> stringResource(R.string.root_tailscale_coexistence_hiddify_ready)
                     state.snapshot.officialVpnActive && state.decision.canStopOfficialApp -> stringResource(R.string.root_tailscale_coexistence_official_ready_to_release)
                     state.snapshot.officialVpnActive -> stringResource(R.string.root_tailscale_coexistence_official_blocking)
-                    state.decision.coexistenceReady -> stringResource(R.string.root_tailscale_coexistence_slot_ready)
+                    state.snapshot.androidVpnActive && state.decision.coexistenceReady -> stringResource(R.string.root_tailscale_coexistence_other_vpn_ready)
+                    state.snapshot.androidVpnActive -> stringResource(R.string.root_tailscale_coexistence_other_vpn_waiting)
+                    state.snapshot.managementReady && !state.snapshot.androidVpnActive ->
+                        stringResource(R.string.root_tailscale_coexistence_slot_ready)
                     else -> stringResource(R.string.root_tailscale_coexistence_waiting)
                 },
                 style = MaterialTheme.typography.bodySmall,
@@ -422,9 +511,14 @@ private fun DiagnosticsCard(state: RootTailscaleUiState) {
             KeyValueRow(stringResource(R.string.root_tailscale_diag_daemon), yesNo(state.snapshot.daemonRunning))
             KeyValueRow(stringResource(R.string.root_tailscale_diag_socket), yesNo(state.snapshot.socketReady))
             KeyValueRow(stringResource(R.string.root_tailscale_diag_identity), yesNo(state.snapshot.hasSavedIdentity))
+            KeyValueRow(stringResource(R.string.root_tailscale_diag_backend), state.snapshot.backendState ?: stringResource(R.string.common_dash))
+            KeyValueRow(stringResource(R.string.root_tailscale_diag_online), yesNo(state.snapshot.backendOnline))
             KeyValueRow(stringResource(R.string.root_tailscale_diag_tun), yesNo(state.snapshot.tailscale0Present))
             KeyValueRow(stringResource(R.string.root_tailscale_diag_route), yesNo(state.snapshot.routeReady))
             KeyValueRow(stringResource(R.string.root_tailscale_diag_adb), yesNo(state.snapshot.adb5555Listening))
+            KeyValueRow(stringResource(R.string.root_tailscale_diag_serve_adb), yesNo(state.snapshot.serveAdbReady))
+            KeyValueRow(stringResource(R.string.root_tailscale_diag_serve_mcp), yesNo(state.snapshot.serveMcpReady))
+            KeyValueRow(stringResource(R.string.root_tailscale_diag_vpn_active), yesNo(state.snapshot.androidVpnActive))
             KeyValueRow(stringResource(R.string.root_tailscale_diag_boot), yesNo(state.snapshot.bootEnabled))
         }
     }
@@ -450,7 +544,7 @@ private fun ActionCard(
                 Text(title, modifier = Modifier.padding(start = RootToolsSpacing.sm), fontWeight = FontWeight.SemiBold)
             }
             Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(horizontalArrangement = Arrangement.spacedBy(RootToolsSpacing.sm)) { actions() }
+            Column(verticalArrangement = Arrangement.spacedBy(RootToolsSpacing.sm)) { actions() }
         }
     }
 }
@@ -478,6 +572,7 @@ private fun modeRes(mode: RootTailscaleMode): Int = when (mode) {
     RootTailscaleMode.NOT_INSTALLED -> R.string.root_tailscale_mode_missing
     RootTailscaleMode.STOPPED -> R.string.root_tailscale_mode_stopped
     RootTailscaleMode.USERSPACE -> R.string.root_tailscale_mode_userspace
+    RootTailscaleMode.USERSPACE_SERVE -> R.string.root_tailscale_mode_userspace_serve
     RootTailscaleMode.KERNEL_TUN -> R.string.root_tailscale_mode_kernel
 }
 
@@ -489,6 +584,8 @@ private fun actionMessageRes(code: RootTailscaleActionCode): Int = when (code) {
     RootTailscaleActionCode.AUTH_REQUIRED -> R.string.root_tailscale_result_auth_required
     RootTailscaleActionCode.AUTH_STARTED -> R.string.root_tailscale_result_auth_started
     RootTailscaleActionCode.AUTH_ALREADY_COMPLETE -> R.string.root_tailscale_result_auth_complete
+    RootTailscaleActionCode.USERSPACE_SERVE_ENABLED -> R.string.root_tailscale_result_serve_enabled
+    RootTailscaleActionCode.USERSPACE_SERVE_FAILED -> R.string.root_tailscale_result_serve_failed
     RootTailscaleActionCode.ENABLED -> R.string.root_tailscale_result_enabled
     RootTailscaleActionCode.ENABLE_FAILED -> R.string.root_tailscale_result_enable_failed
     RootTailscaleActionCode.DISABLED -> R.string.root_tailscale_result_disabled
@@ -501,4 +598,3 @@ private fun actionMessageRes(code: RootTailscaleActionCode): Int = when (code) {
     RootTailscaleActionCode.OFFICIAL_APP_STOPPED -> R.string.root_tailscale_result_official_stopped
     RootTailscaleActionCode.OFFICIAL_APP_STOP_FAILED -> R.string.root_tailscale_result_official_stop_failed
 }
-

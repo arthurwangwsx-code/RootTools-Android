@@ -12,6 +12,7 @@
     <string name="root_tailscale_vpn_owner_label">Android VPN owner</string>
     <string name="root_tailscale_not_installed">Not installed</string>
     <string name="root_tailscale_vpn_slot_free">VPN slot free</string>
+    <string name="root_tailscale_vpn_owner_unavailable">VPN active · owner unavailable</string>
     <string name="root_tailscale_yes">Yes</string>
     <string name="root_tailscale_no">No</string>
     <string name="root_tailscale_cancel">Cancel</string>
@@ -27,13 +28,23 @@
     <string name="root_tailscale_mode_missing">Not installed</string>
     <string name="root_tailscale_mode_stopped">Stopped</string>
     <string name="root_tailscale_mode_userspace">Userspace / authentication</string>
+    <string name="root_tailscale_mode_userspace_serve">Userspace · ADB/MCP relay</string>
     <string name="root_tailscale_mode_kernel" translatable="false">Root TUN · tailscale0</string>
+
+    <string name="root_tailscale_serve_section">Management relay</string>
+    <string name="root_tailscale_serve_section_desc">Preferred low-risk mode for remote ADB and MCP. It uses no Android VPN slot and writes no kernel route.</string>
+    <string name="root_tailscale_serve_title">Userspace Tailscale Serve</string>
+    <string name="root_tailscale_serve_body">Forwards tailnet TCP 5555 to local ADB and, when present, TCP 8765 to the local MCP relay. Other phone traffic is unchanged.</string>
+    <string name="root_tailscale_serve_enable">Enable management relay</string>
+    <string name="root_tailscale_serve_adb_required">Enable Root TCP ADB on port 5555 in ADB Control Center first.</string>
 
     <string name="root_tailscale_overlay_section">Root overlay</string>
     <string name="root_tailscale_overlay_section_desc">Only tailnet traffic is routed into tailscale0. Normal Internet traffic remains under Android / Hiddify.</string>
     <string name="root_tailscale_overlay_title">Root-managed Tailscale</string>
     <string name="root_tailscale_overlay_body">Enable a real root TUN instead of Android VpnService. DNS acceptance stays disabled to avoid proxy/VPN DNS conflicts.</string>
     <string name="root_tailscale_enable">Enable root overlay</string>
+    <string name="root_tailscale_enable_confirm_title">Enable the root network interface?</string>
+    <string name="root_tailscale_enable_confirm_body">This restarts the managed daemon with tailscale0 and lets Tailscale install its native Linux route and firewall rules. Keep USB recovery connected for the first validation.</string>
     <string name="root_tailscale_disable">Disable root overlay</string>
     <string name="root_tailscale_repair">Repair route</string>
     <string name="root_tailscale_disable_confirm_title">Disable Root Tailscale?</string>
@@ -51,9 +62,13 @@
     <string name="root_tailscale_coexistence_hiddify_ready">Hiddify owns Android VPN while Root Tailscale is independently ready. This is the target coexistence state.</string>
     <string name="root_tailscale_coexistence_official_ready_to_release">Root Tailscale is verified. The official Tailscale Android VPN can now be stopped safely to release the VPN slot.</string>
     <string name="root_tailscale_coexistence_official_blocking">The official Tailscale Android app still owns the VPN slot. Authenticate and enable the root overlay before releasing it.</string>
+    <string name="root_tailscale_coexistence_other_vpn_ready">Another Android VPN is active while Root Tailscale is independently ready. This is the target coexistence state.</string>
+    <string name="root_tailscale_coexistence_other_vpn_waiting">Another Android VPN is active. Finish and verify a Root Tailscale management mode before relying on both paths.</string>
     <string name="root_tailscale_coexistence_slot_ready">Root Tailscale is ready and the Android VPN slot is available for another VPN app.</string>
     <string name="root_tailscale_coexistence_waiting">Enable and verify the root overlay before using simultaneous VPN coexistence.</string>
     <string name="root_tailscale_stop_official_app">Release official Tailscale VPN slot</string>
+    <string name="root_tailscale_stop_official_confirm_title">Release the official VPN slot?</string>
+    <string name="root_tailscale_stop_official_confirm_body">RootTools will stop only the official Tailscale Android app. Confirm that a trusted tailnet peer can already reach this phone; the root-managed mode will remain running.</string>
 
     <string name="root_tailscale_runtime_section">Runtime</string>
     <string name="root_tailscale_runtime_section_desc">Privileged network runtimes are pinned and hash-verified instead of downloading an unverified latest build.</string>
@@ -65,7 +80,7 @@
     <string name="root_tailscale_boot_section">Boot persistence</string>
     <string name="root_tailscale_boot_section_desc">Explicit opt-in only. No infinite retry loop is installed.</string>
     <string name="root_tailscale_boot_title">Restore Root Tailscale after boot</string>
-    <string name="root_tailscale_boot_body">Installs one RootTools-owned Magisk service.d script. It starts tailscale0 with bounded waits and only stops the official Tailscale app after the root overlay has a valid tailnet IP.</string>
+    <string name="root_tailscale_boot_body">Installs one RootTools-owned Magisk service.d script for the currently verified mode. It uses bounded waits and never stops another VPN app.</string>
     <string name="root_tailscale_boot_confirm_title">Enable boot restore?</string>
     <string name="root_tailscale_boot_confirm_body">This writes /data/adb/service.d/99-roottools-tailscale.sh. The script is removable from this same switch and does not modify other Magisk service scripts.</string>
     <string name="root_tailscale_boot_disable_confirm_title">Disable boot restore?</string>
@@ -78,9 +93,14 @@
     <string name="root_tailscale_diag_daemon">tailscaled running</string>
     <string name="root_tailscale_diag_socket">Control socket</string>
     <string name="root_tailscale_diag_identity">Saved identity</string>
+    <string name="root_tailscale_diag_backend">Backend state</string>
+    <string name="root_tailscale_diag_online">Backend online</string>
     <string name="root_tailscale_diag_tun" translatable="false">tailscale0</string>
-    <string name="root_tailscale_diag_route">100.64/10 policy route</string>
+    <string name="root_tailscale_diag_route">Effective native route</string>
     <string name="root_tailscale_diag_adb" translatable="false">ADB :5555</string>
+    <string name="root_tailscale_diag_serve_adb">Serve ADB relay</string>
+    <string name="root_tailscale_diag_serve_mcp">Serve MCP relay</string>
+    <string name="root_tailscale_diag_vpn_active">Android VPN active</string>
     <string name="root_tailscale_diag_boot">Boot restore</string>
 
     <string name="root_tailscale_result_no_root">Root is unavailable, so Root Tailscale cannot change Linux networking.</string>
@@ -90,6 +110,8 @@
     <string name="root_tailscale_result_auth_required">This root node still needs Tailscale authentication.</string>
     <string name="root_tailscale_result_auth_started">Tailscale authentication was started. Complete the official login page and return to RootTools.</string>
     <string name="root_tailscale_result_auth_complete">This root node is already authenticated.</string>
+    <string name="root_tailscale_result_serve_enabled">The userspace ADB management relay is online without using Android VpnService or a kernel route.</string>
+    <string name="root_tailscale_result_serve_failed">The userspace management relay did not pass backend, listener, and Serve read-back checks.</string>
     <string name="root_tailscale_result_enabled">Root Tailscale is enabled and tailscale0 passed read-back verification.</string>
     <string name="root_tailscale_result_enable_failed">Root Tailscale did not pass enable verification. The saved authentication state was kept.</string>
     <string name="root_tailscale_result_disabled">Root Tailscale was disabled. Authentication state was preserved.</string>
@@ -103,4 +125,3 @@
     <string name="root_tailscale_result_official_stop_failed">The official Tailscale Android VPN slot was not released. RootTools left the root overlay state visible for recovery.</string>
     <string name="root_tailscale_unexpected_error">Unexpected Root Tailscale error: %1$s</string>
 </resources>
-

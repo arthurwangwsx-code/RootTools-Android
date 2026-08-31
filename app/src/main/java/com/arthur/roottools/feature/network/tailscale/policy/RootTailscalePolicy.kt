@@ -8,23 +8,31 @@ import java.util.Locale
 
 object RootTailscalePolicy {
     fun decide(snapshot: RootTailscaleSnapshot): RootTailscaleDecision {
+        val explicitNeedsLogin = snapshot.backendState == "NeedsLogin"
         val health = when {
             !snapshot.rootAvailable || !snapshot.runtimeInstalled -> RootTailscaleHealth.RUNTIME_MISSING
-            snapshot.mode == RootTailscaleMode.KERNEL_TUN && snapshot.authenticated && snapshot.routeReady -> RootTailscaleHealth.READY
-            snapshot.mode == RootTailscaleMode.KERNEL_TUN && snapshot.authenticated -> RootTailscaleHealth.DEGRADED
-            snapshot.daemonRunning && !snapshot.authenticated -> RootTailscaleHealth.NEEDS_LOGIN
+            snapshot.managementReady -> RootTailscaleHealth.READY
+            snapshot.daemonRunning &&
+                (explicitNeedsLogin || (!snapshot.hasSavedIdentity && snapshot.tailnetIpv4 == null)) ->
+                RootTailscaleHealth.NEEDS_LOGIN
+            snapshot.daemonRunning -> RootTailscaleHealth.DEGRADED
             else -> RootTailscaleHealth.STOPPED
         }
-        val rootOverlayReady = health == RootTailscaleHealth.READY
+        val authenticatedOrSaved = snapshot.hasSavedIdentity && !explicitNeedsLogin
+        val ready = health == RootTailscaleHealth.READY
         return RootTailscaleDecision(
             health = health,
             canInstallRuntime = snapshot.rootAvailable,
-            canBeginAuthentication = snapshot.rootAvailable && snapshot.runtimeInstalled && !snapshot.authenticated && !snapshot.hasSavedIdentity,
-            canEnableRootOverlay = snapshot.rootAvailable && snapshot.runtimeInstalled && (snapshot.authenticated || snapshot.hasSavedIdentity) && !rootOverlayReady,
+            canBeginAuthentication = snapshot.rootAvailable && snapshot.runtimeInstalled && !snapshot.authenticated &&
+                (!snapshot.hasSavedIdentity || explicitNeedsLogin),
+            canEnableUserspaceServe = snapshot.rootAvailable && snapshot.runtimeInstalled && authenticatedOrSaved &&
+                snapshot.adb5555Listening && !snapshot.userspaceServeReady,
+            canEnableRootOverlay = snapshot.rootAvailable && snapshot.runtimeInstalled && authenticatedOrSaved && !snapshot.kernelReady,
             canDisableRootOverlay = snapshot.daemonRunning,
-            canRepair = snapshot.rootAvailable && snapshot.runtimeInstalled && snapshot.authenticated,
-            canStopOfficialApp = rootOverlayReady && snapshot.officialVpnActive,
-            coexistenceReady = rootOverlayReady && !snapshot.officialVpnActive,
+            canRepair = snapshot.rootAvailable && snapshot.runtimeInstalled && authenticatedOrSaved,
+            canEnableBoot = ready,
+            canStopOfficialApp = ready && snapshot.officialVpnActive,
+            coexistenceReady = ready && snapshot.androidVpnActive && !snapshot.officialVpnActive,
         )
     }
 
@@ -47,4 +55,3 @@ object RootTailscalePolicy {
         return normalized.ifBlank { "roottools-android" }
     }
 }
-
