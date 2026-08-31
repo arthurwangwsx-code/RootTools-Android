@@ -18,12 +18,12 @@ Hiddify / other VPN app
       Internet
 
 RootTools-managed tailscaled
-        ↓ root Linux TUN
-    tailscale0 / 100.64.0.0/10
-        ↓
-Mac / trusted tailnet peers
-        ↓
-ADB 5555 / Device MCP
+        ├─ userspace Serve: tailnet TCP 5555 / 8765 -> localhost
+        └─ optional root Linux TUN: tailscale0 / tailnet routes
+                           ↓
+                 Mac / trusted tailnet peers
+                           ↓
+                 ADB 5555 / Device MCP
 ```
 
 ## 2. 产品边界
@@ -33,10 +33,10 @@ RootTools 负责：
 1. 探测 Root Tailscale runtime / daemon / socket / `tailscale0` / tailnet IPv4；
 2. 安装一个 **固定版本 + 固定 SHA-256** 的官方 ARM64 Tailscale runtime；
 3. 用 userspace 模式完成一次性登录并返回官方认证 URL；
-4. 切换到 root kernel TUN 模式；
-5. 安装仅面向 `100.64.0.0/10` 的受控路由规则；
-6. 在 root overlay 已经验证成功后，允许停止官方 Tailscale Android App，释放 `VpnService` 槽位；
-7. 可选写入 RootTools 自己拥有的 Magisk `service.d` 启动脚本；
+4. 优先启用 userspace Serve，只把 tailnet TCP `5555` 转发到本机 ADB，存在 MCP listener 时再转发 `8765`；
+5. 需要完整 tailnet 连通时，显式切换到 root kernel TUN 模式，并以 Tailscale 原生路由 / netfilter 为真值源；
+6. 只在管理链路已验证时开放“停止官方 Tailscale App”单独操作，永不作为启用过程的自动步骤；
+7. 可选写入 RootTools 自己拥有的 Magisk `service.d` 启动脚本，恢复当前已验证模式；
 8. 提供停用、修复、状态、审计和明确的回滚信息。
 
 RootTools **不**：
@@ -45,6 +45,7 @@ RootTools **不**：
 - 自动填写第三方账号密码；
 - 从 UI 接受任意 shell、URL 或安装路径；
 - 在 root overlay 尚未可用时主动停止官方 Tailscale App；
+- 在启用、修复或开机恢复时自动停止任何第三方 VPN App；
 - 把所有互联网流量改成走 `tailscale0`；
 - 默认启用开机常驻。
 
@@ -65,7 +66,8 @@ RootTools **不**：
 │   ├── userspace.log
 │   └── kernel.log
 └── state/
-    └── tailscaled.state
+    ├── tailscaled.state
+    └── authenticated.marker
 ```
 
 启动恢复脚本只允许写：
@@ -86,20 +88,19 @@ STOPPED
       │ begin auth
       ▼
 NEEDS_LOGIN  ── browser auth ──► AUTHENTICATED_USERSPACE
-                                      │ enable
-                                      ▼
-                                  ROOT_TUN
                                       │
-                    optional stop official Android Tailscale
-                                      │
-                                      ▼
-                              VPN slot free for Hiddify
+                       ┌─ userspace Serve ─► MANAGEMENT_READY
+                       └─ explicit Root TUN ─► KERNEL_READY
+                                                        │
+                                      optional, separately confirmed stop
+                                                        ▼
+                                            official Tailscale App OFF
 ```
 
 UI 不用“VPN 开关”描述 Root Tailscale，因为它不是 Android `VpnService`。统一叫：
 
 - Root Tailscale；
-- Root Overlay；
+- Management relay / Root Overlay；
 - `tailscale0`。
 
 ## 5. 安装策略
@@ -129,9 +130,23 @@ tailscale up --accept-dns=false --hostname=<RootTools generated hostname>
 RootTools 只读取 `https://login.tailscale.com/a/...` URL 并交给系统浏览器。认证状态保存在 root-owned
 state file；密码、OAuth cookie 和第三方账号信息不进入 RootTools。
 
-回到 App 后自动刷新；一旦拿到合法 `100.64.0.0/10` 地址即可启用 root TUN。
+回到 App 后自动刷新；只有 `BackendState=Running` 且拿到合法 tailnet IPv4 才算在线。
+仅存在缓存 IP 但 backend 为 `Stopped` / `NeedsLogin` 不得误报可用。
+`tailscaled.state` 在未授权时也可能已存在，因此不得单独当作已保存身份。RootTools 只在
+backend + tailnet IP 已验证后写入无凭据内容的 `authenticated.marker`；用户取消登录时仍可重试认证。
 
-## 7. Root TUN 与路由
+## 7. Userspace Serve 与 Root TUN
+
+首选管理模式：
+
+```text
+tailscaled --tun=userspace-networking ...
+tailscale serve --bg --tcp=5555 tcp://127.0.0.1:5555
+tailscale serve --bg --tcp=8765 tcp://127.0.0.1:8765  # 仅本机 listener 存在时
+```
+
+该模式不创建 `tailscale0`、不写 Android 路由、不占 `VpnService`，只暴露固定管理端口。
+启用前必须已有 adbd `:5555` listener；MCP `:8765` 不存在时不创建空转发。
 
 Kernel 模式：
 
@@ -139,26 +154,22 @@ Kernel 模式：
 tailscaled --tun=tailscale0 ...
 ```
 
-RootTools 只为 tailnet IPv4 添加受控策略：
-
-```text
-100.64.0.0/10 -> tailscale0
-table 1099 100.64.0.0/10 -> tailscale0
-fwmark 1099 -> lookup 1099
-```
-
-规则必须幂等；停用时只删除 RootTools 自己的 `1099` 规则。默认 DNS 保持 `--accept-dns=false`，避免
-MagicDNS 与 Hiddify DNS 冲突。普通 Internet 默认路由仍由 Android / Hiddify 管理。
+RootTools 不再新增自定义 table / fwmark。成功判定使用 Tailscale 原生路由结果：
+`BackendState=Running`、`tailscale0` 存在，且 `ip route get 100.100.100.100` 实际命中
+`tailscale0`。启停时仅额外清理 RootTools 早期版本遗留的 table `1099` / fwmark 规则。
+默认 DNS 保持 `--accept-dns=false`，避免 MagicDNS 与 Android VPN DNS 冲突。普通 Internet 路由仍由
+Android / Surfboard / Hiddify 等系统 VPN 管理。
 
 ## 8. 官方 Tailscale App 迁移安全
 
 如果 `com.tailscale.ipn` 当前拥有 Android VPN：
 
-1. RootTools 可以先在后台启动 root overlay；
-2. 必须验证 `tailscale0` + 合法 tailnet IPv4；
-3. **只有验证成功后**，才允许通过 `PrivilegeRouter.forceStop("com.tailscale.ipn")` 停止官方 App；
-4. 停止后再次确认 root overlay 仍存在；
-5. RootTools 不自动启动 Hiddify，避免依赖第三方私有实现。
+1. RootTools 先在后台启动并验证 userspace Serve 或 root TUN；
+2. **启用、修复、模式切换、开机恢复都不停止官方 App**；
+3. 只有当前管理模式已强验证时，UI 才开放单独的“停止官方 Tailscale App”操作；
+4. 该操作再次显示确认对话框，并提示先从外部 peer 验证管理链路；
+5. 停止后再次确认当前管理模式仍 ready；
+6. RootTools 不自动启停 Surfboard / Hiddify，避免依赖第三方私有实现。
 
 这保证“停止官方 App”是一个后置动作，而不是拿当前远程管理链路做赌博。
 
@@ -169,9 +180,9 @@ MagicDNS 与 Hiddify DNS 冲突。普通 Internet 默认路由仍由 Android / H
 脚本：
 
 - 等待 `sys.boot_completed=1`；
-- 最多 30 秒等待 socket / `tailscale0`；
-- 有合法 tailnet IPv4 才认为成功；
-- 成功后才停止官方 Tailscale App；
+- 有界等待 socket / backend / 模式就绪；
+- 恢复用户显式选择且已验证的 userspace Serve 或 root TUN；
+- 绝不停止官方 Tailscale、Surfboard、Hiddify 或其它 VPN App；
 - 不做无限重试 / 高频轮询；
 - 日志有界地写入 runtime 目录，后续可继续增加轮转。
 
@@ -182,12 +193,13 @@ MagicDNS 与 Hiddify DNS 冲突。普通 Internet 默认路由仍由 Android / H
 页面结构：
 
 1. Overview：runtime/version、daemon mode、IP、Android VPN owner；
-2. Root Overlay：启用 / 停用 / 修复；
-3. Authentication：需要登录时展示“打开 Tailscale 认证”；
-4. Runtime：安装 / 更新固定已验证版本；
-5. Coexistence：明确显示 Hiddify / 其它 VPN 是否可以继续占用 Android VPN；
-6. Boot：显式开关 + 风险说明；
-7. Diagnostics：ADB 5555、route、socket、最近动作结果。
+2. Management relay：优先启用 userspace Serve；
+3. Root Overlay：以高风险确认切换 root TUN，可停用 / 修复；
+4. Authentication：需要登录时展示“打开 Tailscale 认证”；
+5. Runtime：安装 / 更新固定已验证版本；
+6. Coexistence：明确显示 Android VPN owner，官方 App 停止保持独立确认；
+7. Boot：只允许对当前 ready 模式显式开启；
+8. Diagnostics：backend、ADB 5555、Serve 5555/8765、route、socket、VPN active 与最近动作。
 
 ## 11. 测试矩阵
 
@@ -195,13 +207,15 @@ JVM：
 
 - tailnet IPv4 `100.64.0.0/10` 边界；
 - hostname canonicalization；
-- probe parser：missing runtime / needs login / userspace / kernel TUN / malformed input；
-- action policy：runtime missing、needs login、ready、official VPN owner、boot persistence；
+- probe parser：missing runtime / needs login / offline cached IP / userspace Serve / kernel TUN / malformed input；
+- action policy：runtime missing、needs login、backend offline、mode-specific ready、official VPN owner、boot persistence；
+- shell contract：Serve 只映射固定本地端口，新流程不写 table `1099` / 全覆盖 fwmark，不自动 force-stop；
 - runtime package metadata/hash contract。
 
 真机：
 
-- Hiddify ON + Root Tailscale ON；
+- Surfboard / Hiddify ON + userspace Serve ON；
+- Surfboard / Hiddify ON + root TUN ON；
 - 官方 Tailscale App OFF；
 - `tailscale0` 存在且 100.x 地址稳定；
 - Mac `tailscale ping`；
@@ -217,11 +231,10 @@ JVM：
 
 1. 用户不再需要 Termux 手敲 Tailscale daemon 命令；
 2. Hiddify 可以保持 Android VPN；
-3. Root Tailscale 独立显示 IP / mode / route / auth 状态；
+3. Root Tailscale 独立显示 IP / mode / backend / Serve / route / auth 状态；
 4. Enable / Disable / Repair 都可从 App 完成；
 5. 安装包严格 hash 校验；
-6. 官方 Tailscale App 的停止动作只发生在 root overlay verified 之后；
+6. 任何启用 / 修复 / 启动恢复都不自动停止 VPN App，官方 Tailscale App 只能在 ready 后被单独确认停止；
 7. 开机恢复可显式关闭并完全删除 RootTools 自有脚本；
 8. Root TCP ADB 能通过 root tailnet IP 真实远程连接；
 9. reboot 验收通过后再把该路径作为远程 reboot 的可信前置条件。
-

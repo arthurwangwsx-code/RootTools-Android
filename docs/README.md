@@ -43,6 +43,7 @@
 | [companion/background-server/architecture.md](./companion/background-server/architecture.md) | Background Server companion：长运行任务、功耗、Boot 与 WireGuard server 边界 |
 | [network-inspection/README.md](./network-inspection/README.md) | Network Inspection：Root 抓包、协议/Flow、TLS 明文、CA 与审计边界 |
 | [validation/2026-08-29-consolidation.md](./validation/2026-08-29-consolidation.md) | 工程收口：Git 历史、统一构建、APK 产物与真机签名边界证据 |
+| [validation/2026-08-30-root-tailscale-coexistence.md](./validation/2026-08-30-root-tailscale-coexistence.md) | Redmi 上 Root Tailscale userspace Serve / root TUN 与 Android VPN 共存、回滚和发布门证据 |
 
 ## 工程原则
 

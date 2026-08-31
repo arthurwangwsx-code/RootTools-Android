@@ -35,11 +35,11 @@
 
 ### Root Tailscale
 
-- Root `tailscaled` 运行在独立 `tailscale0`，不占 Android 唯一的 `VpnService` 槽位
-- 支持与 Hiddify 等 Android VPN 共存，普通互联网继续走 Hiddify，`100.64.0.0/10` 走 tailnet
-- App 内完成已验证 runtime 安装、浏览器认证、启停、路由修复和可撤销开机恢复
+- 优先 userspace Serve 管理模式：只把 tailnet TCP `5555` / `8765` 转发到本机，不占 Android 唯一的 `VpnService` 槽位
+- 可显式切换 Root `tailscale0`；使用 Tailscale 原生路由，普通互联网继续由 Surfboard / Hiddify 等 Android VPN 管理
+- App 内完成已验证 runtime 安装、浏览器认证、两种模式启停、强健康回读和可撤销开机恢复
 - Runtime 固定版本并校验 SHA-256；RootTools 不接受 UI 传入任意 shell
-- Root overlay 未验证成功前不会主动停止官方 Tailscale Android App
+- 启用、修复、开机恢复都不会停止任何 VPN App；停止官方 Tailscale 仅作为 ready 后的单独确认操作
 
 ### 启动与应用控制
 
